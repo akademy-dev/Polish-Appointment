@@ -1,9 +1,14 @@
-import React from 'react'
+import HumanList from "@/components/HumanList";
+import React from "react";
 
-const page = () => {
-    return (
-        <div>Employees</div>
-    )
-}
+const Page = () => {
+  return (
+    <>
+      <h2 className="heading">Employee List</h2>
 
-export default page
+      <HumanList />
+    </>
+  );
+};
+
+export default Page;
