@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Clock } from "lucide-react";
+import { ChevronDown, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -26,6 +26,7 @@ const TimePicker = React.forwardRef<HTMLButtonElement, TimePickerProps>(
     const [currentMinute, setCurrentMinute] = useState<number>(
       date ? date.getMinutes() : 0
     );
+    const [isOpen, setIsOpen] = useState(false);
 
     const hourRef = useRef<HTMLDivElement>(null);
     const minuteRef = useRef<HTMLDivElement>(null);
@@ -50,8 +51,6 @@ const TimePicker = React.forwardRef<HTMLButtonElement, TimePickerProps>(
           `[data-${dataAttribute}="${value}"]`
         ) as HTMLElement;
         if (selectedButton) {
-          // Check if popover is open before scrolling, or scroll on value change
-          // For simplicity, scroll on value change, assuming popover is open or will open with this value.
           selectedButton.scrollIntoView({
             block: "center",
             behavior: "smooth",
@@ -60,13 +59,16 @@ const TimePicker = React.forwardRef<HTMLButtonElement, TimePickerProps>(
       }
     };
 
-    React.useEffect(() => {
-      scrollToSelected(hourRef, currentHour, "hour");
-    }, [currentHour]);
-
-    React.useEffect(() => {
-      scrollToSelected(minuteRef, currentMinute, "minute");
-    }, [currentMinute]);
+    // Scroll when popover opens
+    useEffect(() => {
+      if (isOpen) {
+        const timer = setTimeout(() => {
+          scrollToSelected(hourRef, currentHour, "hour");
+          scrollToSelected(minuteRef, currentMinute, "minute");
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }, [isOpen, currentHour, currentMinute]);
 
     const handleHourChange = (newHour: number) => {
       setCurrentHour(newHour);
@@ -95,28 +97,29 @@ const TimePicker = React.forwardRef<HTMLButtonElement, TimePickerProps>(
     };
 
     return (
-      <Popover>
+      <Popover onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button
             id={id}
             variant="outline"
             className={cn(
-              "w-[120px] justify-start text-left font-normal",
+              "w-[120px] font-normal flex-between",
               !date && "text-muted-foreground",
               className
             )}
             ref={ref}
             {...props}
           >
-            <Clock className="mr-2 h-4 w-4" />
+            <Clock />
             {date ? formatTime(date) : <span>Pick a time</span>}
+            <ChevronDown />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0">
           <div className="flex p-2 max-h-60">
             <div
               ref={hourRef}
-              className="flex flex-col overflow-y-auto scrollbar-thin pr-1 mr-1 border-r"
+              className="flex flex-col overflow-y-auto pr-1 mr-1 border-r [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30"
             >
               {hoursArray.map((h) => (
                 <Button
@@ -132,7 +135,7 @@ const TimePicker = React.forwardRef<HTMLButtonElement, TimePickerProps>(
             </div>
             <div
               ref={minuteRef}
-              className="flex flex-col overflow-y-auto scrollbar-thin pl-1 ml-1"
+              className="flex flex-col overflow-y-auto pl-1 ml-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/30"
             >
               {minutesArray.map((m) => (
                 <Button
