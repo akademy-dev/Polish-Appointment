@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import HumanCard from "./HumanCard";
 import {
   Pagination,
   PaginationContent,
@@ -10,119 +9,17 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Employee } from "@/app/(root)/employees/page";
+import { Customer } from "@/app/(root)/customers/page";
+import ProfileCard from "./ProfileCard";
 
-export interface Human {
-  id: number;
-  name: string;
-  position: string;
-  // timeSchedule: TimeSchedule[];
-}
-
-const HumanList = () => {
-  const humans: Human[] = [
-    {
-      id: 1,
-      name: "Alice Johnson",
-      position: "Manager",
-    },
-    {
-      id: 2,
-      name: "Bob Smith",
-      position: "Developer",
-    },
-    {
-      id: 3,
-      name: "Charlie Brown",
-      position: "Designer",
-    },
-    {
-      id: 4,
-      name: "David Wilson",
-      position: "Developer",
-    },
-    {
-      id: 5,
-      name: "Eve Davis",
-      position: "Developer",
-    },
-    {
-      id: 6,
-      name: "Frank Miller",
-      position: "QA Engineer",
-    },
-    {
-      id: 7,
-      name: "Grace Lee",
-      position: "Product Manager",
-    },
-    {
-      id: 8,
-      name: "Henry Taylor",
-      position: "DevOps Engineer",
-    },
-    {
-      id: 9,
-      name: "Ivy Chen",
-      position: "UI/UX Designer",
-    },
-    {
-      id: 10,
-      name: "Jack Anderson",
-      position: "Backend Developer",
-    },
-    {
-      id: 11,
-      name: "Kate Thompson",
-      position: "Frontend Developer",
-    },
-    {
-      id: 12,
-      name: "Liam Garcia",
-      position: "Data Analyst",
-    },
-    {
-      id: 13,
-      name: "Maya Rodriguez",
-      position: "Marketing Specialist",
-    },
-    {
-      id: 14,
-      name: "Noah Martinez",
-      position: "Sales Representative",
-    },
-    {
-      id: 15,
-      name: "Olivia White",
-      position: "HR Manager",
-    },
-    {
-      id: 16,
-      name: "Paul Jackson",
-      position: "Finance Manager",
-    },
-    {
-      id: 17,
-      name: "Quinn Lewis",
-      position: "Operations Manager",
-    },
-    {
-      id: 18,
-      name: "Rachel Clark",
-      position: "Customer Support",
-    },
-    {
-      id: 19,
-      name: "Samantha Adams",
-      position: "Software Engineer",
-    },
-  ];
-
+const ProfileList = ({ data }: { data: Employee[] | Customer[] }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
-  const totalPages = Math.ceil(humans.length / itemsPerPage);
+  const totalPages = Math.ceil(data.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentItems = humans.slice(startIndex, endIndex);
+  const currentItems = data.slice(startIndex, endIndex);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -190,10 +87,8 @@ const HumanList = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pr-4">
         <p className="text-sm text-muted-foreground">
           Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
-          <span className="font-medium">
-            {Math.min(endIndex, humans.length)}
-          </span>{" "}
-          of <span className="font-medium">{humans.length}</span> people
+          <span className="font-medium">{Math.min(endIndex, data.length)}</span>{" "}
+          of <span className="font-medium">{data.length}</span> people
         </p>
 
         <div className="text-sm text-muted-foreground">
@@ -204,8 +99,8 @@ const HumanList = () => {
 
       {/* Human List */}
       <ul className="list-container">
-        {currentItems.map((human: Human) => (
-          <HumanCard human={human} key={human.id} />
+        {currentItems.map((profile: Employee) => (
+          <ProfileCard profile={profile} key={profile.id} />
         ))}
       </ul>
 
@@ -276,4 +171,4 @@ const HumanList = () => {
   );
 };
 
-export default HumanList;
+export default ProfileList;

@@ -2,7 +2,6 @@
 import React from "react";
 import { Button } from "./ui/button";
 import { History, Pencil } from "lucide-react";
-import { Human } from "./HumanList";
 import {
   Sheet,
   SheetClose,
@@ -16,23 +15,25 @@ import {
 
 import { Separator } from "@/components/ui/separator";
 import DataTable, { columns, historyData } from "./DataTable";
+import { Customer } from "@/app/(root)/customers/page";
+import { Employee } from "@/app/(root)/employees/page";
 
 enum CardButtonType {
   History = "History",
   Edit = "Edit",
 }
 
-const HumanCard = ({ human }: { human: Human }) => {
+const ProfileCard = ({ profile }: { profile: Employee | Customer }) => {
   return (
     <li className="flex-between line_card">
       <div className="flex flex-col">
-        <p className="text-lg font-bold">{human.name}</p>
-        <p className="text-sm font-semibold">{human.position}</p>
+        <p className="text-lg font-bold">{profile.name}</p>
+        <p className="text-sm font-semibold">{profile.role}</p>
       </div>
-      <div className="flex-between h-5  space-x-1">
-        <CardButton human={human} type={CardButtonType.Edit} />
+      <div className="flex-between h-5 space-x-1">
+        <CardButton human={profile} type={CardButtonType.Edit} />
         <Separator orientation="vertical" className="border-black-1-25" />
-        <CardButton human={human} type={CardButtonType.History} />
+        <CardButton human={profile} type={CardButtonType.History} />
       </div>
     </li>
   );
@@ -78,4 +79,4 @@ const CardButton = ({
   );
 };
 
-export default HumanCard;
+export default ProfileCard;
