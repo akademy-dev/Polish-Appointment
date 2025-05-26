@@ -1,12 +1,11 @@
-import React from 'react'
-import Link from 'next/link'
-import { Tabs } from './ui/tabs'
-import { TabsList, TabsTrigger } from './ui/tabs'
+import React from "react";
+import Link from "next/link";
+import { Tabs } from "./ui/tabs";
+import { TabsList, TabsTrigger } from "./ui/tabs";
 
-const Navbar = ({ value = 'schedule' }) => {
-
+const Navbar = ({ value = "schedule" }) => {
   return (
-    <div className="flex items-center w-full gap-4 mb-5">
+    <div className="flex items-center gap-4">
       <span className="font-bold text-lg">Polish Appointment</span>
       <Tabs defaultValue={value} className="flex-1">
         <TabsList>
@@ -28,7 +27,7 @@ const Navbar = ({ value = 'schedule' }) => {
         </TabsList>
       </Tabs>
     </div>
-  )
-}
+  );
+};
 
-export default Navbar
+export default Navbar;
