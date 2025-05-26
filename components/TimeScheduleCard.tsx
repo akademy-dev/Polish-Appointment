@@ -32,7 +32,7 @@ const TimeScheduleCard = ({
             onRemove();
           }}
         >
-          <X className="size-5" />
+          <X />
         </Button>
       </div>
     </li>
