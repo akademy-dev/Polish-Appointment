@@ -21,11 +21,11 @@ export default function Layout({
           <AppSidebar />
           <SidebarTrigger />
           <main className="font-lexend p-4 w-full h-screen overflow-hidden">
-            <Navbar value={value} />
-            <div className="layout-container mt-5 scrollbar-thin ...">
-              {children}
-            </div>
-          </main>
+               <Navbar value={value} />
+               <div className="w-full h-[calc(100vh-6rem)]">
+                  {children}
+               </div>
+            </main>
         </SidebarProvider>
       ) : (
         <main className="font-lexend p-4">
