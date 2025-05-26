@@ -20,7 +20,7 @@ export default function Layout({
                <SidebarTrigger />
                <main className="font-lexend p-4 w-full h-screen overflow-hidden">
                <Navbar value={value} />
-               <div className="w-full h-[calc(100vh-6rem)] overflow-auto scrollbar-thin ...">
+               <div className="w-full h-[calc(100vh-6rem)]">
                   {children}
                </div>
                </main>

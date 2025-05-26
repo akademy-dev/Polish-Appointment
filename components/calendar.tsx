@@ -1,11 +1,13 @@
 "use client";
 
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Calendar, momentLocalizer, Views } from "react-big-calendar";
+import { Calendar, momentLocalizer, ResourceHeaderProps, Views } from "react-big-calendar";
 import moment from "moment";
 import { useState, useCallback, useMemo } from "react";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
+import { Button } from "./ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react"; 
 
 const localizer = momentLocalizer(moment);
 const DragAndDropCalendar = withDragAndDrop(Calendar);
@@ -54,7 +56,7 @@ const initialEvents: CalendarEvent[] = Array.from({ length: 1 }, (_, k) => k).fl
 const CalendarComponent = () => {
   const { defaultDate, views } = useMemo(
     () => ({
-      defaultDate: new Date(2018, 0, 29),
+      defaultDate: new Date(),
       views: [Views.DAY],
     }),
     []
@@ -161,18 +163,47 @@ const CalendarComponent = () => {
     []
   );
 
-  const TimeGutterHeader = () => (
-  <span style={{ fontWeight: "bold" }}>Giờ</span>
-);
+
+  const CustomToolbar = (toolbar: any) => {
+  const goToBack = () => toolbar.onNavigate('PREV');
+  const goToNext = () => toolbar.onNavigate('NEXT');
+  const goToToday = () => toolbar.onNavigate('TODAY');
 
   return (
-    <div className="h-full w-full">
+    <div className="flex items-center mb-2 gap-2">
+      <div className="flex items-center gap-2">
+       <Button
+        onClick={goToToday}
+        className="bg-[var(--color-accent-blue)] text-white transition hover:bg-[color:rgba(51,143,255,0.85)]"
+      >
+        Today
+      </Button>
+        <Button variant="ghost" size="icon" onClick={goToBack} aria-label="Back">
+          <ChevronLeft className="w-5 h-5" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={goToNext} aria-label="Next">
+          <ChevronRight className="w-5 h-5" />
+        </Button>
+      </div>
+      <span className="font-semibold text-lg">
+        {toolbar.label}{" "}
+        <span className="font-semibold text-lg">
+          {toolbar.date.getFullYear()}
+        </span>
+      </span>
+  </div>
+  );
+};
+
+  return (
+    <div className="h-full w-full ">
       <DragAndDropCalendar
         selectable
         defaultDate={defaultDate}
         defaultView={Views.DAY}
         events={myEvents}
         localizer={localizer}
+        dayLayoutAlgorithm={"no-overlap"}
         resources={resources}
         resourceIdAccessor={(resource) => (resource as Resource).resourceId}
         resourceTitleAccessor={(resource) => (resource as Resource).resourceTitle}
@@ -183,6 +214,9 @@ const CalendarComponent = () => {
         step={15}           
         timeslots={1}         
         views={views}
+        components={{
+        toolbar: CustomToolbar,
+      }}
       />
     </div>
   );

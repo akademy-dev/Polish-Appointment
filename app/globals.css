@@ -138,7 +138,35 @@
     color: var(--color-accent-blue) !important;
   }
 
+  .rbc-allday-cell, .rbc-row.rbc-allday-row {
+  display: none !important;
+  }
+
+  .rbc-today {
+  background-color: transparent !important;
+  }
+
+.rbc-header,
+.rbc-time-gutter,
+.rbc-timeslot-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.rbc-header {
+  height: 48px !important;
+  min-height: 48px !important;
+}
 
 
-
+.rbc-header > *,
+.rbc-time-gutter > *,
+.rbc-timeslot-group > * {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 }
