@@ -3,8 +3,8 @@ import Navbar from "@/components/Navbar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import SearchForm from "@/components/SearchForm";
+import CreateInfoButton from "@/components/CreateInfoButton";
 
 export default function Layout({
   children,
@@ -36,9 +36,7 @@ export default function Layout({
                 <div className="w-80">
                   <SearchForm />
                 </div>
-                <Button size="default" className="whitespace-nowrap">
-                  {value === "employees" ? "New Employee" : "New Customer"}
-                </Button>
+                <CreateInfoButton type={value} />
               </div>
             </div>
 
@@ -46,9 +44,7 @@ export default function Layout({
               <div className="flex-1 sm:max-w-md">
                 <SearchForm />
               </div>
-              <Button size="default" className="sm:whitespace-nowrap">
-                {value === "employees" ? "New Employee" : "New Customer"}
-              </Button>
+              <CreateInfoButton type={value} />
             </div>
           </header>
 
