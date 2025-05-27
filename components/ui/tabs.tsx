@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as TabsPrimitive from "@radix-ui/react-tabs"
+import * as React from "react";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function Tabs({
   className,
@@ -15,7 +15,7 @@ function Tabs({
       className={cn("flex flex-col gap-2", className)}
       {...props}
     />
-  )
+  );
 }
 
 function TabsList({
@@ -26,12 +26,12 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
-        className
+        "bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px] data-[orientation=vertical]:flex data-[orientation=vertical]:h-fit data-[orientation=vertical]:flex-col data-[orientation=vertical]:justify-start data-[orientation=vertical]:gap-2",
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function TabsTrigger({
@@ -44,11 +44,13 @@ function TabsTrigger({
       className={cn(
         "data-[state=active]:bg-[var(--selected)] data-[state=active]:text-[var(--selected-foreground)]",
         "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring border border-transparent text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:shadow-sm [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className
+        // Add full width for vertical orientation when active
+        "data-[orientation=vertical]:w-full data-[orientation=vertical]:justify-start data-[orientation=vertical]:flex data-[state=active][data-orientation=vertical]:bg-[var(--selected)]",
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function TabsContent({
@@ -58,10 +60,13 @@ function TabsContent({
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("flex-1 outline-none", className)}
+      className={cn(
+        "flex-1 outline-none data-[orientation=vertical]:mt-0",
+        className,
+      )}
       {...props}
     />
-  )
+  );
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent }
+export { Tabs, TabsList, TabsTrigger, TabsContent };
