@@ -24,3 +24,13 @@ export function formatDuration(duration: number) {
   }
   return `${duration / 60} hours`;
 }
+
+export function getTimeFromDate(date: Date) {
+  let hours = date.getHours().toString();
+  let minutes = date.getMinutes().toString();
+
+  hours = hours.length < 2 ? "0" + hours : hours;
+  minutes = minutes.length < 2 ? "0" + minutes : minutes;
+
+  return hours + ":" + minutes;
+}

@@ -2,8 +2,10 @@
 import { useState } from "react";
 import {
   ColumnDef,
+  ColumnFiltersState,
   flexRender,
   getCoreRowModel,
+  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   SortingState,
@@ -20,6 +22,35 @@ import {
 import { formatDate, formatDuration } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { ArrowUpDown } from "lucide-react";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+
+export const historyData: HistoryData[] = [
+  {
+    service: "Service 1",
+    customer: "Customer 1",
+    date: new Date().toISOString(),
+    duration: 60,
+  },
+  {
+    service: "Service 2",
+    customer: "Customer 2",
+    date: new Date().toISOString(),
+    duration: 120,
+  },
+  {
+    service: "Service 3",
+    customer: "Customer 3",
+    date: new Date().toISOString(),
+    duration: 15,
+  },
+  {
+    service: "Service 4",
+    customer: "Customer 4",
+    date: new Date().toISOString(),
+    duration: 20,
+  },
+];
 
 export type HistoryData = {
   service: string;
@@ -27,7 +58,6 @@ export type HistoryData = {
   date: string;
   duration: number;
 };
-
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -87,6 +117,7 @@ const DataTable = <TData, TValue>({
   titleEmpty,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const table = useReactTable({
     data,
@@ -95,12 +126,31 @@ const DataTable = <TData, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
+    onColumnFiltersChange: setColumnFilters,
+    getFilteredRowModel: getFilteredRowModel(),
     state: {
       sorting,
+      columnFilters,
     },
   });
   return (
     <>
+      <div className="flex-between py-4 gap-4">
+        <Label htmlFor="history-search" className="text-right text-lg">
+          History
+        </Label>
+        <Input
+          id="history-search"
+          placeholder="Search"
+          value={
+            (table.getColumn("customer")?.getFilterValue() as string) ?? ""
+          }
+          onChange={(event) =>
+            table.getColumn("customer")?.setFilterValue(event.target.value)
+          }
+          className="max-w-sm"
+        />
+      </div>
       <div className="rounded-md border">
         <div
           className="relative overflow-auto [&::-webkit-scrollbar]:hidden scrollbar-hide"
