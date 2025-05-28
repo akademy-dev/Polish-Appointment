@@ -21,9 +21,10 @@ import {
 } from "@/components/ui/table";
 import { formatDate, formatDuration } from "@/lib/utils";
 import { Button } from "./ui/button";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Search } from "lucide-react";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import * as React from "react";
 
 export const historyData: HistoryData[] = [
   {
@@ -58,11 +59,14 @@ export type HistoryData = {
   date: string;
   duration: number;
 };
+
 interface DataTableProps<TData, TValue> {
+  title?: string; // Optional title prop
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   height?: string; // Optional height prop
   titleEmpty?: string; // Optional title for empty state
+  searchColumn?: string; // Optional search column
 }
 
 export const columns: ColumnDef<HistoryData>[] = [
@@ -111,10 +115,12 @@ export const columns: ColumnDef<HistoryData>[] = [
 ];
 
 const DataTable = <TData, TValue>({
+  title = "History",
   columns,
   data,
   height,
   titleEmpty,
+  searchColumn = "customer",
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -137,19 +143,24 @@ const DataTable = <TData, TValue>({
     <>
       <div className="flex-between py-4 gap-4">
         <Label htmlFor="history-search" className="text-right text-lg">
-          History
+          {title}
         </Label>
-        <Input
-          id="history-search"
-          placeholder="Search"
-          value={
-            (table.getColumn("customer")?.getFilterValue() as string) ?? ""
-          }
-          onChange={(event) =>
-            table.getColumn("customer")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
+        <div className="relative max-w-sm">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <Search className="w-4 h-4 text-black" />
+          </span>
+          <Input
+            id="history-search"
+            placeholder="Search"
+            value={
+              (table.getColumn(searchColumn)?.getFilterValue() as string) ?? ""
+            }
+            onChange={(event) =>
+              table.getColumn(searchColumn)?.setFilterValue(event.target.value)
+            }
+            className="max-w-sm pl-10 "
+          />
+        </div>
       </div>
       <div className="rounded-md border">
         <div
