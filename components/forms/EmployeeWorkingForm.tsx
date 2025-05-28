@@ -1,11 +1,12 @@
 import React from "react";
 import { Checkbox } from "../ui/checkbox";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format } from "date-fns";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   FormControl,
@@ -17,12 +18,57 @@ import {
 import { employeeFormSchema } from "@/lib/validation";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
-import { Button } from "../ui/button";
-import { CalendarIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { TimePicker } from "../ui/time-picker";
 
-const dateLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export const timeRange = [
+  "08:00 AM",
+  "08:15 AM",
+  "08:30 AM",
+  "08:45 AM",
+  "09:00 AM",
+  "09:15 AM",
+  "09:30 AM",
+  "09:45 AM",
+  "10:00 AM",
+  "10:15 AM",
+  "10:30 AM",
+  "10:45 AM",
+  "11:00 AM",
+  "11:15 AM",
+  "11:30 AM",
+  "11:45 AM",
+  "12:00 PM",
+  "12:15 PM",
+  "12:30 PM",
+  "12:45 PM",
+  "01:00 PM",
+  "01:15 PM",
+  "01:30 PM",
+  "01:45 PM",
+  "02:00 PM",
+  "02:15 PM",
+  "02:30 PM",
+  "02:45 PM",
+  "03:00 PM",
+  "03:15 PM",
+  "03:30 PM",
+  "03:45 PM",
+  "04:00 PM",
+  "04:15 PM",
+  "04:30 PM",
+  "04:45 PM",
+  "05:00 PM",
+  "05:15 PM",
+  "05:30 PM",
+  "05:45 PM",
+  "06:00 PM",
+];
+
+export const daysOfMonth = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+  23, 24, 25, 26, 27, 28, 29, 30, 31,
+];
 
 const EmployeeWorkingForm = ({
   form,
@@ -33,7 +79,7 @@ const EmployeeWorkingForm = ({
 
   return (
     <>
-      <div className="grid-center grid-rows-10 gap-1">
+      <div className="grid-center grid-rows-10 gap-1 py-2">
         <div className="row-span-1">
           <p className="text-xl-semibold">Working time</p>
         </div>
@@ -44,7 +90,7 @@ const EmployeeWorkingForm = ({
             name="workingTimes"
             render={() => (
               <FormItem className="grid grid-rows-7 gap-1 h-full">
-                {dateLabels.map((item) => (
+                {dayLabels.map((item) => (
                   <FormField
                     key={item}
                     control={form.control}
@@ -67,8 +113,8 @@ const EmployeeWorkingForm = ({
                                         ...field.value,
                                         {
                                           day: item,
-                                          from: new Date().toISOString(),
-                                          to: new Date().toISOString(),
+                                          from: "08:00 AM",
+                                          to: "05:45 PM",
                                         },
                                       ])
                                     : field.onChange(
@@ -87,129 +133,68 @@ const EmployeeWorkingForm = ({
                               (value) => value.day === item
                             ) ? (
                               <>
-                                <Popover>
+                                <Select
+                                  onValueChange={(from) => {
+                                    field.onChange(
+                                      field.value?.map((value) =>
+                                        value.day === item
+                                          ? { ...value, from }
+                                          : value
+                                      )
+                                    );
+                                  }}
+                                  defaultValue={
+                                    field.value?.find(
+                                      (value) => value.day === item
+                                    )?.from
+                                  }
+                                >
                                   <FormControl>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        className={cn(
-                                          "w-[280px] justify-start text-left font-normal",
-                                          !field.value &&
-                                            "text-muted-foreground"
-                                        )}
-                                      >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {field.value?.find(
-                                          (value) => value.day === item
-                                        )?.from ? (
-                                          format(
-                                            field.value?.find(
-                                              (value) => value.day === item
-                                            )?.from as unknown as Date,
-                                            "PPP HH:mm:ss"
-                                          )
-                                        ) : (
-                                          <span>Pick a date</span>
-                                        )}
-                                      </Button>
-                                    </PopoverTrigger>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="" />
+                                    </SelectTrigger>
                                   </FormControl>
-                                  <PopoverContent className="w-auto p-0">
-                                    <div className="p-3">
-                                      <TimePicker
-                                        setDate={(date) => {
-                                          const currentValue =
-                                            field.value || [];
-                                          const updatedValue = currentValue.map(
-                                            (value) => {
-                                              if (value.day === item) {
-                                                return {
-                                                  ...value,
-                                                  from: date?.toISOString(),
-                                                };
-                                              }
-                                              return value;
-                                            }
-                                          );
-                                          field.onChange(updatedValue);
-                                        }}
-                                        date={
-                                          field.value?.find(
-                                            (value) => value.day === item
-                                          )?.from
-                                            ? new Date(
-                                                field.value.find(
-                                                  (value) => value.day === item
-                                                )?.from as string
-                                              )
-                                            : undefined
-                                        }
-                                      />
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
+                                  <SelectContent>
+                                    {timeRange.map((time) => (
+                                      <SelectItem key={time} value={time}>
+                                        {time}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <FormLabel>To</FormLabel>
-                                <Popover>
-                                  <FormControl>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        className={cn(
-                                          "w-[280px] justify-start text-left font-normal",
-                                          !field.value &&
-                                            "text-muted-foreground"
-                                        )}
-                                      >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {field.value?.find(
-                                          (value) => value.day === item
-                                        )?.to ? (
-                                          format(
-                                            field.value?.find(
-                                              (value) => value.day === item
-                                            )?.to as unknown as Date,
-                                            "PPP HH:mm:ss"
-                                          )
-                                        ) : (
-                                          <span>Pick a date</span>
-                                        )}
-                                      </Button>
-                                    </PopoverTrigger>
-                                  </FormControl>
-                                  <PopoverContent className="w-auto p-0">
-                                    <div className="p-3 border-t border-border">
-                                      <TimePicker
-                                        setDate={(date) => {
-                                          const currentValue =
-                                            field.value || [];
-                                          const updatedValue = currentValue.map(
-                                            (value) => {
-                                              if (value.day === item) {
-                                                return {
-                                                  ...value,
-                                                  to: date?.toISOString(),
-                                                };
-                                              }
-                                              return value;
-                                            }
-                                          );
-                                          field.onChange(updatedValue);
-                                        }}
-                                        date={
-                                          field.value?.find(
-                                            (value) => value.day === item
-                                          )?.to
-                                            ? new Date(
-                                                field.value.find(
-                                                  (value) => value.day === item
-                                                )?.to as string
-                                              )
-                                            : undefined
+                                <Select
+                                  onValueChange={(to) => {
+                                    field.onChange(
+                                      field.value?.map((value) => {
+                                        if (value.day === item) {
+                                          console.log(value);
+
+                                          return { ...value, to };
                                         }
-                                      />
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
+                                        return value;
+                                      })
+                                    );
+                                  }}
+                                  defaultValue={
+                                    field.value?.find(
+                                      (value) => value.day === item
+                                    )?.to
+                                  }
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {timeRange.map((time) => (
+                                      <SelectItem key={time} value={time}>
+                                        {time}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </>
                             ) : (
                               <FormLabel>OFF</FormLabel>
@@ -224,31 +209,6 @@ const EmployeeWorkingForm = ({
               </FormItem>
             )}
           />
-          {/* <FormField
-              control={form.control}
-              name="workingTime.from"
-              render={({ field }) => (
-                <FormItem className="col-span-1">
-                  <FormControl>
-                 
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            /> */}
-
-          {/* <FormField
-              control={form.control}
-              name="workingTime.to"
-              render={({ field }) => (
-                <FormItem className="col-span-1">
-                  <FormControl>
-                 
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            /> */}
         </div>
       </div>
     </>

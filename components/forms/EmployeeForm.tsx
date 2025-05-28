@@ -21,12 +21,7 @@ const EmployeeForm = ({ className }: { className?: string }) => {
       phone: "",
       position: "Employee",
       workingTimes: [],
-      timeOffSchedule: {
-        date: Date.now().toString(),
-        fromTime: "09:00",
-        toTime: "17:00",
-        reason: "",
-      },
+      timeOffSchedule: [],
     },
   });
 
@@ -53,7 +48,7 @@ const EmployeeForm = ({ className }: { className?: string }) => {
             <EmployeeWorkingForm form={form} />
           </TabsContent>
           <TabsContent value="timeoff">
-            <EmployeeTimeOffForm />
+            <EmployeeTimeOffForm form={form} />
           </TabsContent>
           <div className="flex justify-end">
             <Button type="submit">Save</Button>
