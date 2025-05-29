@@ -15,20 +15,19 @@ import {
 
 import { Separator } from "@/components/ui/separator";
 import DataTable, { columns, historyData } from "./DataTable";
-import { Customer } from "@/app/(root)/customers/page";
-import { Employee } from "@/app/(root)/employees/page";
+import { Profile, getProfileName, getProfileRole } from "@/types/profile";
 
 enum CardButtonType {
   History = "History",
   Edit = "Edit",
 }
 
-const ProfileCard = ({ profile }: { profile: Employee | Customer }) => {
+const ProfileCard = ({ profile }: { profile: Profile }) => {
   return (
     <li className="flex-between line_card">
       <div className="flex flex-col">
-        <p className="text-lg font-bold">{profile.name}</p>
-        <p className="text-sm font-semibold">{profile.role}</p>
+        <p className="text-lg font-bold">{getProfileName(profile)}</p>
+        <p className="text-sm font-semibold">{getProfileRole(profile)}</p>
       </div>
       <div className="flex-between h-5 space-x-1">
         <CardButton human={profile} type={CardButtonType.Edit} />
@@ -43,7 +42,7 @@ const CardButton = ({
   human,
   type,
 }: {
-  human: Human;
+  human: Profile;
   type: CardButtonType;
 }) => {
   return (
@@ -63,8 +62,8 @@ const CardButton = ({
         closeButton={false}
       >
         <SheetHeader>
-          <SheetTitle>{human.name}</SheetTitle>
-          <SheetDescription>{human.position}</SheetDescription>
+          <SheetTitle>{getProfileName(human)}</SheetTitle>
+          <SheetDescription>{getProfileRole(human)}</SheetDescription>
         </SheetHeader>
         <div className="grid gap-4 p-4">
           <DataTable columns={columns} data={historyData} />
