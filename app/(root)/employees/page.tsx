@@ -1,50 +1,28 @@
 import ProfileList from "@/components/ProfileList";
 import React from "react";
-
-export interface Employee {
-  id: number;
-  name: string;
-  role: string;
-  // timeSchedule: TimeSchedule[];
-}
+import { Employee } from "@/types/profile";
 
 const employees: Employee[] = [
   {
     id: 1,
-    name: "Alice Johnson",
-    role: "Manager",
+    firstName: "John",
+    lastName: "Doe",
+    phone: "1234567890",
+    position: "Manager",
+    workingTimes: [],
+    timeOffSchedule: [],
   },
   {
     id: 2,
-    name: "Bob Smith",
-    role: "Developer",
-  },
-  {
-    id: 3,
-    name: "Charlie Brown",
-    role: "Designer",
-  },
-  {
-    id: 4,
-    name: "David Wilson",
-    role: "Developer",
-  },
-  {
-    id: 5,
-    name: "Eve Davis",
-    role: "Developer",
-  },
-  {
-    id: 6,
-    name: "Frank Miller",
-    role: "QA Engineer",
-  },
-  {
-    id: 7,
-    name: "Grace Lee",
-    role: "Product Manager",
+    firstName: "Jane",
+    lastName: "Smith",
+    phone: "0987654321",
+    position: "Developer",
+    workingTimes: [],
+    timeOffSchedule: [],
   },
 ];
+
 const Page = () => {
   return (
     <>

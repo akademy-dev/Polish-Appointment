@@ -1,17 +1,25 @@
 import ProfileList from "@/components/ProfileList";
 import React from "react";
-
-export interface Customer {
-  id: number;
-  name: string;
-  role: string;
-}
+import { Customer } from "@/types/profile";
 
 const customers: Customer[] = [
   {
     id: 1,
-    name: "John Doe",
-    role: "Customer",
+    firstName: "John",
+    lastName: "Doe",
+    phone: "1234567890",
+  },
+  {
+    id: 2,
+    firstName: "Jane",
+    lastName: "Smith",
+    phone: "0987654321",
+  },
+  {
+    id: 3,
+    firstName: "Jim",
+    lastName: "Beam",
+    phone: "1234567890",
   },
 ];
 
