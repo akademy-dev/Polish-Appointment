@@ -67,6 +67,7 @@ interface DataTableProps<TData, TValue> {
   height?: string; // Optional height prop
   titleEmpty?: string; // Optional title for empty state
   searchColumn?: string; // Optional search column
+  isShowPagination?: boolean; // Optional prop to show pagination
 }
 
 export const columns: ColumnDef<HistoryData>[] = [
@@ -121,6 +122,7 @@ const DataTable = <TData, TValue>({
   height,
   titleEmpty,
   searchColumn = "customer",
+  isShowPagination = true,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -217,24 +219,26 @@ const DataTable = <TData, TValue>({
           </Table>
         </div>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="default"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="default"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
-      </div>
+      {isShowPagination && (
+        <div className="flex items-center justify-end space-x-2 py-4">
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </>
   );
 };
