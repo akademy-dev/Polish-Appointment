@@ -33,14 +33,14 @@ const CreateInfoButton = ({ type }: { type: string }) => {
             {type === "employees" ? "New Employee" : "New Customer"}
           </Button>
         </DrawerTrigger>
-        <DrawerContent>
+        <DrawerContent className="p-4">
           <DrawerHeader className="text-left">
             <DrawerTitle>
               {type === "employees" ? "New Employee" : "New Customer"}
             </DrawerTitle>
           </DrawerHeader>
           {type === "employees" ? <EmployeeForm /> : <CustomerForm />}
-          <DrawerFooter className="pt-2">
+          <DrawerFooter className="pt-4 px-0 pb-0">
             <DrawerClose asChild>
               <Button variant="outline">Cancel</Button>
             </DrawerClose>
