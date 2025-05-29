@@ -46,7 +46,6 @@ const TimeOffScheduleForm = ({
   console.log("selectedTimeOffScheduleIndex", selectedTimeOffScheduleIndex);
 
   const handleTabChange = (tab: string) => {
-    console.log("tab", tab);
     switch (tab) {
       case "Exact":
         form.setValue(`timeOffSchedule.${selectedTimeOffScheduleIndex}`, {
@@ -89,18 +88,36 @@ const TimeOffScheduleForm = ({
     }
   };
 
+  const calculateIndex = () => {
+    const schedule = form.getValues(
+      `timeOffSchedule.${selectedTimeOffScheduleIndex}`
+    );
+    if (!schedule || !schedule.period) return 0;
+    switch (schedule.period) {
+      case "Exact":
+        return 0;
+      case "Daily":
+        return 1;
+      case "Weekly":
+        return 2;
+      case "Monthly":
+        return 3;
+      default:
+        return 0;
+    }
+  };
+
+  const index = calculateIndex();
+
   return (
     <Tabs
-      defaultValue={timeScheduleFormTabs[0]}
+      defaultValue={timeScheduleFormTabs[index]}
       className="w-full bg-secondary pt-2 px-2"
+      onValueChange={handleTabChange}
     >
       <TabsList className="flex-between w-full">
         {timeScheduleFormTabs.map((tab) => (
-          <TabsTrigger
-            key={tab}
-            value={tab}
-            onClick={() => handleTabChange(tab)}
-          >
+          <TabsTrigger key={tab} value={tab}>
             {tab}
           </TabsTrigger>
         ))}

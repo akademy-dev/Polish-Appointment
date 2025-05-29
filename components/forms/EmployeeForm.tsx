@@ -1,7 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { cn } from "@/lib/utils";
-import { useForm } from "react-hook-form";
+import { useForm, UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { employeeFormSchema } from "@/lib/validation";
@@ -12,8 +12,20 @@ import EmployeeWorkingForm from "./EmployeeWorkingForm";
 import EmployeeTimeOffForm from "./EmployeeTimeOffForm";
 import { Button } from "../ui/button";
 
-const EmployeeForm = ({ className }: { className?: string }) => {
-  const form = useForm<z.infer<typeof employeeFormSchema>>({
+const EmployeeForm = ({
+  className,
+  onSuccess,
+  form: externalForm,
+  hideSubmitButton = false,
+  formRef,
+}: {
+  className?: string;
+  onSuccess?: () => void;
+  form?: UseFormReturn<z.infer<typeof employeeFormSchema>>;
+  hideSubmitButton?: boolean;
+  formRef?: React.RefObject<HTMLFormElement | null>;
+}) => {
+  const internalForm = useForm<z.infer<typeof employeeFormSchema>>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
       firstName: "",
@@ -25,8 +37,11 @@ const EmployeeForm = ({ className }: { className?: string }) => {
     },
   });
 
+  const form = externalForm || internalForm;
+
   function onSubmit(values: z.infer<typeof employeeFormSchema>) {
     console.log(values);
+    onSuccess?.();
   }
 
   return (
@@ -38,6 +53,7 @@ const EmployeeForm = ({ className }: { className?: string }) => {
       </TabsList>
       <Form {...form}>
         <form
+          ref={formRef}
           onSubmit={form.handleSubmit(onSubmit)}
           className={cn("", className)}
         >
@@ -50,9 +66,11 @@ const EmployeeForm = ({ className }: { className?: string }) => {
           <TabsContent value="timeoff">
             <EmployeeTimeOffForm form={form} />
           </TabsContent>
-          <div className="flex justify-end">
-            <Button type="submit">Save</Button>
-          </div>
+          {!hideSubmitButton && (
+            <div className="flex justify-end pt-4">
+              <Button type="submit">Save</Button>
+            </div>
+          )}
         </form>
       </Form>
     </Tabs>
