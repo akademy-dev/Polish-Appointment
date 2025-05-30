@@ -34,3 +34,11 @@ export function getTimeFromDate(date: Date) {
 
   return hours + ":" + minutes;
 }
+
+export function convertTimeStringToMinutes(time: string) {
+  //check AM and PM to add time
+  const [hours, minutes] = time.split(":");
+  const isAM = time.includes("AM");
+
+  return parseInt(hours) * 60 + parseInt(minutes) + (isAM ? 0 : 12 * 60);
+}
