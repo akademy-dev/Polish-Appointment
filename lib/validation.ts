@@ -31,18 +31,44 @@ export const timeOffScheduleFormSchema = z.array(
       from: z.string(),
       to: z.string(),
       reason: z.string().min(1, "Please enter a reason"),
-      dayOfWeek: z
-        .array(z.number())
-        .min(1, "Please select at least one day")
-        .max(7)
-        .optional(),
-      dayOfMonth: z
-        .array(z.number())
-        .min(1, "Please select at least one day")
-        .max(31)
-        .optional(),
+      dayOfWeek: z.array(z.number()).optional(),
+      dayOfMonth: z.array(z.number()).optional(),
       period: z.enum(["Exact", "Daily", "Weekly", "Monthly"]),
     })
+    .refine(
+      (data) => {
+        // Validate dayOfWeek only when period is "Weekly"
+        if (data.period === "Weekly") {
+          return (
+            data.dayOfWeek &&
+            data.dayOfWeek.length >= 1 &&
+            data.dayOfWeek.length <= 7
+          );
+        }
+        return true;
+      },
+      {
+        message: "Please select at least one day of week",
+        path: ["dayOfWeek"],
+      }
+    )
+    .refine(
+      (data) => {
+        // Validate dayOfMonth only when period is "Monthly"
+        if (data.period === "Monthly") {
+          return (
+            data.dayOfMonth &&
+            data.dayOfMonth.length >= 1 &&
+            data.dayOfMonth.length <= 31
+          );
+        }
+        return true;
+      },
+      {
+        message: "Please select at least one day of month",
+        path: ["dayOfMonth"],
+      }
+    )
     .refine(
       (data) => {
         //check if every item in the array have right format

@@ -96,11 +96,11 @@ const EmployeeTimeOffForm = ({
                   }}
                   onRemove={() => {
                     setTimeScheduleCardData(
-                      timeScheduleCardData.filter((c, i) => i !== originalIndex)
+                      timeScheduleCardData.filter((_, i) => i !== originalIndex)
                     );
                     form.setValue("timeOffSchedule", [
                       ...(form.watch("timeOffSchedule") || []).filter(
-                        (c, i) => i !== originalIndex
+                        (_, i) => i !== originalIndex
                       ),
                     ]);
                     setSelectedTimeOffScheduleIndex(-1);

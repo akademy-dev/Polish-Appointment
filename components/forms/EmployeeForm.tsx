@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { employeeFormSchema } from "@/lib/validation";
 import { Form } from "@/components/ui/form";
+import { AlertCircle } from "lucide-react";
 
 import EmployeeInfoForm from "./EmployeeInfoForm";
 import EmployeeWorkingForm from "./EmployeeWorkingForm";
@@ -39,6 +40,17 @@ const EmployeeForm = ({
 
   const form = externalForm || internalForm;
 
+  // Check for errors in each tab
+  const infoTabErrors =
+    form.formState.errors.firstName ||
+    form.formState.errors.lastName ||
+    form.formState.errors.phone ||
+    form.formState.errors.position;
+
+  const workingTabErrors = form.formState.errors.workingTimes;
+
+  const timeoffTabErrors = form.formState.errors.timeOffSchedule;
+
   function onSubmit(values: z.infer<typeof employeeFormSchema>) {
     console.log(values);
     onSuccess?.();
@@ -47,9 +59,49 @@ const EmployeeForm = ({
   return (
     <Tabs defaultValue="info" className={`w-full ${className}`}>
       <TabsList>
-        <TabsTrigger value="info">Basic Information</TabsTrigger>
-        <TabsTrigger value="working">Working Time</TabsTrigger>
-        <TabsTrigger value="timeoff">Time-off Schedule</TabsTrigger>
+        <TabsTrigger
+          value="info"
+          className={cn(
+            "relative",
+            infoTabErrors &&
+              "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            Basic Information
+            {infoTabErrors && <AlertCircle className="h-4 w-4 text-red-600" />}
+          </div>
+        </TabsTrigger>
+        <TabsTrigger
+          value="working"
+          className={cn(
+            "relative",
+            workingTabErrors &&
+              "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            Working Time
+            {workingTabErrors && (
+              <AlertCircle className="h-4 w-4 text-red-600" />
+            )}
+          </div>
+        </TabsTrigger>
+        <TabsTrigger
+          value="timeoff"
+          className={cn(
+            "relative",
+            timeoffTabErrors &&
+              "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            Time-off Schedule
+            {timeoffTabErrors && (
+              <AlertCircle className="h-4 w-4 text-red-600" />
+            )}
+          </div>
+        </TabsTrigger>
       </TabsList>
       <Form {...form}>
         <form
