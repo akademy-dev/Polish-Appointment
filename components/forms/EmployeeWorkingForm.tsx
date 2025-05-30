@@ -90,7 +90,7 @@ const EmployeeWorkingForm = ({
             name="workingTimes"
             render={() => (
               <FormItem className="grid grid-rows-7 gap-1 h-full">
-                {dayLabels.map((item) => (
+                {dayLabels.map((item, index) => (
                   <FormField
                     key={item}
                     control={form.control}
@@ -108,6 +108,7 @@ const EmployeeWorkingForm = ({
                                   (value) => value.day === item
                                 )}
                                 onCheckedChange={(checked) => {
+                                  console.log("checked", field.value);
                                   return checked
                                     ? field.onChange([
                                         ...field.value,
@@ -132,70 +133,79 @@ const EmployeeWorkingForm = ({
                             {field.value?.find(
                               (value) => value.day === item
                             ) ? (
-                              <>
-                                <Select
-                                  onValueChange={(from) => {
-                                    field.onChange(
-                                      field.value?.map((value) =>
-                                        value.day === item
-                                          ? { ...value, from }
-                                          : value
-                                      )
-                                    );
-                                  }}
-                                  defaultValue={
-                                    field.value?.find(
-                                      (value) => value.day === item
-                                    )?.from
-                                  }
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {timeRange.map((time) => (
-                                      <SelectItem key={time} value={time}>
-                                        {time}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormLabel>To</FormLabel>
-                                <Select
-                                  onValueChange={(to) => {
-                                    field.onChange(
-                                      field.value?.map((value) => {
-                                        if (value.day === item) {
-                                          console.log(value);
-
-                                          return { ...value, to };
+                              <FormField
+                                control={form.control}
+                                name={`workingTimes.${index}`}
+                                render={() => {
+                                  return (
+                                    <>
+                                      <Select
+                                        onValueChange={(from) => {
+                                          field.onChange(
+                                            field.value?.map((value) =>
+                                              value.day === item
+                                                ? { ...value, from }
+                                                : value
+                                            )
+                                          );
+                                        }}
+                                        defaultValue={
+                                          field.value?.find(
+                                            (value) => value.day === item
+                                          )?.from
                                         }
-                                        return value;
-                                      })
-                                    );
-                                  }}
-                                  defaultValue={
-                                    field.value?.find(
-                                      (value) => value.day === item
-                                    )?.to
-                                  }
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {timeRange.map((time) => (
-                                      <SelectItem key={time} value={time}>
-                                        {time}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </>
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {timeRange.map((time) => (
+                                            <SelectItem key={time} value={time}>
+                                              {time}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <FormLabel>To</FormLabel>
+                                      <Select
+                                        onValueChange={(to) => {
+                                          field.onChange(
+                                            field.value?.map((value) => {
+                                              if (value.day === item) {
+                                                console.log(value);
+
+                                                return { ...value, to };
+                                              }
+                                              return value;
+                                            })
+                                          );
+                                        }}
+                                        defaultValue={
+                                          field.value?.find(
+                                            (value) => value.day === item
+                                          )?.to
+                                        }
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {timeRange.map((time) => (
+                                            <SelectItem key={time} value={time}>
+                                              {time}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </>
+                                  );
+                                }}
+                              />
                             ) : (
                               <FormLabel>OFF</FormLabel>
                             )}

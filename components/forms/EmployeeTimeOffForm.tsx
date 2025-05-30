@@ -28,8 +28,8 @@ const EmployeeTimeOffForm = ({
   const handleAddTimeScheduleCard = () => {
     const newItem = {
       date: new Date(),
-      to: "08:00 AM",
-      from: "05:45 PM",
+      from: "08:00 AM",
+      to: "05:45 PM",
       reason: "",
       period: "Exact" as const,
       dayOfWeek: [],

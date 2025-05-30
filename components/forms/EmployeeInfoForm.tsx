@@ -25,7 +25,7 @@ const EmployeeInfoForm = ({
   form: UseFormReturn<z.infer<typeof employeeFormSchema>>;
 }) => {
   return (
-    <div className="grid-center gap-4 py-2">
+    <div className="grid-center gap-4 py-2 max-w-3xl">
       <FormField
         control={form.control}
         name="firstName"
@@ -59,7 +59,7 @@ const EmployeeInfoForm = ({
           <FormItem className="col-span-3">
             <FormLabel>Phone</FormLabel>
             <FormControl>
-              <Input placeholder="+14609782" {...field} />
+              <Input placeholder="Phone number" {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>
