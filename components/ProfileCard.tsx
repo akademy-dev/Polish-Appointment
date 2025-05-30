@@ -164,7 +164,9 @@ const CardButton = ({
           variant="default"
           size="icon"
           className={`${
-            type === CardButtonType.History ? "bg-yellow-500" : ""
+            type === CardButtonType.History
+              ? "bg-yellow-500 hover:bg-yellow-400"
+              : ""
           }`}
           aria-label={
             type === CardButtonType.History ? "View History" : "Edit Profile"
@@ -208,25 +210,6 @@ const CardButton = ({
               <Button variant="outline">Close</Button>
             </FormClose>
           </FormFooter>
-        )}
-        {!isMobile && type === CardButtonType.Edit && (
-          <div className="flex justify-end pt-4">
-            <Button
-              onClick={() => {
-                if (isEmployee(human)) {
-                  employeeFormInstance.handleSubmit(() =>
-                    handleFormSuccess()
-                  )();
-                } else {
-                  // For CustomerForm, if it has its own submit logic, trigger it here
-                  if (formRef.current) formRef.current.requestSubmit();
-                  else handleFormSuccess(); // Fallback if no formRef
-                }
-              }}
-            >
-              Save Changes
-            </Button>
-          </div>
         )}
       </FormContent>
     </FormDialogOrDrawer>
