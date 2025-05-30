@@ -54,7 +54,11 @@ export default function Layout({
                   <div className="flex-1 sm:max-w-md">
                     <SearchForm />
                   </div>
-                  <Button size="default" className="sm:whitespace-nowrap">
+                  <Button
+                    size="default"
+                    className="sm:whitespace-nowrap"
+                    onClick={() => setIsCreateAppointmentDialogOpen(true)}
+                  >
                     New Appointment
                   </Button>
                 </div>

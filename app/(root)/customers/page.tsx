@@ -21,6 +21,30 @@ const customers: Customer[] = [
     lastName: "Beam",
     phone: "1234567890",
   },
+  {
+    id: 4,
+    firstName: "Jim",
+    lastName: "Brown",
+    phone: "1234567890",
+  },
+  {
+    id: 5,
+    firstName: "Jim",
+    lastName: "Brown",
+    phone: "1234567890",
+  },
+  {
+    id: 6,
+    firstName: "Jim",
+    lastName: "Brown",
+    phone: "1234567890",
+  },
+  {
+    id: 7,
+    firstName: "Jim",
+    lastName: "Brown",
+    phone: "1234567890",
+  },
 ];
 
 const Page = () => {
