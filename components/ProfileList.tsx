@@ -16,68 +16,100 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const totalPages = Math.ceil(data.length / itemsPerPage);
+
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentItems = data.slice(startIndex, endIndex);
 
   const handlePageChange = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
+    setCurrentPage(page);
   };
 
-  const generatePageNumbers = () => {
-    // Always return exactly 7 slots for consistent layout
-    const slots: (number | "ellipsis" | null)[] = [
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-    ];
+  const renderPaginationItems = () => {
+    const items = [];
+    const maxVisiblePages = 5;
 
-    if (totalPages <= 7) {
-      // For 7 or fewer pages, center the pages in the grid
-      const startIndex = Math.floor((7 - totalPages) / 2);
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages is less than or equal to maxVisiblePages
       for (let i = 1; i <= totalPages; i++) {
-        slots[startIndex + i - 1] = i;
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              href="#"
+              onClick={() => handlePageChange(i)}
+              isActive={currentPage === i}
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>
+        );
       }
-      return slots;
-    }
-
-    // For more than 5 pages, use smart positioning - ALWAYS FILL ALL 7 SLOTS
-    if (currentPage <= 3) {
-      // Early pages: 1, 2, 3, 4, 5, ..., last
-      slots[0] = 1;
-      slots[1] = 2;
-      slots[2] = 3;
-      slots[3] = 4;
-      slots[4] = 5;
-      slots[5] = "ellipsis";
-      slots[6] = totalPages;
-    } else if (currentPage >= totalPages - 2) {
-      // Late pages: 1, ..., last-4, last-3, last-2, last-1, last
-      slots[0] = 1;
-      slots[1] = "ellipsis";
-      slots[2] = totalPages - 4;
-      slots[3] = totalPages - 3;
-      slots[4] = totalPages - 2;
-      slots[5] = totalPages - 1;
-      slots[6] = totalPages;
     } else {
-      // Middle pages: 1, ..., current-1, current, current+1, ..., last
-      slots[0] = 1;
-      slots[1] = "ellipsis";
-      slots[2] = currentPage - 1;
-      slots[3] = currentPage;
-      slots[4] = currentPage + 1;
-      slots[5] = "ellipsis";
-      slots[6] = totalPages;
+      // Always show first page
+      items.push(
+        <PaginationItem key={1}>
+          <PaginationLink
+            href="#"
+            onClick={() => handlePageChange(1)}
+            isActive={currentPage === 1}
+          >
+            1
+          </PaginationLink>
+        </PaginationItem>
+      );
+
+      // Show ellipsis if current page is not near start
+      if (currentPage > 2) {
+        items.push(
+          <PaginationItem key="ellipsis-start">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+
+      // Show current page and one page before and after
+      for (
+        let i = Math.max(2, currentPage - 1);
+        i <= Math.min(totalPages - 1, currentPage + 1);
+        i++
+      ) {
+        items.push(
+          <PaginationItem key={i}>
+            <PaginationLink
+              href="#"
+              onClick={() => handlePageChange(i)}
+              isActive={currentPage === i}
+            >
+              {i}
+            </PaginationLink>
+          </PaginationItem>
+        );
+      }
+
+      // Show ellipsis if current page is not near end
+      if (currentPage < totalPages - 1) {
+        items.push(
+          <PaginationItem key="ellipsis-end">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+
+      // Always show last page
+      items.push(
+        <PaginationItem key={totalPages}>
+          <PaginationLink
+            href="#"
+            onClick={() => handlePageChange(totalPages)}
+            isActive={currentPage === totalPages}
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
     }
 
-    return slots;
+    return items;
   };
 
   return (
@@ -125,25 +157,9 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
 
             {/* Page Numbers */}
             <div className="grid grid-cols-7 gap-1">
-              {generatePageNumbers().map((slot, index) => (
+              {renderPaginationItems().map((item, index) => (
                 <div key={index} className="flex-between">
-                  {slot === null ? (
-                    <div className="w-9 h-9" />
-                  ) : slot === "ellipsis" ? (
-                    <PaginationEllipsis />
-                  ) : (
-                    <PaginationLink
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handlePageChange(slot as number);
-                      }}
-                      isActive={currentPage === slot}
-                      className="cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105"
-                    >
-                      {slot}
-                    </PaginationLink>
-                  )}
+                  {item}
                 </div>
               ))}
             </div>
