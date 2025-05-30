@@ -13,6 +13,7 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
+  DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
@@ -91,6 +92,11 @@ const CreateInfoButton = ({ type }: { type: string }) => {
             <DrawerTitle>
               {type === "employees" ? "New Employee" : "New Customer"}
             </DrawerTitle>
+            <DrawerDescription className="hidden">
+              {type === "employees"
+                ? "Create a new employee with basic information, working time and time-off schedule."
+                : "Create a new customer with basic information, contact information and address."}
+            </DrawerDescription>
           </DrawerHeader>
 
           {/* Scrollable content area */}
