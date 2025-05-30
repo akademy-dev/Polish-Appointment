@@ -2,6 +2,7 @@ import React, { forwardRef } from "react";
 import { Button } from "../ui/button";
 import { X } from "lucide-react";
 import { Separator } from "../ui/separator";
+import { dayLabels } from "./EmployeeWorkingForm";
 
 export type TimeOffScheduleCardProps = {
   date?: Date;
@@ -42,9 +43,12 @@ const TimeOffScheduleCard = forwardRef<
         return "Everyday";
       }
       if (period === "Weekly") {
-        return "Every week on " + dayOfWeek?.sort((a, b) => a - b)?.join(", ");
+        //convert dayOfWeek to dayLabels
+        const formattedDayOfWeek = dayOfWeek?.map((day) => dayLabels[day - 1]);
+        return "Every week on " + formattedDayOfWeek?.join(", ");
       }
-      return "Every month on " + dayOfMonth?.sort((a, b) => a - b)?.join(", ");
+      const formattedDayOfMonth = dayOfMonth?.map((day) => day.toString());
+      return "Every month on " + formattedDayOfMonth?.join(", ");
     };
 
     return (
@@ -55,25 +59,31 @@ const TimeOffScheduleCard = forwardRef<
         }`}
         onClick={onClick}
       >
-        <div className="flex-between h-5 gap-1 flex-1 min-w-0">
-          <p className="text-lg font-semibold text-wrap">
+        <div className="flex flex-wrap items-center w-full min-w-0">
+          <span className="text-lg font-semibold break-words whitespace-normal min-w-0">
             {displayFormattedDate()}
-          </p>
-          <Separator orientation="vertical" className="border-black-1-25" />
-          <p className="text-sm truncate flex-1">{reason}</p>
-        </div>
-        <div className="flex-between flex-shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              onRemove();
-            }}
-          >
-            <X />
-          </Button>
+          </span>
+          <Separator
+            orientation="horizontal"
+            className="h-5 my-1 hidden sm:inline border-black-1-25"
+          />
+          <span className="text-sm break-words whitespace-normal min-w-0">
+            {reason}
+          </span>
+          <div className="flex-shrink-0 ml-auto mt-1">
+            <Button
+              variant="ghost"
+              className="hover:bg-destructive hover:text-destructive-foreground"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onRemove();
+              }}
+            >
+              <X />
+            </Button>
+          </div>
         </div>
       </li>
     );

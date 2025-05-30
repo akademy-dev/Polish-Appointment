@@ -72,23 +72,13 @@ const EmployeeTimeOffForm = ({
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 row-span-6 gap-4 ">
-        <div className="grid rounded-md border">
-          {selectedTimeOffScheduleIndex !== -1 ? (
-            <TimeOffScheduleForm
-              form={form}
-              selectedTimeOffScheduleIndex={selectedTimeOffScheduleIndex}
-            />
-          ) : (
-            <div className="flex-between h-full">
-              <p className="text-sm md:text-md lg:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground text-center w-full">
-                Add new entry to get started
-              </p>
-            </div>
-          )}
-        </div>
+      {/* Responsive layout: vertical on mobile, horizontal on desktop */}
+      <div className="flex flex-col md:grid md:grid-cols-2 row-span-6 gap-4">
+        {/* Cards List Panel - Hiển thị trên mobile, phải trên desktop */}
         <div
-          className="rounded-md border overflow-y-auto max-h-[367px]"
+          className="rounded-md border overflow-y-auto 
+                     max-h-[150px] sm:max-h-[180px] md:max-h-[367px] 
+                     order-1 md:order-2"
           ref={scrollContainerRef}
         >
           {timeScheduleCardData.length > 0 ? (
@@ -119,9 +109,25 @@ const EmployeeTimeOffForm = ({
               );
             })
           ) : (
-            <div className="h-36 flex-between">
+            <div className="h-full flex-between">
               <p className="text-sm md:text-md lg:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground text-center w-full">
                 No time-off schedule yet
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Form Panel - Hiển thị dưới mobile, trái trên desktop */}
+        <div className="grid rounded-md border order-2 md:order-1 min-h-[400px] sm:min-h-[450px] md:min-h-[300px]">
+          {selectedTimeOffScheduleIndex !== -1 ? (
+            <TimeOffScheduleForm
+              form={form}
+              selectedTimeOffScheduleIndex={selectedTimeOffScheduleIndex}
+            />
+          ) : (
+            <div className="flex-between h-full">
+              <p className="text-sm md:text-md lg:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground text-center w-full">
+                Add new entry to get started
               </p>
             </div>
           )}

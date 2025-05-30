@@ -1,6 +1,6 @@
 import React from "react";
 
-const CustomerForm = () => {
+const CustomerForm = (props: { onSuccess?: () => void }) => {
   return <div>CustomerForm</div>;
 };
 

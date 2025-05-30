@@ -9,11 +9,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Employee } from "@/app/(root)/employees/page";
-import { Customer } from "@/app/(root)/customers/page";
+import { Profile } from "@/types/profile";
 import ProfileCard from "./ProfileCard";
 
-const ProfileList = ({ data }: { data: Employee[] | Customer[] }) => {
+const ProfileList = ({ data }: { data: Profile[] }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const totalPages = Math.ceil(data.length / itemsPerPage);
@@ -99,7 +98,7 @@ const ProfileList = ({ data }: { data: Employee[] | Customer[] }) => {
 
       {/* Human List */}
       <ul className="list-container">
-        {currentItems.map((profile: Employee) => (
+        {currentItems.map((profile) => (
           <ProfileCard profile={profile} key={profile.id} />
         ))}
       </ul>
