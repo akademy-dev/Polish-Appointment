@@ -8,15 +8,18 @@ export interface BaseProfile {
 
 // Interface cho WorkingTime (từ Employee)
 export interface WorkingTime {
-  dayOfWeek: number[];
-  dayOfMonth: number[];
-  time: string;
+  day: string;
+  from: string;
+  to: string;
 }
 
 // Interface cho TimeOffSchedule (từ Employee)
 export interface TimeOffSchedule {
-  date: Date;
-  period: string;
+  date?: Date;
+  from: string;
+  to: string;
+  reason: string;
+  period: "Exact" | "Daily" | "Weekly" | "Monthly";
   dayOfWeek: number[];
   dayOfMonth: number[];
 }
