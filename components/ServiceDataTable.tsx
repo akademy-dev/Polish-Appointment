@@ -13,19 +13,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronDown, MoreHorizontal } from "lucide-react";
-
+import { Circle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -35,146 +24,165 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { client } from "@/sanity/lib/client";
+import {
+  CATEGORIES_QUERY,
+  SERVICES_QUERY,
+  TOTAL_SERVICES_QUERY,
+} from "@/sanity/lib/queries";
+import { Service } from "@/models/service";
 
-const data: Payment[] = [
-  {
-    id: "m5gr84i9",
-    amount: 316,
-    status: "success",
-    email: "ken99@example.com",
-  },
-  {
-    id: "3u1reuv4",
-    amount: 242,
-    status: "success",
-    email: "Abe45@example.com",
-  },
-  {
-    id: "derv1ws0",
-    amount: 837,
-    status: "processing",
-    email: "Monserrat44@example.com",
-  },
-  {
-    id: "5kma53ae",
-    amount: 874,
-    status: "success",
-    email: "Silas22@example.com",
-  },
-  {
-    id: "bhqecj4p",
-    amount: 721,
-    status: "failed",
-    email: "carmella@example.com",
-  },
-];
+// Hook debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = React.useState(value);
 
-export type Payment = {
-  id: string;
-  amount: number;
-  status: "pending" | "processing" | "success" | "failed";
-  email: string;
-};
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
 
-export const columns: ColumnDef<Payment>[] = [
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+export const columns: ColumnDef<Service>[] = [
   {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
+    accessorKey: "category.name",
+    header: "Group",
+    enableSorting: true,
   },
   {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <div className="capitalize">{row.getValue("status")}</div>
-    ),
-  },
-  {
-    accessorKey: "email",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Email
-          <ArrowUpDown />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
-  },
-  {
-    accessorKey: "amount",
-    header: () => <div className="text-right">Amount</div>,
+    accessorKey: "name",
+    header: "Name",
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("amount"));
-
-      // Format the amount as a dollar amount
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount);
-
-      return <div className="text-right font-medium">{formatted}</div>;
-    },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const payment = row.original;
-
+      const showOnline = row.original.showOnline;
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(payment.id)}
-            >
-              Copy payment ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View payment details</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          <Circle
+            color={showOnline ? "#28C840" : "#FF5F57"}
+            size={12}
+            fill={showOnline ? "#28C840" : "#FF5F57"}
+          />
+          <span className="font-medium">{row.getValue("name") as string}</span>
+        </div>
       );
     },
   },
+  {
+    accessorKey: "price",
+    header: "Price",
+    cell: ({ row }) => {
+      const price = row.getValue("price");
+      return typeof price === "number" ? `$${price.toFixed(2)}` : "-";
+    },
+  },
+  {
+    accessorKey: "duration",
+    header: "Duration",
+    cell: ({ row }) => formatDuration(row.getValue("duration") as number),
+  },
 ];
+
+function formatDuration(minutes: number): string {
+  if (minutes <= 0) return "0min";
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  if (hours === 0) {
+    return `${remainingMinutes}min`;
+  }
+  if (remainingMinutes === 0) {
+    return `${hours}hr`;
+  }
+  return `${hours}hr ${remainingMinutes}min`;
+}
 
 export function ServiceDataTable() {
+  const [data, setData] = React.useState<Service[]>([]);
+  const [categories, setCategories] = React.useState<
+    { _id: string; name: string }[]
+  >([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [search, setSearch] = React.useState("");
+  const [page, setPage] = React.useState(1);
+  const [limit] = React.useState(10);
+  const [categoryId, setCategoryId] = React.useState("");
+  const [total, setTotal] = React.useState(0);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [showSpinner, setShowSpinner] = React.useState(false);
+
+  const debouncedSearch = useDebounce(search, 300);
+  const MIN_LOADING_DURATION = 200; // Ngưỡng thời gian tối thiểu để hiển thị spinner (ms)
+
+  const params = {
+    page,
+    limit,
+    categoryId,
+    searchTerm: debouncedSearch,
+  };
+
+  // Lấy tất cả category khi component mount
+  React.useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const result = await client.fetch(CATEGORIES_QUERY);
+        setCategories(result || []);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    }
+
+    fetchCategories();
+  }, []);
+
+  async function fetchData() {
+    const startTime = Date.now();
+    setIsLoading(true);
+    try {
+      console.log("Fetching with params:", params);
+      const [result, totalResult] = await Promise.all([
+        client.fetch(SERVICES_QUERY, params),
+        client.fetch(TOTAL_SERVICES_QUERY, {
+          categoryId: params.categoryId,
+          searchTerm: params.searchTerm,
+        }),
+      ]);
+      console.log("Fetched services result:", result);
+      console.log("Fetched total result:", totalResult);
+
+      // Chỉ hiển thị spinner nếu thời gian tải vượt ngưỡng
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime >= MIN_LOADING_DURATION) {
+        setShowSpinner(true);
+      }
+
+      setData(result || []);
+      setTotal(totalResult || 0);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      // Đảm bảo spinner hiển thị ít nhất MIN_LOADING_DURATION để tránh nhấp nháy
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = MIN_LOADING_DURATION - elapsedTime;
+      if (remainingTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingTime));
+      }
+      setIsLoading(false);
+      setShowSpinner(false);
+    }
+  }
+
+  React.useEffect(() => {
+    fetchData();
+  }, [page, limit, categoryId, debouncedSearch]);
 
   const table = useReactTable({
     data,
@@ -186,70 +194,67 @@ export function ServiceDataTable() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
       columnFilters,
       columnVisibility,
-      rowSelection,
     },
   });
 
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
   return (
     <div className="w-full">
-      <div className="flex items-center py-4">
+      <div className="flex items-center justify-between py-4 gap-2 w-full">
         <Input
-          placeholder="Filter emails..."
-          value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("email")?.setFilterValue(event.target.value)
-          }
+          placeholder="Search by service name..."
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
           className="max-w-sm"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Columns <ChevronDown />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value: any) =>
-                      column.toggleVisibility(!!value)
-                    }
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <select
+          className="border rounded px-2 py-1"
+          value={categoryId}
+          onChange={(e) => {
+            setCategoryId(e.target.value);
+            setPage(1);
+          }}
+          disabled={isLoading}
+        >
+          <option value="">All Groups</option>
+          {categories.map((cat) => (
+            <option key={cat._id} value={cat._id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
       </div>
-      <div className="rounded-md border">
+      <div className="rounded-md border relative">
+        {showSpinner && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 animate-in fade-in duration-200 z-10">
+            <div className="flex items-center">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="ml-2">Loading...</span>
+            </div>
+          </div>
+        )}
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  );
-                })}
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                ))}
               </TableRow>
             ))}
           </TableHeader>
@@ -259,6 +264,7 @@ export function ServiceDataTable() {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={showSpinner ? "opacity-50" : ""}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -284,28 +290,25 @@ export function ServiceDataTable() {
         </Table>
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
-        </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
-        </div>
+        <span className="text-sm text-muted-foreground mr-4">
+          Page {page} of {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="default"
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          disabled={page <= 1 || isLoading}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="default"
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          disabled={page >= totalPages || isLoading}
+        >
+          Next
+        </Button>
       </div>
     </div>
   );

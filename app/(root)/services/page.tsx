@@ -2,8 +2,6 @@ import React from "react";
 import { ServiceDataTable } from "@/components/ServiceDataTable";
 
 const page = async () => {
-  // const categories = await client.fetch(SERVICE_QUERY);
-
   return (
     <>
       <h2 className="heading">Services</h2>

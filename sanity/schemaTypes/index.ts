@@ -1,7 +1,18 @@
 import { type SchemaTypeDefinition } from "sanity";
 import { serviceType } from "@/sanity/schemaTypes/service";
 import { categoryType } from "@/sanity/schemaTypes/category";
+import { employeeType } from "@/sanity/schemaTypes/employee";
+import { timeOffScheduleType } from "@/sanity/schemaTypes/timeOffSchedule";
+import { workingType } from "@/sanity/schemaTypes/workingTime";
+import { customerType } from "@/sanity/schemaTypes/customer";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
-  types: [serviceType, categoryType],
+  types: [
+    serviceType,
+    categoryType,
+    employeeType,
+    customerType,
+    timeOffScheduleType,
+    workingType,
+  ],
 };
