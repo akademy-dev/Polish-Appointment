@@ -44,6 +44,7 @@ const TimeOffScheduleForm = ({
   selectedTimeOffScheduleIndex: number;
 }) => {
   console.log("selectedTimeOffScheduleIndex", selectedTimeOffScheduleIndex);
+  console.log("form", form.getValues("timeOffSchedule"));
 
   const handleTabChange = (tab: string) => {
     switch (tab) {
@@ -256,59 +257,71 @@ const TimeOffScheduleForm = ({
 
               <div className="grid grid-rows-2 my-4">
                 <p className="text-lg-medium grid-rows-1">Time</p>
-                <div className="flex-between gap-4 w-full grid-rows-2">
+                <div className="flex items-center gap-4 w-full grid-rows-2">
                   <FormField
                     control={form.control}
-                    name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.from`}
-                    render={({ field }) => (
-                      <FormItem className="flex-between">
-                        <FormLabel>From</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {timeRange.map((time) => (
-                              <SelectItem key={time} value={time}>
-                                {time}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    name={`timeOffSchedule.${selectedTimeOffScheduleIndex}`}
+                    render={() => (
+                      <>
+                        <FormField
+                          control={form.control}
+                          name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.from`}
+                          render={({ field }) => (
+                            <FormItem className="flex-between">
+                              <FormLabel>From</FormLabel>
+                              <Select
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                }}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {timeRange.map((time) => (
+                                    <SelectItem key={time} value={time}>
+                                      {time}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.to`}
+                          render={({ field }) => (
+                            <FormItem className="flex-between">
+                              <FormLabel>To</FormLabel>
+                              <Select
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                }}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {timeRange.map((time) => (
+                                    <SelectItem key={time} value={time}>
+                                      {time}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
+                        />
                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.to`}
-                    render={({ field }) => (
-                      <FormItem className="flex-between">
-                        <FormLabel>To</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {timeRange.map((time) => (
-                              <SelectItem key={time} value={time}>
-                                {time}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
+                      </>
                     )}
                   />
                 </div>
