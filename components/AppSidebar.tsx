@@ -88,7 +88,7 @@ export function AppSidebar() {
             </label>
           </div>
           <div className="flex items-center space-x-2">
-            <Checkbox id="timre-off" />
+            <Checkbox id="time-off" />
             <label
               htmlFor="time-off"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

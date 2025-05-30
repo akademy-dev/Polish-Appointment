@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 import * as React from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,7 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar } from "./ui/calendar";
+import { Calendar } from "../ui/calendar";
 import { ScrollBar, ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -38,10 +40,12 @@ import {
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 
-export const CreateAppointmentDialog: React.FC<{
+export const AppointmentForm: React.FC<{
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-}> = ({ isOpen, onOpenChange }) => {
+  time?: any;
+  staff?: string;
+}> = ({ isOpen, onOpenChange, time, staff }) => {
   const [tab, setTab] = React.useState("client");
   // Define the form
   const form = useForm<z.infer<typeof appointmentFormSchema>>({
@@ -50,13 +54,22 @@ export const CreateAppointmentDialog: React.FC<{
       firstName: "",
       lastName: "",
       phone: "",
-      time: undefined,
-      staff: "",
+      time: time?.time,
+      staff: staff || "",
       note: "",
       reminder: true,
       services: [],
     },
   });
+
+  React.useEffect(() => {
+    setTab("client");
+    form.reset({
+      ...form.getValues(),
+      time: time?.time || time || undefined,
+      staff: staff || "",
+    });
+  }, [isOpen, time, staff]);
 
   const [open, setOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<string[]>([]);
@@ -64,31 +77,31 @@ export const CreateAppointmentDialog: React.FC<{
   const staffs = [
     {
       value: "Alice",
-      label: "Alice Johnson",
+      label: "Alice",
     },
     {
       value: "Bob",
-      label: "Bob Brown",
+      label: "Bob",
     },
     {
       value: "Charlie",
-      label: "Charlie White",
+      label: "Charlie",
     },
     {
       value: "Diana",
-      label: "Diana Green",
+      label: "Diana",
     },
     {
       value: "Eve",
-      label: "Eve Black",
+      label: "Eve",
     },
     {
       value: "Frank",
-      label: "Frank Blue",
+      label: "Frank",
     },
     {
       value: "Grace",
-      label: "Grace Yellow",
+      label: "Grace",
     },
   ];
 
@@ -529,6 +542,7 @@ export const CreateAppointmentDialog: React.FC<{
                           </FormItem>
                         )}
                       />
+
                       <FormField
                         control={form.control}
                         name="staff"

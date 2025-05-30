@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import SearchForm from "@/components/SearchForm";
 import CreateInfoButton from "@/components/CreateInfoButton";
 import { CalendarContext } from "@/hooks/context";
-import { CreateAppointmentDialog } from "@/components/CreateAppointmentDialog";
+import { AppointmentForm } from "@/components/forms/AppointmentForm";
 
 export default function Layout({
   children,
@@ -43,7 +43,7 @@ export default function Layout({
                     >
                       New Appointment
                     </Button>
-                    <CreateAppointmentDialog
+                    <AppointmentForm
                       isOpen={isCreateAppointmentDialogOpen}
                       onOpenChange={setIsCreateAppointmentDialogOpen}
                     />

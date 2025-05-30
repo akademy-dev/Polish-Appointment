@@ -18,6 +18,9 @@ const Navbar = ({ value = "schedule" }) => {
           <TabsTrigger asChild value="customers">
             <Link href="/customers">Customers</Link>
           </TabsTrigger>
+          <TabsTrigger asChild value="services">
+            <Link href="/services">Services</Link>
+          </TabsTrigger>
           <TabsTrigger asChild value="settings">
             <Link href="/settings">Settings</Link>
           </TabsTrigger>
