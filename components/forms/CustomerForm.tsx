@@ -13,7 +13,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Customer } from "@/types/profile";
+import { Customer } from "@/models/profile";
 import { cn } from "@/lib/utils";
 
 const customerFormSchema = z.object({

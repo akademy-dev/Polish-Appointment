@@ -78,8 +78,11 @@ const EmployeeInfoForm = ({
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                <SelectItem value="Manager">Manager</SelectItem>
-                <SelectItem value="Employee">Employee</SelectItem>
+                <SelectItem value="owner">Owner</SelectItem>
+                <SelectItem value="serviceProvider">
+                  Service Provider
+                </SelectItem>
+                <SelectItem value="backRoom">Back Room</SelectItem>
               </SelectContent>
             </Select>
             <FormMessage />
