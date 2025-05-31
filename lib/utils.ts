@@ -42,3 +42,7 @@ export function convertTimeStringToMinutes(time: string) {
 
   return parseInt(hours) * 60 + parseInt(minutes) + (isAM ? 0 : 12 * 60);
 }
+
+export function parseServerActionResponse<T>(response: T) {
+  return JSON.parse(JSON.stringify(response));
+}
