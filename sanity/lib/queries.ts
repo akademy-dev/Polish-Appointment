@@ -18,3 +18,17 @@ export const TOTAL_SERVICES_QUERY = defineQuery(`
 count(*[_type == "service" && ($categoryId == "" || category._ref == $categoryId) && ($searchTerm == "" || name match $searchTerm + "*")])`);
 
 export const CATEGORIES_QUERY = `*[_type == "category"]{_id, name} | order(name asc)`;
+
+export const EMPLOYEES_QUERY = defineQuery(
+  `*[_type == "employee" && defined(firstName) && defined(lastName) && !defined($search) || firstName match $search || lastName match $search || position match $search || phone match $search] | order(_createdAt desc){
+      _id,
+      _type,
+      firstName,
+      lastName,
+      _createdAt,
+      phone,
+      position,
+      workingTimes,
+      timeOffSchedule
+  }`
+);
