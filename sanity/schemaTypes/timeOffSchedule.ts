@@ -1,9 +1,5 @@
+import { convertTimeStringToMinutes } from "@/lib/utils";
 import { defineType, defineField, defineArrayMember } from "sanity";
-
-function convertTimeStringToMinutes(timeString: any) {
-  const [hours, minutes] = timeString.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 export const timeOffScheduleType = defineType({
   name: "timeOffSchedule",
@@ -67,8 +63,8 @@ export const timeOffScheduleType = defineType({
   validation: (Rule) =>
     Rule.custom((fields) => {
       if (!fields?.from || !fields?.to) return true;
-      const fromMinutes = convertTimeStringToMinutes(fields.from);
-      const toMinutes = convertTimeStringToMinutes(fields.to);
+      const fromMinutes = convertTimeStringToMinutes(fields.from.toString());
+      const toMinutes = convertTimeStringToMinutes(fields.to.toString());
       return fromMinutes < toMinutes
         ? true
         : "From time must be before to time";
