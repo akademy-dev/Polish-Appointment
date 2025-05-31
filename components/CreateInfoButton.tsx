@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/drawer";
 import CustomerForm from "./forms/CustomerForm";
 import EmployeeForm from "./forms/EmployeeForm";
+import ServiceForm from "./forms/ServiceForm";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -34,7 +35,64 @@ import { TimeOffSchedule, WorkingTime } from "@/models/profile";
 const CreateInfoButton = ({ type }: { type: string }) => {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
+  const getTitle = (type: string) => {
+    switch (type) {
+      case "employees":
+        return "New Employee";
+      case "customers":
+        return "New Customer";
+      case "services":
+        return "New Service";
+      default:
+        return "New Item";
+    }
+  };
 
+  const getDescription = (type: string) => {
+    switch (type) {
+      case "employees":
+        return "Create a new employee with basic information, working time and time-off schedule.";
+      case "customers":
+        return "Create a new customer with basic information, contact information and address.";
+      case "services":
+        return "Create a new service with details and pricing.";
+      default:
+        return "";
+    }
+  };
+
+  const getToastDescription = (type: string) => {
+    switch (type) {
+      case "employees":
+        return "New Employee created successfully";
+      case "customers":
+        return "New Customer created successfully";
+      case "services":
+        return "New Service created successfully";
+      default:
+        return "New Item created successfully";
+    }
+  };
+
+  const renderForm = () => {
+    switch (type) {
+      case "employees":
+        return (
+          <EmployeeForm
+            form={form}
+            onSuccess={handleFormSuccess}
+            hideSubmitButton={isMobile}
+            formRef={isMobile ? formRef : undefined}
+          />
+        );
+      case "customers":
+        return <CustomerForm onSuccess={handleFormSuccess} />;
+      case "services":
+        return <ServiceForm onSuccess={handleFormSuccess} />;
+      default:
+        return null;
+    }
+  };
   // Ref để trigger form submit từ ngoài
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -115,34 +173,19 @@ const CreateInfoButton = ({ type }: { type: string }) => {
     return (
       <Drawer open={open} onOpenChange={handleOpenChange}>
         <DrawerTrigger asChild>
-          <Button variant="default">
-            {type === "employees" ? "New Employee" : "New Customer"}
-          </Button>
+          <Button variant="default">{getTitle(type)}</Button>
         </DrawerTrigger>
         <DrawerContent className="p-4 h-[95vh] flex flex-col">
           <DrawerHeader className="text-left flex-shrink-0">
-            <DrawerTitle>
-              {type === "employees" ? "New Employee" : "New Customer"}
-            </DrawerTitle>
+            <DrawerTitle>{getTitle(type)}</DrawerTitle>
             <DrawerDescription className="hidden">
-              {type === "employees"
-                ? "Create a new employee with basic information, working time and time-off schedule."
-                : "Create a new customer with basic information, contact information and address."}
+              {getDescription(type)}
             </DrawerDescription>
           </DrawerHeader>
 
           {/* Scrollable content area */}
           <div className="flex-1 overflow-y-auto min-h-0 pb-4">
-            {type === "employees" ? (
-              <EmployeeForm
-                form={form}
-                onSuccess={handleFormSuccess}
-                hideSubmitButton={true}
-                formRef={formRef}
-              />
-            ) : (
-              <CustomerForm onSuccess={handleFormSuccess} />
-            )}
+            {renderForm()}
           </div>
 
           {/* Fixed footer with buttons */}
@@ -162,29 +205,19 @@ const CreateInfoButton = ({ type }: { type: string }) => {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="default">
-          {type === "employees" ? "New Employee" : "New Customer"}
-        </Button>
+        <Button variant="default">{getTitle(type)}</Button>
       </DialogTrigger>
       <DialogContent
         className="sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl 2xl:max-w-screen-2xl"
         aria-describedby="employee-form"
       >
         <DialogHeader>
-          <DialogTitle>
-            {type === "employees" ? "New Employee" : "New Customer"}
-          </DialogTitle>
+          <DialogTitle>{getTitle(type)}</DialogTitle>
           <DialogDescription className="hidden">
-            {type === "employees"
-              ? "Create a new employee with basic information, working time and time-off schedule."
-              : "Create a new customer with basic information, contact information and address."}
+            {getDescription(type)}
           </DialogDescription>
         </DialogHeader>
-        {type === "employees" ? (
-          <EmployeeForm form={form} onSuccess={handleFormSuccess} />
-        ) : (
-          <CustomerForm onSuccess={handleFormSuccess} />
-        )}
+        {renderForm()}
       </DialogContent>
     </Dialog>
   );
