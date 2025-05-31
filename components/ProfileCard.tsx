@@ -26,7 +26,7 @@ import {
   getProfileName,
   getProfileRole,
   isEmployee,
-} from "@/types/profile";
+} from "@/models/profile";
 import { useIsMobile } from "@/hooks/use-mobile";
 import EmployeeForm from "./forms/EmployeeForm";
 import CustomerForm from "./forms/CustomerForm";
@@ -83,24 +83,28 @@ const CardButton = ({
       if (isEmployee(human)) {
         // Convert Employee to EmployeeFormValues
         const formData = {
-          firstName: human.firstName,
-          lastName: human.lastName,
-          phone: human.phone,
-          position: human.position,
-          workingTimes: human.workingTimes.map((wt) => ({
-            from: wt.from,
-            to: wt.to,
-            day: wt.day,
-          })),
-          timeOffSchedule: human.timeOffSchedule.map((to) => ({
-            from: to.from,
-            to: to.to,
-            reason: "",
-            period: to.period as "Exact" | "Weekly" | "Monthly",
-            date: to.date,
-            dayOfWeek: to.dayOfWeek,
-            dayOfMonth: to.dayOfMonth,
-          })),
+          firstName: human.firstName || "",
+          lastName: human.lastName || "",
+          phone: human.phone || "",
+          position: human.position || "serviceProvider",
+          workingTimes:
+            human.workingTimes?.map((wt) => ({
+              from: wt.from || "",
+              to: wt.to || "",
+              day: wt.day || "",
+            })) || [],
+          timeOffSchedule:
+            human.timeOffSchedule?.map((to) => ({
+              from: to.from || "",
+              to: to.to || "",
+              reason: to.reason || "",
+              period:
+                (to.period as "Exact" | "Daily" | "Weekly" | "Monthly") ||
+                "Exact",
+              date: to.date ? new Date(to.date) : undefined,
+              dayOfWeek: to.dayOfWeek || [],
+              dayOfMonth: to.dayOfMonth || [],
+            })) || [],
         };
         employeeFormInstance.reset(formData);
       }

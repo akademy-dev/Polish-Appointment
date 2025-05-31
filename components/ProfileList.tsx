@@ -9,7 +9,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Profile } from "@/types/profile";
+import { Profile } from "@/models/profile";
 import ProfileCard from "./ProfileCard";
 
 const ProfileList = ({ data }: { data: Profile[] }) => {
@@ -130,8 +130,8 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
 
       {/* Human List */}
       <ul className="list-container">
-        {currentItems.map((profile) => (
-          <ProfileCard profile={profile} key={profile.id} />
+        {currentItems.map((profile, index) => (
+          <ProfileCard profile={profile} key={index} />
         ))}
       </ul>
 
