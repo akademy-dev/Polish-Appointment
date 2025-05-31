@@ -1,4 +1,5 @@
-import * as React from "react";
+"use client";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,13 +27,16 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { employeeFormSchema } from "@/lib/validation";
+import { useRef, useState } from "react";
+import { createEmployee } from "@/lib/actions";
+import { TimeOffSchedule, WorkingTime } from "@/models/profile";
 
 const CreateInfoButton = ({ type }: { type: string }) => {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // Ref để trigger form submit từ ngoài
-  const formRef = React.useRef<HTMLFormElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Shared form instance cho cả mobile và desktop
   const form = useForm<z.infer<typeof employeeFormSchema>>({
@@ -41,22 +45,50 @@ const CreateInfoButton = ({ type }: { type: string }) => {
       firstName: "",
       lastName: "",
       phone: "",
-      position: "Employee",
+      position: "backRoom",
       workingTimes: [],
       timeOffSchedule: [],
     },
   });
 
   // Callback function để đóng dialog/drawer khi save thành công
-  const handleFormSuccess = () => {
-    setOpen(false);
-    // Reset form sau khi save thành công
-    form.reset();
-    toast.success("Success", {
-      description: `New ${
-        type === "employees" ? "Employee" : "Customer"
-      } created successfully`,
-    });
+  const handleFormSuccess = async () => {
+    try {
+      const formValues = form.getValues();
+      console.log("formValues", formValues);
+
+      const formData = new FormData();
+      formData.append("firstName", formValues.firstName);
+      formData.append("lastName", formValues.lastName);
+      formData.append("phone", formValues.phone || "");
+      formData.append("position", formValues.position);
+
+      const result = await createEmployee(
+        formData,
+        formValues.workingTimes as unknown as WorkingTime[],
+        formValues.timeOffSchedule as unknown as TimeOffSchedule[]
+      );
+
+      // Reset form sau khi save thành công
+      if (result.status == "SUCCESS") {
+        setOpen(false);
+        form.reset();
+        toast.success("Success", {
+          description: `New ${
+            type === "employees" ? "Employee" : "Customer"
+          } created successfully`,
+        });
+      } else {
+        toast.error("Error", {
+          description: result.error,
+        });
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Error", {
+        description: "An unexpected error occurred",
+      });
+    }
   };
 
   // Handle submit từ drawer footer
