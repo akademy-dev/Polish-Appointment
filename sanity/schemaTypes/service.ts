@@ -1,8 +1,10 @@
 import { defineField, defineType } from "@sanity/types";
+import { PackageIcon } from "lucide-react";
 
 export const serviceType = defineType({
   name: "service",
   title: "Service",
+  icon: PackageIcon,
   type: "document",
   fields: [
     defineField({

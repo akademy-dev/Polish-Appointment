@@ -1,9 +1,5 @@
+import { convertTimeStringToMinutes } from "@/lib/utils";
 import { defineField, defineType } from "@sanity/types";
-
-function convertTimeStringToMinutes(timeString: any) {
-  const [hours, minutes] = timeString.split(":").map(Number);
-  return hours * 60 + minutes;
-}
 
 export const workingType = defineType({
   name: "workingTime",
@@ -32,8 +28,8 @@ export const workingType = defineType({
   validation: (Rule) =>
     Rule.custom((fields) => {
       if (!fields?.from || !fields?.to) return true;
-      const fromMinutes = convertTimeStringToMinutes(fields.from);
-      const toMinutes = convertTimeStringToMinutes(fields.to);
+      const fromMinutes = convertTimeStringToMinutes(fields.from.toString());
+      const toMinutes = convertTimeStringToMinutes(fields.to.toString());
       return fromMinutes < toMinutes
         ? true
         : "From time must be before to time";
