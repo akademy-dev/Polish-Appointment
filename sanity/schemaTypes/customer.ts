@@ -1,18 +1,20 @@
 import { defineField, defineType } from "@sanity/types";
+import { UserIcon } from "lucide-react";
 
 export const customerType = defineType({
   name: "customer",
   title: "Customer",
+  icon: UserIcon,
   type: "document",
   fields: [
     defineField({
-      name: "first_name",
+      name: "firstName",
       title: "First Name",
       type: "string",
       validation: (Rule) => Rule.required().min(1).max(100),
     }),
     defineField({
-      name: "last_name",
+      name: "lastName",
       title: "Last Name",
       type: "string",
       validation: (Rule) => Rule.required().min(1).max(100),

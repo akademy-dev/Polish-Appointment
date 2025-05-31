@@ -1,8 +1,10 @@
+import { UserIcon } from "lucide-react";
 import { defineType, defineField, defineArrayMember } from "sanity";
 
 export const employeeType = defineType({
   name: "employee",
   title: "Employee",
+  icon: UserIcon,
   type: "document",
   fields: [
     defineField({
@@ -21,7 +23,6 @@ export const employeeType = defineType({
       name: "phone",
       title: "Phone",
       type: "string",
-      validation: (Rule) => Rule.required().error("Phone number is required"),
     }),
     defineField({
       name: "position",
