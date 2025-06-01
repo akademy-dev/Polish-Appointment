@@ -282,7 +282,7 @@
         },
         "optional": true
       },
-      "timeOffSchedule": {
+      "timeOffSchedules": {
         "type": "objectAttribute",
         "value": {
           "type": "array",

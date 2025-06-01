@@ -20,7 +20,7 @@ count(*[_type == "service" && ($categoryId == "" || category._ref == $categoryId
 export const CATEGORIES_QUERY = `*[_type == "category"]{_id, name} | order(name asc)`;
 
 export const EMPLOYEES_QUERY = defineQuery(
-  `*[_type == "employee" && defined(firstName) && defined(lastName) && !defined($search) || firstName match $search || lastName match $search || position match $search || phone match $search] | order(_createdAt desc){
+  `*[_type == "employee" && (!defined($search) || firstName match $search || lastName match $search || position match $search || phone match $search)] | order(_createdAt desc){
       _id,
       _type,
       firstName,
@@ -28,19 +28,18 @@ export const EMPLOYEES_QUERY = defineQuery(
       _createdAt,
       phone,
       position,
-      workingTimes,
-      timeOffSchedule
+      workingTimes[]->,
+      timeOffSchedules[]->
   }`
 );
 
 export const CUSTOMERS_QUERY = defineQuery(
-  `*[_type == "customer" && defined(firstName) && defined(lastName) && !defined($search) || firstName match $search || lastName match $search || phone match $search || email match $search] | order(_createdAt desc){
+  `*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || phone match $search || email match $search)] | order(_createdAt desc){
       _id,
       _type,
       firstName,
       lastName,
       _createdAt,
-      phone,
-      email
-  }`
+      phone
+}`
 );

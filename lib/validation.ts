@@ -91,7 +91,7 @@ export const employeeFormSchema = z.object({
     required_error: "Please select a position",
   }),
   workingTimes: workingTimeSchema,
-  timeOffSchedule: timeOffScheduleFormSchema,
+  timeOffSchedules: timeOffScheduleFormSchema,
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;

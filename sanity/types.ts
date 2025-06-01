@@ -52,16 +52,12 @@ export type Employee = {
   lastName?: string;
   phone?: string;
   position?: "owner" | "serviceProvider" | "backRoom";
-  workingTimes?: Array<
-    {
-      _key: string;
-    } & WorkingTime
-  >;
-  timeOffSchedule?: Array<
-    {
-      _key: string;
-    } & TimeOffSchedule
-  >;
+  workingTimes?: Array<{
+    _key: string;
+  } & WorkingTime>;
+  timeOffSchedules?: Array<{
+    _key: string;
+  } & TimeOffSchedule>;
 };
 
 export type Service = {
@@ -209,22 +205,5 @@ export type SanityAssetSourceData = {
   url?: string;
 };
 
-export type AllSanitySchemaTypes =
-  | WorkingTime
-  | TimeOffSchedule
-  | Customer
-  | Employee
-  | Service
-  | Category
-  | SanityImagePaletteSwatch
-  | SanityImagePalette
-  | SanityImageDimensions
-  | SanityImageHotspot
-  | SanityImageCrop
-  | SanityFileAsset
-  | SanityImageAsset
-  | SanityImageMetadata
-  | Geopoint
-  | Slug
-  | SanityAssetSourceData;
+export type AllSanitySchemaTypes = WorkingTime | TimeOffSchedule | Customer | Employee | Service | Category | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
 export declare const internalGroqTypeReferenceTo: unique symbol;

@@ -7,7 +7,7 @@ import { TimeOffSchedule, WorkingTime } from "@/models/profile";
 export const createEmployee = async (
   form: FormData,
   workingTimes: WorkingTime[],
-  timeOffSchedule: TimeOffSchedule[]
+  timeOffSchedules: TimeOffSchedule[]
 ) => {
   const { firstName, lastName, phone, position } = Object.fromEntries(
     Array.from(form)
@@ -20,7 +20,7 @@ export const createEmployee = async (
       phone,
       position,
       workingTimes,
-      timeOffSchedule,
+      timeOffSchedules,
     };
 
     const result = await writeClient.create({
@@ -46,7 +46,7 @@ export const updateEmployee = async (
   _id: string,
   form: FormData,
   workingTimes: WorkingTime[],
-  timeOffSchedule: TimeOffSchedule[]
+  timeOffSchedules: TimeOffSchedule[]
 ) => {
   const { firstName, lastName, phone, position } = Object.fromEntries(
     Array.from(form)
@@ -59,7 +59,7 @@ export const updateEmployee = async (
       phone,
       position,
       workingTimes,
-      timeOffSchedule,
+      timeOffSchedules,
     };
 
     const result = await writeClient
