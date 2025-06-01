@@ -44,13 +44,13 @@ const TimeOffScheduleForm = ({
   selectedTimeOffScheduleIndex: number;
 }) => {
   console.log("selectedTimeOffScheduleIndex", selectedTimeOffScheduleIndex);
-  console.log("form", form.getValues("timeOffSchedule"));
+  console.log("form", form.getValues("timeOffSchedules"));
 
   const handleTabChange = (tab: string) => {
     switch (tab) {
       case "Exact":
-        form.setValue(`timeOffSchedule.${selectedTimeOffScheduleIndex}`, {
-          ...form.getValues(`timeOffSchedule.${selectedTimeOffScheduleIndex}`),
+        form.setValue(`timeOffSchedules.${selectedTimeOffScheduleIndex}`, {
+          ...form.getValues(`timeOffSchedules.${selectedTimeOffScheduleIndex}`),
           date: new Date(),
           period: "Exact",
           dayOfWeek: [],
@@ -58,8 +58,8 @@ const TimeOffScheduleForm = ({
         });
         break;
       case "Daily":
-        form.setValue(`timeOffSchedule.${selectedTimeOffScheduleIndex}`, {
-          ...form.getValues(`timeOffSchedule.${selectedTimeOffScheduleIndex}`),
+        form.setValue(`timeOffSchedules.${selectedTimeOffScheduleIndex}`, {
+          ...form.getValues(`timeOffSchedules.${selectedTimeOffScheduleIndex}`),
           date: undefined,
           period: "Daily",
           dayOfWeek: [],
@@ -67,8 +67,8 @@ const TimeOffScheduleForm = ({
         });
         break;
       case "Weekly":
-        form.setValue(`timeOffSchedule.${selectedTimeOffScheduleIndex}`, {
-          ...form.getValues(`timeOffSchedule.${selectedTimeOffScheduleIndex}`),
+        form.setValue(`timeOffSchedules.${selectedTimeOffScheduleIndex}`, {
+          ...form.getValues(`timeOffSchedules.${selectedTimeOffScheduleIndex}`),
           date: undefined,
           period: "Weekly",
           dayOfWeek: [],
@@ -76,8 +76,8 @@ const TimeOffScheduleForm = ({
         });
         break;
       case "Monthly":
-        form.setValue(`timeOffSchedule.${selectedTimeOffScheduleIndex}`, {
-          ...form.getValues(`timeOffSchedule.${selectedTimeOffScheduleIndex}`),
+        form.setValue(`timeOffSchedules.${selectedTimeOffScheduleIndex}`, {
+          ...form.getValues(`timeOffSchedules.${selectedTimeOffScheduleIndex}`),
           date: undefined,
           period: "Monthly",
           dayOfWeek: [],
@@ -91,7 +91,7 @@ const TimeOffScheduleForm = ({
 
   const calculateIndex = () => {
     const schedule = form.getValues(
-      `timeOffSchedule.${selectedTimeOffScheduleIndex}`
+      `timeOffSchedules.${selectedTimeOffScheduleIndex}`
     );
     if (!schedule || !schedule.period) return 0;
     switch (schedule.period) {
@@ -131,7 +131,7 @@ const TimeOffScheduleForm = ({
               {tab === "Exact" && (
                 <FormField
                   control={form.control}
-                  name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.date`}
+                  name={`timeOffSchedules.${selectedTimeOffScheduleIndex}.date`}
                   render={({ field }) => (
                     <FormItem className="flex-between">
                       <FormLabel className="text-lg-medium">Date</FormLabel>
@@ -186,7 +186,7 @@ const TimeOffScheduleForm = ({
               {tab === "Weekly" && (
                 <FormField
                   control={form.control}
-                  name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.dayOfWeek`}
+                  name={`timeOffSchedules.${selectedTimeOffScheduleIndex}.dayOfWeek`}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg-medium">
@@ -221,7 +221,7 @@ const TimeOffScheduleForm = ({
               {tab === "Monthly" && (
                 <FormField
                   control={form.control}
-                  name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.dayOfMonth`}
+                  name={`timeOffSchedules.${selectedTimeOffScheduleIndex}.dayOfMonth`}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg-medium">
@@ -260,12 +260,12 @@ const TimeOffScheduleForm = ({
                 <div className="flex items-center gap-4 w-full grid-rows-2">
                   <FormField
                     control={form.control}
-                    name={`timeOffSchedule.${selectedTimeOffScheduleIndex}`}
+                    name={`timeOffSchedules.${selectedTimeOffScheduleIndex}`}
                     render={() => (
                       <>
                         <FormField
                           control={form.control}
-                          name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.from`}
+                          name={`timeOffSchedules.${selectedTimeOffScheduleIndex}.from`}
                           render={({ field }) => (
                             <FormItem className="flex-between">
                               <FormLabel>From</FormLabel>
@@ -294,7 +294,7 @@ const TimeOffScheduleForm = ({
 
                         <FormField
                           control={form.control}
-                          name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.to`}
+                          name={`timeOffSchedules.${selectedTimeOffScheduleIndex}.to`}
                           render={({ field }) => (
                             <FormItem className="flex-between">
                               <FormLabel>To</FormLabel>
@@ -331,7 +331,7 @@ const TimeOffScheduleForm = ({
 
               <FormField
                 control={form.control}
-                name={`timeOffSchedule.${selectedTimeOffScheduleIndex}.reason`}
+                name={`timeOffSchedules.${selectedTimeOffScheduleIndex}.reason`}
                 render={({ field }) => (
                   <FormItem className="flex-between my-4">
                     <FormLabel className="text-lg-medium">Reason</FormLabel>

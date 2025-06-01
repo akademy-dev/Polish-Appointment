@@ -164,7 +164,7 @@ const FormButton = ({
       phone: "",
       position: "backRoom",
       workingTimes: [],
-      timeOffSchedule: [],
+      timeOffSchedules: [],
     },
   });
 
@@ -281,7 +281,7 @@ const FormButton = ({
           profileId,
           formData,
           formValues.workingTimes as unknown as WorkingTime[],
-          formValues.timeOffSchedule as unknown as TimeOffSchedule[]
+          formValues.timeOffSchedules as unknown as TimeOffSchedule[]
         );
 
         if (result.status == "SUCCESS") {
@@ -302,7 +302,7 @@ const FormButton = ({
       const result = await createEmployee(
         formData,
         formValues.workingTimes as unknown as WorkingTime[],
-        formValues.timeOffSchedule as unknown as TimeOffSchedule[]
+        formValues.timeOffSchedules as unknown as TimeOffSchedule[]
       );
 
       if (result.status == "SUCCESS") {
@@ -492,8 +492,8 @@ const FormButton = ({
               to: wt.to || "",
               day: wt.day || "",
             })) || [],
-          timeOffSchedule:
-            profile.timeOffSchedule?.map((to) => ({
+          timeOffSchedules:
+            profile.timeOffSchedules?.map((to) => ({
               from: to.from || "",
               to: to.to || "",
               reason: to.reason || "",
