@@ -114,73 +114,81 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
 
   return (
     <section className="space-y-6 max-w-4xl">
-      {/* Results Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pr-4">
-        <p className="text-sm text-muted-foreground">
-          Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
-          <span className="font-medium">{Math.min(endIndex, data.length)}</span>{" "}
-          of <span className="font-medium">{data.length}</span> people
-        </p>
+      {data.length === 0 ? (
+        <p className="text-center text-lg-medium">No results found</p>
+      ) : (
+        <>
+          {/* Results Info */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pr-4">
+            <p className="text-sm text-muted-foreground">
+              Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
+              <span className="font-medium">
+                {Math.min(endIndex, data.length)}
+              </span>{" "}
+              of <span className="font-medium">{data.length}</span> people
+            </p>
 
-        <div className="text-sm text-muted-foreground">
-          Page <span className="font-medium">{currentPage}</span> of{" "}
-          <span className="font-medium">{totalPages}</span>
-        </div>
-      </div>
-
-      {/* Human List */}
-      <ul className="list-container">
-        {currentItems.map((profile, index) => (
-          <ProfileCard profile={profile} key={index} />
-        ))}
-      </ul>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <Pagination className="flex w-full pr-4 sm:justify-end">
-          <PaginationContent>
-            {/* Previous Button */}
-            <PaginationItem>
-              <PaginationPrevious
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handlePageChange(currentPage - 1);
-                }}
-                className={
-                  currentPage === 1
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
-              />
-            </PaginationItem>
-
-            {/* Page Numbers */}
-            <div className="grid grid-cols-7 gap-1">
-              {renderPaginationItems().map((item, index) => (
-                <div key={index} className="flex-between">
-                  {item}
-                </div>
-              ))}
+            <div className="text-sm text-muted-foreground">
+              Page <span className="font-medium">{currentPage}</span> of{" "}
+              <span className="font-medium">{totalPages}</span>
             </div>
+          </div>
 
-            {/* Next Button */}
-            <PaginationItem>
-              <PaginationNext
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handlePageChange(currentPage + 1);
-                }}
-                className={
-                  currentPage === totalPages
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+          {/* Human List */}
+          <ul className="list-container">
+            {currentItems.map((profile, index) => (
+              <ProfileCard profile={profile} key={index} />
+            ))}
+          </ul>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Pagination className="flex w-full pr-4 sm:justify-end">
+              <PaginationContent>
+                {/* Previous Button */}
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handlePageChange(currentPage - 1);
+                    }}
+                    className={
+                      currentPage === 1
+                        ? "pointer-events-none opacity-50"
+                        : "cursor-pointer"
+                    }
+                  />
+                </PaginationItem>
+
+                {/* Page Numbers */}
+                <div className="grid grid-cols-7 gap-1">
+                  {renderPaginationItems().map((item, index) => (
+                    <div key={index} className="flex-between">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Next Button */}
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handlePageChange(currentPage + 1);
+                    }}
+                    className={
+                      currentPage === totalPages
+                        ? "pointer-events-none opacity-50"
+                        : "cursor-pointer"
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </>
       )}
     </section>
   );
