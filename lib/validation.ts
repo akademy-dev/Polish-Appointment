@@ -96,6 +96,14 @@ export const employeeFormSchema = z.object({
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
 
+export const customerFormSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phone: z.string().optional(),
+});
+
+export type CustomerFormValues = z.infer<typeof customerFormSchema>;
+
 export const appointmentFormSchema = z.object({
   firstName: z.string().min(1, { message: "First name cannot be empty." }),
   lastName: z.string().min(1, { message: "Last name cannot be empty." }),
