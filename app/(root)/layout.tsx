@@ -5,10 +5,10 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import SearchForm from "@/components/SearchForm";
-import CreateInfoButton from "@/components/CreateInfoButton";
 import { CalendarContext } from "@/hooks/context";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
+import CreateInfoButton from "@/components/CreateInfoButton";
+import SearchForm from "@/components/forms/SearchForm";
 
 export default function Layout({
   children,
@@ -34,7 +34,7 @@ export default function Layout({
                   <Navbar value={value} />
                   <div className="hidden lg:flex items-center gap-4">
                     <div className="w-80">
-                      <SearchForm />
+                      <SearchForm action={`/${value}`} />
                     </div>
                     <Button
                       size="default"
@@ -52,7 +52,7 @@ export default function Layout({
 
                 <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1 sm:max-w-md">
-                    <SearchForm />
+                    <SearchForm action={`/${value}`} />
                   </div>
                   <Button
                     size="default"
@@ -74,7 +74,7 @@ export default function Layout({
               <Navbar value={value} />
               <div className="hidden lg:flex items-center gap-4">
                 <div className="w-80">
-                  <SearchForm />
+                  <SearchForm action={`/${value}`} />
                 </div>
                 <CreateInfoButton type={value} />
               </div>
@@ -82,7 +82,7 @@ export default function Layout({
 
             <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
               <div className="flex-1 sm:max-w-md">
-                <SearchForm />
+                <SearchForm action={`/${value}`} />
               </div>
               <CreateInfoButton type={value} />
             </div>

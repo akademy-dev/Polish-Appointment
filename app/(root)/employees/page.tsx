@@ -15,7 +15,7 @@ const Page = async ({
     params,
   });
 
-  console.log(employees);
+  console.log("employees", employees);
 
   return (
     <>
