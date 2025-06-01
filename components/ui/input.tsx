@@ -29,7 +29,6 @@ function Input({
         )}
         onChange={(e) => {
           props.onChange?.(e);
-          console.log(e.target.value);
         }}
         {...props}
       />
