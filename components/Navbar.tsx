@@ -10,22 +10,34 @@ const Navbar = ({ value = "schedule" }) => {
       <Tabs defaultValue={value} className="flex-1">
         <TabsList>
           <TabsTrigger asChild value="schedule">
-            <Link href="/">Schedule</Link>
+            <Link href="/" prefetch={true}>
+              Schedule
+            </Link>
           </TabsTrigger>
           <TabsTrigger asChild value="employees">
-            <Link href="/employees">Employees</Link>
+            <Link href="/employees" prefetch={true}>
+              Employees
+            </Link>
           </TabsTrigger>
           <TabsTrigger asChild value="customers">
-            <Link href="/customers">Customers</Link>
+            <Link href="/customers" prefetch={true}>
+              Customers
+            </Link>
           </TabsTrigger>
           <TabsTrigger asChild value="services">
-            <Link href="/services">Services</Link>
+            <Link href="/services" prefetch={true}>
+              Services
+            </Link>
           </TabsTrigger>
           <TabsTrigger asChild value="settings">
-            <Link href="/settings">Settings</Link>
+            <Link href="/settings" prefetch={true}>
+              Settings
+            </Link>
           </TabsTrigger>
           <TabsTrigger asChild value="login">
-            <Link href="/login">Login</Link>
+            <Link href="/login" prefetch={true}>
+              Login
+            </Link>
           </TabsTrigger>
         </TabsList>
       </Tabs>
