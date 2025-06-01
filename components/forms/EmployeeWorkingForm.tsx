@@ -79,7 +79,7 @@ const EmployeeWorkingForm = ({
 
   return (
     <>
-      <div className="grid-center grid-rows-10 gap-1 p-1">
+      <div className="grid-center grid-rows-10 gap-1 py-1">
         <div className="row-span-1">
           <p className="text-xl-semibold">Working time</p>
         </div>
@@ -99,9 +99,9 @@ const EmployeeWorkingForm = ({
                       return (
                         <FormItem
                           key={item}
-                          className="col-span-1 grid grid-cols-7"
+                          className="row-span-1 hover:bg-accent px-2"
                         >
-                          <div className="flex items-center gap-2 col-span-1">
+                          <div className="flex items-center gap-2">
                             <FormControl>
                               <Checkbox
                                 checked={field.value?.some(
@@ -125,14 +125,14 @@ const EmployeeWorkingForm = ({
                                 }}
                               />
                             </FormControl>
-                            <FormLabel>{item}</FormLabel>
-                          </div>
-
-                          <div className="flex items-center gap-2 justify-start col-span-6">
+                            <FormLabel className="flex min-w-10 h-full">
+                              {field.value?.find((value) => value.day === item)
+                                ?.day || "OFF"}
+                            </FormLabel>
                             {field.value?.find(
                               (value) => value.day === item
-                            ) ? (
-                              <>
+                            ) && (
+                              <div className="flex-between gap-2">
                                 <Select
                                   onValueChange={(from) => {
                                     field.onChange(
@@ -192,10 +192,9 @@ const EmployeeWorkingForm = ({
                                     ))}
                                   </SelectContent>
                                 </Select>
-                              </>
-                            ) : (
-                              <FormLabel>OFF</FormLabel>
+                              </div>
                             )}
+                            <FormLabel className="flex-1 h-full"></FormLabel>
                           </div>
                         </FormItem>
                       );
