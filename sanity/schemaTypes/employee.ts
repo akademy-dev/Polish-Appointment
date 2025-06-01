@@ -49,7 +49,7 @@ export const employeeType = defineType({
           .error("You have to select at least one day, up to a maximum of 7."),
     }),
     defineField({
-      name: "timeOffSchedule",
+      name: "timeOffSchedules",
       title: "Time Off Schedule",
       type: "array",
       of: [defineArrayMember({ type: "timeOffSchedule" })],
