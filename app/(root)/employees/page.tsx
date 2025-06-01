@@ -1,6 +1,4 @@
 import ProfileList from "@/components/ProfileList";
-import React from "react";
-import { Employee } from "@/models/profile";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { EMPLOYEES_QUERY } from "@/sanity/lib/queries";
 
@@ -23,7 +21,7 @@ const Page = async ({
     <>
       <h2 className="heading">Employee List</h2>
 
-      <ProfileList data={employees as Employee[]} />
+      <ProfileList data={employees} />
 
       <SanityLive />
     </>

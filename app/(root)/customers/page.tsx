@@ -1,86 +1,29 @@
 import ProfileList from "@/components/ProfileList";
-import React from "react";
-import { Customer } from "@/models/profile";
+import { sanityFetch, SanityLive } from "@/sanity/lib/live";
+import { CUSTOMERS_QUERY } from "@/sanity/lib/queries";
 
-const customers: Customer[] = [
-  {
-    _id: "1",
-    firstName: "John",
-    lastName: "Doe",
-    phone: "1234567890",
-    _type: "customer",
-    _createdAt: new Date().toISOString(),
-    _updatedAt: new Date().toISOString(),
-    _rev: "1",
-  },
-  {
-    _id: "2",
-    firstName: "Jane",
-    lastName: "Smith",
-    phone: "0987654321",
-    _type: "customer",
-    _createdAt: new Date().toISOString(),
-    _updatedAt: new Date().toISOString(),
-    _rev: "2",
-  },
-  {
-    _id: "3",
-    firstName: "Jim",
-    lastName: "Beam",
-    phone: "1234567890",
-    _type: "customer",
-    _createdAt: new Date().toISOString(),
-    _updatedAt: new Date().toISOString(),
-    _rev: "3",
-  },
-  {
-    _id: "4",
-    firstName: "Jim",
-    lastName: "Brown",
-    phone: "1234567890",
-    _type: "customer",
-    _createdAt: new Date().toISOString(),
-    _updatedAt: new Date().toISOString(),
-    _rev: "4",
-  },
-  {
-    _id: "5",
-    firstName: "Jim",
-    lastName: "Brown",
-    phone: "1234567890",
-    _type: "customer",
-    _createdAt: new Date().toISOString(),
-    _updatedAt: new Date().toISOString(),
-    _rev: "5",
-  },
-  {
-    _id: "6",
-    firstName: "Jim",
-    lastName: "Brown",
-    phone: "1234567890",
-    _type: "customer",
-    _createdAt: new Date().toISOString(),
-    _updatedAt: new Date().toISOString(),
-    _rev: "6",
-  },
-  {
-    _id: "7",
-    firstName: "Jim",
-    lastName: "Brown",
-    phone: "1234567890",
-    _type: "customer",
-    _createdAt: new Date().toISOString(),
-    _updatedAt: new Date().toISOString(),
-    _rev: "7",
-  },
-];
+const Page = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{ query?: string }>;
+}) => {
+  const { query } = await searchParams;
+  const params = { search: query || null };
 
-const Page = () => {
+  const { data: customers } = await sanityFetch({
+    query: CUSTOMERS_QUERY,
+    params,
+  });
+
+  console.log(customers);
+
   return (
     <>
       <h2 className="heading">Customer List</h2>
 
       <ProfileList data={customers} />
+
+      <SanityLive />
     </>
   );
 };
