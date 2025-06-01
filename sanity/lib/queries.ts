@@ -32,3 +32,15 @@ export const EMPLOYEES_QUERY = defineQuery(
       timeOffSchedule
   }`
 );
+
+export const CUSTOMERS_QUERY = defineQuery(
+  `*[_type == "customer" && defined(firstName) && defined(lastName) && !defined($search) || firstName match $search || lastName match $search || phone match $search || email match $search] | order(_createdAt desc){
+      _id,
+      _type,
+      firstName,
+      lastName,
+      _createdAt,
+      phone,
+      email
+  }`
+);
