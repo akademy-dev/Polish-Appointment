@@ -132,9 +132,7 @@ const CreateInfoButton = ({ type }: { type: string }) => {
         setOpen(false);
         form.reset();
         toast.success("Success", {
-          description: `New ${
-            type === "employees" ? "Employee" : "Customer"
-          } created successfully`,
+          description: getToastDescription(type),
         });
       } else {
         toast.error("Error", {
