@@ -57,7 +57,7 @@ const EmployeeTimeOffForm = ({
   };
 
   return (
-    <div className="grid-center gap-1 grid-rows-7 h-full pb-6">
+    <div className="grid-center gap-1 grid-rows-7 h-full p-1">
       <div className="grid-center grid-cols-3 row-span-1">
         <p className="col-span-2 text-xl-semibold">Time-off schedule</p>
         <Button
@@ -110,7 +110,7 @@ const EmployeeTimeOffForm = ({
             })
           ) : (
             <div className="h-full flex-between">
-              <p className="text-sm md:text-md lg:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground text-center w-full">
+              <p className="text-sm md:text-md lg:text-lg xl:text-xl 2xl:text-2xl text-muted-foreground text-center w-full p-2">
                 No time-off schedule yet
               </p>
             </div>

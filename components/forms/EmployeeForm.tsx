@@ -19,12 +19,14 @@ const EmployeeForm = ({
   form: externalForm,
   hideSubmitButton = false,
   formRef,
+  isSubmitting = false,
 }: {
   className?: string;
   onSuccess?: () => void;
   form?: UseFormReturn<z.infer<typeof employeeFormSchema>>;
   hideSubmitButton?: boolean;
   formRef?: React.RefObject<HTMLFormElement | null>;
+  isSubmitting?: boolean;
 }) => {
   const internalForm = useForm<z.infer<typeof employeeFormSchema>>({
     resolver: zodResolver(employeeFormSchema),
@@ -32,7 +34,7 @@ const EmployeeForm = ({
       firstName: "",
       lastName: "",
       phone: "",
-      position: "Employee",
+      position: "backRoom",
       workingTimes: [],
       timeOffSchedule: [],
     },
@@ -51,8 +53,7 @@ const EmployeeForm = ({
 
   const timeoffTabErrors = form.formState.errors.timeOffSchedule;
 
-  function onSubmit(values: z.infer<typeof employeeFormSchema>) {
-    console.log(values);
+  function onSubmit() {
     onSuccess?.();
   }
 
@@ -66,6 +67,7 @@ const EmployeeForm = ({
             infoTabErrors &&
               "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200"
           )}
+          disabled={isSubmitting}
         >
           <div className="flex items-center gap-2">
             Basic Information
@@ -79,6 +81,7 @@ const EmployeeForm = ({
             workingTabErrors &&
               "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200"
           )}
+          disabled={isSubmitting}
         >
           <div className="flex items-center gap-2">
             Working Time
@@ -94,6 +97,7 @@ const EmployeeForm = ({
             timeoffTabErrors &&
               "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200"
           )}
+          disabled={isSubmitting}
         >
           <div className="flex items-center gap-2">
             Time-off Schedule
@@ -120,7 +124,9 @@ const EmployeeForm = ({
           </TabsContent>
           {!hideSubmitButton && (
             <div className="flex justify-end pt-4">
-              <Button type="submit">Save</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save"}
+              </Button>
             </div>
           )}
         </form>

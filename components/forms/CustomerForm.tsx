@@ -1,8 +1,7 @@
 "use client";
 import React, { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -15,14 +14,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Customer } from "@/models/profile";
 import { cn } from "@/lib/utils";
-
-const customerFormSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phone: z.string().optional(),
-});
-
-type CustomerFormValues = z.infer<typeof customerFormSchema>;
+import { customerFormSchema } from "@/lib/validation";
+import { CustomerFormValues } from "@/lib/validation";
 
 const CustomerForm = ({
   className,
@@ -30,14 +23,19 @@ const CustomerForm = ({
   onSuccess,
   hideSubmitButton = false,
   formRef,
+  form: externalForm,
+  isSubmitting = false,
 }: {
   className?: string;
   initialData?: Customer;
   onSuccess?: () => void;
   hideSubmitButton?: boolean;
   formRef?: React.RefObject<HTMLFormElement | null>;
+  form?: UseFormReturn<CustomerFormValues>;
+  isSubmitting?: boolean;
 }) => {
-  const form = useForm<CustomerFormValues>({
+  // Use external form if provided, otherwise create internal form
+  const internalForm = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: initialData || {
       firstName: "",
@@ -46,14 +44,15 @@ const CustomerForm = ({
     },
   });
 
+  const form = externalForm || internalForm;
+
   useEffect(() => {
     if (initialData) {
       form.reset(initialData);
     }
   }, [initialData, form]);
 
-  function onSubmit(values: CustomerFormValues) {
-    console.log("Customer Form Submitted:", values);
+  function onSubmit() {
     onSuccess?.();
   }
 
@@ -62,7 +61,7 @@ const CustomerForm = ({
       <form
         ref={formRef}
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn("space-y-4 py-2 max-w-3xl", className)}
+        className={cn("space-y-4 p-1 max-w-3xl", className)}
       >
         <FormField
           control={form.control}
@@ -71,7 +70,11 @@ const CustomerForm = ({
             <FormItem>
               <FormLabel>First Name</FormLabel>
               <FormControl>
-                <Input placeholder="First name" {...field} />
+                <Input
+                  placeholder="First name"
+                  disabled={isSubmitting}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -84,7 +87,11 @@ const CustomerForm = ({
             <FormItem>
               <FormLabel>Last Name</FormLabel>
               <FormControl>
-                <Input placeholder="Last name" {...field} />
+                <Input
+                  placeholder="Last name"
+                  disabled={isSubmitting}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -97,7 +104,11 @@ const CustomerForm = ({
             <FormItem>
               <FormLabel>Phone</FormLabel>
               <FormControl>
-                <Input placeholder="Phone number" {...field} />
+                <Input
+                  placeholder="Phone number"
+                  disabled={isSubmitting}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -105,7 +116,9 @@ const CustomerForm = ({
         />
         {!hideSubmitButton && (
           <div className="flex justify-end pt-4">
-            <Button type="submit">Save Customer</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save"}
+            </Button>
           </div>
         )}
       </form>

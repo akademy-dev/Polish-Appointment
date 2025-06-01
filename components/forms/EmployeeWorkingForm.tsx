@@ -79,7 +79,7 @@ const EmployeeWorkingForm = ({
 
   return (
     <>
-      <div className="grid-center grid-rows-10 gap-1 py-2">
+      <div className="grid-center grid-rows-10 gap-1 p-1">
         <div className="row-span-1">
           <p className="text-xl-semibold">Working time</p>
         </div>
