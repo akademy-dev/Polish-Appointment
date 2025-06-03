@@ -1,10 +1,7 @@
-import { Category } from "@/models/category";
+import type { Service as SanityService } from "@/sanity/types";
 
-export type Service = {
-  _id: string;
-  name: string;
-  showOnline: boolean;
-  price: number;
-  duration: number;
-  category: Category;
+export type Service = SanityService;
+
+export const getServiceId = (service: Service): string => {
+  return service._id;
 };

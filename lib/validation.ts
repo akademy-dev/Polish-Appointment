@@ -18,8 +18,8 @@ export const workingTimeSchema = z
         },
         {
           message: "From time must be before to time",
-        }
-      )
+        },
+      ),
   )
   .min(1, "You have to select at least one day.")
   .max(7);
@@ -50,7 +50,7 @@ export const timeOffScheduleFormSchema = z.array(
       {
         message: "Please select at least one day of week",
         path: ["dayOfWeek"],
-      }
+      },
     )
     .refine(
       (data) => {
@@ -67,7 +67,7 @@ export const timeOffScheduleFormSchema = z.array(
       {
         message: "Please select at least one day of month",
         path: ["dayOfMonth"],
-      }
+      },
     )
     .refine(
       (data) => {
@@ -79,8 +79,8 @@ export const timeOffScheduleFormSchema = z.array(
       },
       {
         message: "From time must be before to time",
-      }
-    )
+      },
+    ),
 );
 
 export const employeeFormSchema = z.object({
@@ -111,7 +111,7 @@ export const appointmentFormSchema = z.object({
     .string()
     .refine(
       (value) => /^[+]{1}(?:[0-9-()/.]\s?){6,15}[0-9]{1}$/.test(value),
-      "Please enter a valid phone number"
+      "Please enter a valid phone number",
     ),
   time: z.date({
     required_error: "Please select a time",
@@ -130,7 +130,20 @@ export const appointmentFormSchema = z.object({
         date: z.date(),
         duration: z.number(),
         order: z.number(),
-      })
+      }),
     )
     .min(1, { message: "Please select at least one service." }),
 });
+
+export const serviceFormSchema = z.object({
+  category: z.object({
+    _ref: z.string().min(1, "Category reference is required"),
+    _type: z.literal("reference"),
+  }),
+  name: z.string().min(1, "Service name is required"),
+  price: z.number().min(0, "Price must be at least 0"),
+  duration: z.number().positive("Duration must be a positive number"),
+  showOnline: z.boolean(),
+});
+
+export type ServiceFormValues = z.infer<typeof serviceFormSchema>;

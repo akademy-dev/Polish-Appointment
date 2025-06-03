@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Circle, Loader2 } from "lucide-react";
+import { Circle, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +31,7 @@ import {
   TOTAL_SERVICES_QUERY,
 } from "@/sanity/lib/queries";
 import { Service } from "@/models/service";
+import FormButton from "@/components/FormButton";
 
 // Hook debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -83,6 +84,25 @@ export const columns: ColumnDef<Service>[] = [
     header: "Duration",
     cell: ({ row }) => formatDuration(row.getValue("duration") as number),
   },
+  {
+    accessorKey: "action",
+    header: "",
+    cell: ({ row }) => {
+      return (
+        <div className="flex items-center gap-2">
+          <FormButton
+            mode="edit"
+            type="services"
+            variant="default"
+            size="icon"
+            service={row.original}
+          >
+            <Pencil className="size-5" aria-hidden="true" />
+          </FormButton>
+        </div>
+      );
+    },
+  },
 ];
 
 function formatDuration(minutes: number): string {
@@ -113,7 +133,7 @@ export function ServiceDataTable() {
     React.useState<VisibilityState>({});
   const [search, setSearch] = React.useState("");
   const [page, setPage] = React.useState(1);
-  const [limit] = React.useState(10);
+  const [limit] = React.useState(7);
   const [categoryId, setCategoryId] = React.useState("");
   const [total, setTotal] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -147,7 +167,6 @@ export function ServiceDataTable() {
     const startTime = Date.now();
     setIsLoading(true);
     try {
-      console.log("Fetching with params:", params);
       const [result, totalResult] = await Promise.all([
         client.fetch(SERVICES_QUERY, params),
         client.fetch(TOTAL_SERVICES_QUERY, {
@@ -155,8 +174,6 @@ export function ServiceDataTable() {
           searchTerm: params.searchTerm,
         }),
       ]);
-      console.log("Fetched services result:", result);
-      console.log("Fetched total result:", totalResult);
 
       // Chỉ hiển thị spinner nếu thời gian tải vượt ngưỡng
       const elapsedTime = Date.now() - startTime;

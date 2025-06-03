@@ -8,7 +8,8 @@ export const SERVICES_QUERY = defineQuery(`
   duration,
   showOnline,
   category -> {
-    _id,
+    _ref,
+    _type,
     name
   }
 } | order(_id asc) [($page - 1) * $limit ... $page * $limit]
@@ -30,7 +31,7 @@ export const EMPLOYEES_QUERY = defineQuery(
       position,
       workingTimes[]->,
       timeOffSchedules[]->
-  }`
+  }`,
 );
 
 export const CUSTOMERS_QUERY = defineQuery(
@@ -41,5 +42,5 @@ export const CUSTOMERS_QUERY = defineQuery(
       lastName,
       _createdAt,
       phone
-}`
+}`,
 );

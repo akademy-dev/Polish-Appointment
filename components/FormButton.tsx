@@ -28,13 +28,19 @@ import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { customerFormSchema, employeeFormSchema } from "@/lib/validation";
+import {
+  customerFormSchema,
+  employeeFormSchema,
+  serviceFormSchema,
+} from "@/lib/validation";
 import { useRef, useState, ReactNode, useEffect } from "react";
 import {
   createEmployee,
   createCustomer,
   updateEmployee,
   updateCustomer,
+  updateService,
+  createService,
 } from "@/lib/actions";
 import {
   TimeOffSchedule,
@@ -45,6 +51,7 @@ import {
   Customer,
   getProfileId,
 } from "@/models/profile";
+import { getServiceId, Service } from "@/models/service";
 
 type FormMode = "create" | "edit" | "history";
 type FormType = "employees" | "customers" | "services";
@@ -54,6 +61,7 @@ interface FormButtonProps {
   mode: FormMode;
   type: FormType;
   profile?: Profile; // For edit mode
+  service?: Service;
   variant?:
     | "default"
     | "outline"
@@ -70,6 +78,7 @@ const FormButton = ({
   mode,
   type,
   profile,
+  service,
   variant = "default",
   size = "default",
   className = "",
@@ -177,6 +186,20 @@ const FormButton = ({
     },
   });
 
+  const serviceForm = useForm<z.infer<typeof serviceFormSchema>>({
+    resolver: zodResolver(serviceFormSchema),
+    defaultValues: {
+      name: "",
+      price: 0,
+      duration: 15,
+      category: {
+        _ref: "",
+        _type: "reference",
+      },
+      showOnline: true,
+    },
+  });
+
   // Get appropriate form instance based on type
   const getFormInstance = () => {
     switch (type) {
@@ -196,6 +219,9 @@ const FormButton = ({
     }
     if (mode === "edit" && profile) {
       return `Edit ${getProfileName(profile)}`;
+    }
+    if (mode === "edit" && service) {
+      return `Edit ${service.name}`;
     }
     // Create mode
     switch (type) {
@@ -218,6 +244,9 @@ const FormButton = ({
     if (mode === "edit" && profile) {
       return `Update details for ${getProfileName(profile)}.`;
     }
+    if (mode === "edit" && service) {
+      return `Update details for ${service.name}.`;
+    }
     // Create mode
     switch (type) {
       case "employees":
@@ -235,6 +264,8 @@ const FormButton = ({
   const getToastDescription = () => {
     if (mode === "edit" && profile) {
       return `${getProfileName(profile)} updated successfully`;
+    } else if (mode === "edit" && service) {
+      return `${service.name} updated successfully`;
     }
     // Create mode
     switch (type) {
@@ -281,7 +312,7 @@ const FormButton = ({
           profileId,
           formData,
           formValues.workingTimes as unknown as WorkingTime[],
-          formValues.timeOffSchedules as unknown as TimeOffSchedule[]
+          formValues.timeOffSchedules as unknown as TimeOffSchedule[],
         );
 
         if (result.status == "SUCCESS") {
@@ -302,7 +333,7 @@ const FormButton = ({
       const result = await createEmployee(
         formData,
         formValues.workingTimes as unknown as WorkingTime[],
-        formValues.timeOffSchedules as unknown as TimeOffSchedule[]
+        formValues.timeOffSchedules as unknown as TimeOffSchedule[],
       );
 
       if (result.status == "SUCCESS") {
@@ -388,13 +419,54 @@ const FormButton = ({
   // Handle service form success
   const handleServiceSuccess = async () => {
     try {
-      // TODO: Implement service creation/update logic when ServiceForm is ready
-      console.log("Service form success - to be implemented");
+      if (isSubmitting) return; // Prevent double submission
+      setIsSubmitting(true);
 
-      setOpen(false);
-      toast.success("Success", {
-        description: getToastDescription(),
-      });
+      const formValues = serviceForm.getValues();
+      const formData = new FormData();
+      formData.append("name", formValues.name);
+      formData.append("price", formValues.price.toString());
+      formData.append("duration", formValues.duration.toString());
+      formData.append("showOnline", formValues.showOnline.toString());
+
+      if (mode === "edit" && service) {
+        // Update mode - include _id
+        if (!service) {
+          toast.error("Error", {
+            description: "Service not found for update",
+          });
+          return;
+        }
+        const result = await updateService(getServiceId(service), formData);
+
+        if (result.status == "SUCCESS") {
+          setOpen(false);
+          serviceForm.reset();
+          toast.success("Success", {
+            description: getToastDescription(),
+          });
+        } else {
+          toast.error("Error", {
+            description: result.error,
+          });
+        }
+        return;
+      }
+
+      // Create mode
+      const result = await createService(formData, formValues.category);
+      if (result.status == "SUCCESS") {
+        setOpen(false);
+        serviceForm.reset();
+        toast.success("Success", {
+          description: getToastDescription(),
+        });
+        return;
+      } else {
+        toast.error("Error", {
+          description: result.error,
+        });
+      }
     } catch (error) {
       console.log(error);
       toast.error("Error", {
@@ -453,7 +525,18 @@ const FormButton = ({
           />
         );
       case "services":
-        return <ServiceForm onSuccess={handleFormSuccess} />;
+        return (
+          <ServiceForm
+            form={serviceForm}
+            onSuccess={handleFormSuccess}
+            hideSubmitButton={isMobile}
+            formRef={isMobile ? formRef : undefined}
+            isSubmitting={isSubmitting}
+            initialData={
+              mode === "edit" && service ? (service as Service) : undefined
+            }
+          />
+        );
       default:
         return null;
     }
@@ -568,7 +651,7 @@ const FormButton = ({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl 2xl:max-w-screen-2xl"
+        className="sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl"
         aria-describedby="form-dialog"
       >
         <DialogHeader>
