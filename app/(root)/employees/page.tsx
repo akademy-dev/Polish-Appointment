@@ -2,26 +2,42 @@ import ProfileList from "@/components/ProfileList";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { EMPLOYEES_QUERY } from "@/sanity/lib/queries";
 
+const DEFAULT_ITEMS_PER_PAGE = 5;
+
 const Page = async ({
   searchParams,
 }: {
-  searchParams: Promise<{ query?: string }>;
+  searchParams: Promise<{ query?: string; page?: string; limit?: string }>;
 }) => {
-  const { query } = await searchParams;
-  const params = { search: query || null };
+  const { query, page: pageString, limit: limitString } = await searchParams;
+  const currentPage = parseInt(pageString || "1", 10);
+  const itemsPerPage = parseInt(
+    limitString || String(DEFAULT_ITEMS_PER_PAGE),
+    10
+  );
 
-  const { data: employees } = await sanityFetch({
+  const params = {
+    search: query || null,
+    page: currentPage,
+    limit: itemsPerPage,
+  };
+
+  const { data: employeesResult } = await sanityFetch({
     query: EMPLOYEES_QUERY,
     params,
   });
 
-  console.log("employees", employees);
+  console.log("employeesResult", employeesResult);
 
   return (
     <>
       <h2 className="heading">Employee List</h2>
 
-      <ProfileList data={employees} />
+      <ProfileList
+        data={employeesResult.data}
+        totalItems={employeesResult.total}
+        itemsPerPage={itemsPerPage}
+      />
 
       <SanityLive />
     </>

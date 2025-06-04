@@ -22,7 +22,8 @@ export const TOTAL_SERVICES_QUERY = defineQuery(
 export const CATEGORIES_QUERY = `*[_type == "category"]{_id, name} | order(name asc)`;
 
 export const EMPLOYEES_QUERY = defineQuery(
-  `*[_type == "employee" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || position match $search || phone match $search)] | order(_createdAt desc){
+  `{
+    "data": *[_type == "employee" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || position match $search || phone match $search)]{
       _id,
       _type,
       firstName,
@@ -32,16 +33,21 @@ export const EMPLOYEES_QUERY = defineQuery(
       position,
       workingTimes,
       timeOffSchedules,
+    } | order(_createdAt desc) [($page - 1) * $limit ... $page * $limit],
+    "total": count(*[_type == "employee" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || position match $search || phone match $search)])
   }`
 );
 
 export const CUSTOMERS_QUERY = defineQuery(
-  `*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)] | order(_createdAt desc){
+  `{
+    "data": *[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)]{
       _id,
       _type,
       firstName,
       lastName,
       _createdAt,
       phone
-}`
+    } | order(_createdAt desc) [($page - 1) * $limit ... $page * $limit],
+    "total": count(*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)])
+  }`
 );
