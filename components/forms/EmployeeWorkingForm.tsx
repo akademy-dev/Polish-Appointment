@@ -126,8 +126,7 @@ const EmployeeWorkingForm = ({
                               />
                             </FormControl>
                             <FormLabel className="flex min-w-10 h-full">
-                              {field.value?.find((value) => value.day === item)
-                                ?.day || "OFF"}
+                              {item}
                             </FormLabel>
                             {field.value?.find(
                               (value) => value.day === item
@@ -194,7 +193,12 @@ const EmployeeWorkingForm = ({
                                 </Select>
                               </div>
                             )}
-                            <FormLabel className="flex-1 h-full"></FormLabel>
+                            <FormLabel className="flex-1 h-full">
+                              {field.value?.find((value) => value.day === item)
+                                ?.day
+                                ? ""
+                                : "OFF"}
+                            </FormLabel>
                           </div>
                         </FormItem>
                       );
