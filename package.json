@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "sanity": "npx sanity@latest schema extract --path=./sanity/extract.json && npx sanity@latest typegen generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
