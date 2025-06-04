@@ -35,7 +35,7 @@ export const EMPLOYEES_QUERY = defineQuery(
 );
 
 export const CUSTOMERS_QUERY = defineQuery(
-  `*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || phone match $search || email match $search)] | order(_createdAt desc){
+  `*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)] | order(_createdAt desc){
       _id,
       _type,
       firstName,
