@@ -10,7 +10,6 @@ export const timeOffScheduleType = defineType({
       name: "date",
       title: "Date",
       type: "string",
-      validation: (Rule) => Rule.min(1).max(15),
     }),
     defineField({
       name: "from",
@@ -28,22 +27,19 @@ export const timeOffScheduleType = defineType({
       name: "reason",
       title: "Reason",
       type: "string",
-      validation: (Rule) =>
-        Rule.required().min(1).error("Please enter a reason"),
+      validation: (Rule) => Rule.required().min(1),
     }),
     defineField({
       name: "dayOfWeek",
       title: "Day of Week",
       type: "array",
       of: [defineArrayMember({ type: "number" })],
-      validation: (Rule) => Rule.min(1).max(7),
     }),
     defineField({
       name: "dayOfMonth",
       title: "Day of Month",
       type: "array",
       of: [defineArrayMember({ type: "number" })],
-      validation: (Rule) => Rule.min(1).max(31),
     }),
     defineField({
       name: "period",
@@ -60,7 +56,7 @@ export const timeOffScheduleType = defineType({
       validation: (Rule) => Rule.required(),
     }),
   ],
-  validation: (Rule) =>
+  validation: (Rule) => [
     Rule.custom((fields) => {
       if (!fields?.from || !fields?.to) return true;
       const fromMinutes = convertTimeStringToMinutes(fields.from.toString());
@@ -69,4 +65,33 @@ export const timeOffScheduleType = defineType({
         ? true
         : "From time must be before to time";
     }),
+    Rule.custom((fields) => {
+      if (fields?.period === "Exact" && fields?.date) {
+        return fields?.date ? true : "Please select a date";
+      }
+      return true;
+    }),
+    Rule.custom((fields) => {
+      if (fields?.period === "Weekly" && fields?.dayOfWeek) {
+        return fields?.dayOfWeek &&
+          fields?.dayOfWeek instanceof Array &&
+          fields?.dayOfWeek.length >= 1 &&
+          fields?.dayOfWeek.length <= 7
+          ? true
+          : "Please select at least one day of week";
+      }
+      return true;
+    }),
+    Rule.custom((fields) => {
+      if (fields?.period === "Monthly" && fields?.dayOfMonth) {
+        return fields?.dayOfMonth &&
+          fields?.dayOfMonth instanceof Array &&
+          fields?.dayOfMonth.length >= 1 &&
+          fields?.dayOfMonth.length <= 31
+          ? true
+          : "Please select at least one day of month";
+      }
+      return true;
+    }),
+  ],
 });
