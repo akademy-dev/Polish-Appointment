@@ -15,8 +15,9 @@ export const SERVICES_QUERY = defineQuery(`
 } | order(_id asc) [($page - 1) * $limit ... $page * $limit]
 `);
 
-export const TOTAL_SERVICES_QUERY = defineQuery(`
-count(*[_type == "service" && ($categoryId == "" || category._ref == $categoryId) && ($searchTerm == "" || name match $searchTerm + "*")])`);
+export const TOTAL_SERVICES_QUERY = defineQuery(
+  `count(*[_type == "service" && ($categoryId == "" || category._ref == $categoryId) && ($searchTerm == "" || name match $searchTerm + "*")])`
+);
 
 export const CATEGORIES_QUERY = `*[_type == "category"]{_id, name} | order(name asc)`;
 
