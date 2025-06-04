@@ -23,7 +23,7 @@ const EmployeeTimeOffForm = ({
 
   const [timeScheduleCardData, setTimeScheduleCardData] = React.useState<
     TimeOffScheduleCardProps[]
-  >(form.watch("timeOffSchedule") || []);
+  >(form.watch("timeOffSchedules") || []);
 
   const handleAddTimeScheduleCard = () => {
     const newItem = {
@@ -36,12 +36,12 @@ const EmployeeTimeOffForm = ({
       dayOfMonth: [],
     };
 
-    form.setValue("timeOffSchedule", [
-      ...(form.watch("timeOffSchedule") || []),
+    form.setValue("timeOffSchedules", [
+      ...(form.watch("timeOffSchedules") || []),
       newItem,
     ]);
 
-    setTimeScheduleCardData(form.watch("timeOffSchedule") || []);
+    setTimeScheduleCardData(form.watch("timeOffSchedules") || []);
 
     // Use a combination of requestAnimationFrame and setTimeout to ensure DOM update
     requestAnimationFrame(() => {
@@ -98,8 +98,8 @@ const EmployeeTimeOffForm = ({
                     setTimeScheduleCardData(
                       timeScheduleCardData.filter((_, i) => i !== originalIndex)
                     );
-                    form.setValue("timeOffSchedule", [
-                      ...(form.watch("timeOffSchedule") || []).filter(
+                    form.setValue("timeOffSchedules", [
+                      ...(form.watch("timeOffSchedules") || []).filter(
                         (_, i) => i !== originalIndex
                       ),
                     ]);
