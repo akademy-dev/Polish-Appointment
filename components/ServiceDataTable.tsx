@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Circle, Loader2, Pencil } from "lucide-react";
+import { Circle, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -99,6 +99,16 @@ export const columns: ColumnDef<Service>[] = [
           >
             <Pencil className="size-5" aria-hidden="true" />
           </FormButton>
+          <FormButton
+            mode="delete"
+            type="services"
+            variant="default"
+            size="icon"
+            service={row.original}
+            className="bg-red-500 hover:bg-red-400"
+          >
+            <Trash2 className="size-5" aria-hidden="true" />
+          </FormButton>
         </div>
       );
     },
@@ -127,7 +137,7 @@ export function ServiceDataTable() {
   >([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    [],
+    []
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
@@ -268,7 +278,7 @@ export function ServiceDataTable() {
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext(),
+                          header.getContext()
                         )}
                   </TableHead>
                 ))}
@@ -287,7 +297,7 @@ export function ServiceDataTable() {
                     <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext(),
+                        cell.getContext()
                       )}
                     </TableCell>
                   ))}

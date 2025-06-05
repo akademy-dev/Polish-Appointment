@@ -232,3 +232,57 @@ export const updateService = async (_id: string, form: FormData) => {
     });
   }
 };
+
+export const deleteEmployee = async (_id: string) => {
+  try {
+    const result = await writeClient.delete(_id);
+
+    return parseServerActionResponse({
+      ...result,
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    console.log(error);
+    return parseServerActionResponse({
+      error: JSON.stringify(error),
+      status: "ERROR",
+    });
+  }
+};
+
+export const deleteCustomer = async (_id: string) => {
+  try {
+    const result = await writeClient.delete(_id);
+
+    return parseServerActionResponse({
+      ...result,
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    console.log(error);
+    return parseServerActionResponse({
+      error: JSON.stringify(error),
+      status: "ERROR",
+    });
+  }
+};
+
+export const deleteService = async (_id: string) => {
+  try {
+    const result = await writeClient.delete(_id);
+
+    return parseServerActionResponse({
+      ...result,
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    console.log(error);
+    return parseServerActionResponse({
+      error: JSON.stringify(error),
+      status: "ERROR",
+    });
+  }
+};

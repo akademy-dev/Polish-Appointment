@@ -41,6 +41,9 @@ import {
   updateCustomer,
   updateService,
   createService,
+  deleteEmployee,
+  deleteCustomer,
+  deleteService,
 } from "@/lib/actions";
 import {
   TimeOffSchedule,
@@ -53,7 +56,7 @@ import {
 } from "@/models/profile";
 import { getServiceId, Service } from "@/models/service";
 
-type FormMode = "create" | "edit" | "history";
+type FormMode = "create" | "edit" | "history" | "delete";
 type FormType = "employees" | "customers" | "services";
 
 interface FormButtonProps {
@@ -87,6 +90,7 @@ const FormButton = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMobile = useIsMobile();
   const formRef = useRef<HTMLFormElement>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // Aggressively fix aria-hidden conflicts using MutationObserver
   useEffect(() => {
@@ -223,6 +227,9 @@ const FormButton = ({
     if (mode === "edit" && service) {
       return `Edit ${service.name}`;
     }
+    if (mode === "delete" && profile) {
+      return `Delete ${getProfileName(profile)}`;
+    }
     // Create mode
     switch (type) {
       case "employees":
@@ -247,6 +254,9 @@ const FormButton = ({
     if (mode === "edit" && service) {
       return `Update details for ${service.name}.`;
     }
+    if (mode === "delete" && profile) {
+      return `Delete ${getProfileName(profile)}.`;
+    }
     // Create mode
     switch (type) {
       case "employees":
@@ -266,6 +276,9 @@ const FormButton = ({
       return `${getProfileName(profile)} updated successfully`;
     } else if (mode === "edit" && service) {
       return `${service.name} updated successfully`;
+    }
+    if (mode === "delete" && profile) {
+      return `${getProfileName(profile)} deleted successfully`;
     }
     // Create mode
     switch (type) {
@@ -312,7 +325,7 @@ const FormButton = ({
           profileId,
           formData,
           formValues.workingTimes as unknown as WorkingTime[],
-          formValues.timeOffSchedules as unknown as TimeOffSchedule[],
+          formValues.timeOffSchedules as unknown as TimeOffSchedule[]
         );
 
         if (result.status == "SUCCESS") {
@@ -333,7 +346,7 @@ const FormButton = ({
       const result = await createEmployee(
         formData,
         formValues.workingTimes as unknown as WorkingTime[],
-        formValues.timeOffSchedules as unknown as TimeOffSchedule[],
+        formValues.timeOffSchedules as unknown as TimeOffSchedule[]
       );
 
       if (result.status == "SUCCESS") {
@@ -604,65 +617,196 @@ const FormButton = ({
     }
   };
 
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    if (mode === "delete") {
+      try {
+        setIsSubmitting(true);
+
+        if (profile) {
+          if (type === "employees") {
+            const result = await deleteEmployee(getProfileId(profile));
+            if (result.status === "SUCCESS") {
+              setOpen(false);
+              setConfirmDialogOpen(false);
+              toast.success("Success", {
+                description: `${getProfileName(profile)} deleted successfully`,
+              });
+            } else {
+              toast.error("Error", {
+                description: result.error,
+              });
+            }
+          } else if (type === "customers") {
+            const result = await deleteCustomer(getProfileId(profile));
+            if (result.status === "SUCCESS") {
+              setOpen(false);
+              setConfirmDialogOpen(false);
+              toast.success("Success", {
+                description: `${getProfileName(profile)} deleted successfully`,
+              });
+            } else {
+              toast.error("Error", {
+                description: result.error,
+              });
+            }
+          }
+        } else if (service && type === "services") {
+          const result = await deleteService(getServiceId(service));
+          if (result.status === "SUCCESS") {
+            setOpen(false);
+            setConfirmDialogOpen(false);
+            toast.success("Success", {
+              description: `${service.name} deleted successfully`,
+            });
+          } else {
+            toast.error("Error", {
+              description: result.error,
+            });
+          }
+        }
+      } catch (error) {
+        console.log(error);
+        toast.error("Error", {
+          description: "An unexpected error occurred",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
+  // Render delete confirmation content
+  const renderDeleteConfirmation = () => {
+    const itemName = profile
+      ? getProfileName(profile)
+      : service?.name || "item";
+
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Are you sure you want to delete <strong>{itemName}</strong>? This
+          action cannot be undone.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setConfirmDialogOpen(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDeleteConfirm}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Deleting..." : "Delete"}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  // Handle main dialog/drawer open for delete mode
+  const handleMainOpenChange = (newOpen: boolean) => {
+    if (mode === "delete" && newOpen) {
+      // For delete mode, show confirmation dialog instead
+      setConfirmDialogOpen(true);
+      return;
+    }
+
+    // Regular open/close logic for other modes
+    handleOpenChange(newOpen);
+  };
+
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={handleOpenChange}>
-        <DrawerTrigger asChild>
-          <Button variant={variant} size={size} className={className}>
-            {children}
-          </Button>
-        </DrawerTrigger>
-        <DrawerContent className="p-4 h-[95vh] flex flex-col">
-          <DrawerHeader className="text-left flex-shrink-0 px-0">
-            <DrawerTitle>{getTitle()}</DrawerTitle>
-            <DrawerDescription className="sr-only">
-              {getDescription()}
-            </DrawerDescription>
-          </DrawerHeader>
+      <>
+        <Drawer open={open} onOpenChange={handleMainOpenChange}>
+          <DrawerTrigger asChild>
+            <Button variant={variant} size={size} className={className}>
+              {children}
+            </Button>
+          </DrawerTrigger>
+          <DrawerContent className="p-4 h-[95vh] flex flex-col">
+            <DrawerHeader className="text-left flex-shrink-0 px-0">
+              <DrawerTitle>{getTitle()}</DrawerTitle>
+              <DrawerDescription className="sr-only">
+                {getDescription()}
+              </DrawerDescription>
+            </DrawerHeader>
 
-          {/* Scrollable content area */}
-          <div className="flex-1 overflow-y-auto min-h-0 pb-4">
-            {renderForm()}
-          </div>
+            {/* Scrollable content area */}
+            <div className="flex-1 overflow-y-auto min-h-0 pb-4">
+              {renderForm()}
+            </div>
 
-          {/* Fixed footer with buttons */}
-          <DrawerFooter className="pt-2 px-0 pb-0 flex-shrink-0 border-t">
-            {(mode === "edit" || mode === "create") && (
-              <Button onClick={handleDrawerSubmit} disabled={isSubmitting}>
-                {getSubmitButtonText()}
-              </Button>
-            )}
-            <DrawerClose asChild>
-              <Button variant="outline" disabled={isSubmitting}>
-                {mode === "history" ? "Close" : "Cancel"}
-              </Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
+            {/* Fixed footer with buttons */}
+            <DrawerFooter className="pt-2 px-0 pb-0 flex-shrink-0 border-t">
+              {(mode === "edit" || mode === "create") && (
+                <Button onClick={handleDrawerSubmit} disabled={isSubmitting}>
+                  {getSubmitButtonText()}
+                </Button>
+              )}
+              <DrawerClose asChild>
+                <Button variant="outline" disabled={isSubmitting}>
+                  {mode === "history" ? "Close" : "Cancel"}
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+
+        {/* Delete Confirmation Dialog for Mobile */}
+        <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirm Delete</DialogTitle>
+              <DialogDescription>
+                This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            {renderDeleteConfirmation()}
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant={variant} size={size} className={className}>
-          {children}
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className="sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl"
-        aria-describedby="form-dialog"
-      >
-        <DialogHeader>
-          <DialogTitle>{getTitle()}</DialogTitle>
-          <DialogDescription className="sr-only">
-            {getDescription()}
-          </DialogDescription>
-        </DialogHeader>
-        {renderForm()}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={handleMainOpenChange}>
+        <DialogTrigger asChild>
+          <Button variant={variant} size={size} className={className}>
+            {children}
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          className="sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl"
+          aria-describedby="form-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle>{getTitle()}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {getDescription()}
+            </DialogDescription>
+          </DialogHeader>
+          {renderForm()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          {renderDeleteConfirmation()}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { History, Pencil } from "lucide-react";
+import { History, Pencil, Trash2 } from "lucide-react";
 import {
   Profile,
   getProfileName,
@@ -38,6 +38,16 @@ const ProfileCard = ({ profile }: { profile: Profile }) => {
             <History className="size-5" aria-hidden="true" />
           </FormButton>
         )}
+        <FormButton
+          mode="delete"
+          type="employees"
+          profile={profile}
+          variant="default"
+          size="icon"
+          className="bg-red-500 hover:bg-red-400"
+        >
+          <Trash2 className="size-5" aria-hidden="true" />
+        </FormButton>
       </div>
     </li>
   );
