@@ -7,12 +7,12 @@ import {
   getProfileRole,
   isEmployee,
 } from "@/models/profile";
-import FormButton from "./FormButton";
+import FormButton from "../FormButton";
 
 const ProfileCard = ({ profile }: { profile: Profile }) => {
   return (
     <li className="flex-between line_card">
-      <div className="flex flex-col ">
+      <div className="flex flex-col">
         <p className="text-lg font-bold">{getProfileName(profile)}</p>
         <p className="text-sm font-semibold">{getProfileRole(profile)}</p>
       </div>

@@ -1,4 +1,4 @@
-import ProfileList from "@/components/ProfileList";
+import ProfileList from "@/components/profiles/ProfileList";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { CUSTOMERS_QUERY } from "@/sanity/lib/queries";
 
