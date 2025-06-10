@@ -4,9 +4,7 @@ import Navbar from "@/components/Navbar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { CalendarContext } from "@/hooks/context";
-import { AppointmentForm } from "@/components/forms/AppointmentForm";
 import CreateInfoButton from "@/components/CreateInfoButton";
 import SearchForm from "@/components/forms/SearchForm";
 
@@ -18,8 +16,6 @@ export default function Layout({
 
   const isRoot = pathname === "/";
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [isCreateAppointmentDialogOpen, setIsCreateAppointmentDialogOpen] =
-    useState(false);
 
   return (
     <>
@@ -33,34 +29,12 @@ export default function Layout({
                 <div className="flex items-center justify-between">
                   <Navbar value={value} />
                   <div className="hidden lg:flex items-center gap-4">
-                    <div className="w-80">
-                      <SearchForm action={`/${value}`} />
-                    </div>
-                    <Button
-                      size="default"
-                      className="whitespace-nowrap"
-                      onClick={() => setIsCreateAppointmentDialogOpen(true)}
-                    >
-                      New Appointment
-                    </Button>
-                    <AppointmentForm
-                      isOpen={isCreateAppointmentDialogOpen}
-                      onOpenChange={setIsCreateAppointmentDialogOpen}
-                    />
+                    <CreateInfoButton type={value} />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex-1 sm:max-w-md">
-                    <SearchForm action={`/${value}`} />
-                  </div>
-                  <Button
-                    size="default"
-                    className="sm:whitespace-nowrap"
-                    onClick={() => setIsCreateAppointmentDialogOpen(true)}
-                  >
-                    New Appointment
-                  </Button>
+                  <CreateInfoButton type={value} />
                 </div>
               </header>
               <div className="w-full h-[calc(100vh-6rem)]">{children}</div>

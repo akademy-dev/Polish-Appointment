@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Circle, Loader2, Pencil } from "lucide-react";
+import { Circle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,14 +24,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { client } from "@/sanity/lib/client";
-import {
-  CATEGORIES_QUERY,
-  SERVICES_QUERY,
-  TOTAL_SERVICES_QUERY,
-} from "@/sanity/lib/queries";
 import { Service } from "@/models/service";
 import FormButton from "@/components/FormButton";
+import { useRouter, useSearchParams } from "next/navigation";
+import { formatMinuteDuration } from "@/lib/utils";
 
 // Hook debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -82,7 +78,7 @@ export const columns: ColumnDef<Service>[] = [
   {
     accessorKey: "duration",
     header: "Duration",
-    cell: ({ row }) => formatDuration(row.getValue("duration") as number),
+    cell: ({ row }) => formatMinuteDuration(row.getValue("duration") as number),
   },
   {
     accessorKey: "action",
@@ -105,104 +101,105 @@ export const columns: ColumnDef<Service>[] = [
   },
 ];
 
-function formatDuration(minutes: number): string {
-  if (minutes <= 0) return "0min";
-
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-
-  if (hours === 0) {
-    return `${remainingMinutes}min`;
-  }
-  if (remainingMinutes === 0) {
-    return `${hours}hr`;
-  }
-  return `${hours}hr ${remainingMinutes}min`;
+interface ServiceDataTableProps {
+  initialServices: Service[];
+  categories: { _id: string; name: string }[];
+  total: number;
+  initialParams: {
+    page: number;
+    categoryId: string;
+    searchTerm: string;
+    limit: number;
+  };
 }
 
-export function ServiceDataTable() {
-  const [data, setData] = React.useState<Service[]>([]);
-  const [categories, setCategories] = React.useState<
-    { _id: string; name: string }[]
-  >([]);
+export function ServiceDataTable({
+  initialServices,
+  categories,
+  total,
+  initialParams,
+}: ServiceDataTableProps) {
+  const [data, setData] = React.useState<Service[]>(initialServices);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
-  const [search, setSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
-  const [limit] = React.useState(7);
-  const [categoryId, setCategoryId] = React.useState("");
-  const [total, setTotal] = React.useState(0);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [showSpinner, setShowSpinner] = React.useState(false);
+
+  // Memoize data to prevent unnecessary re-renders
+  const memoizedData = React.useMemo(() => data, [data]);
+
+  // Sync data with initialServices when props change
+  React.useEffect(() => {
+    setData(initialServices);
+  }, [initialServices]);
+
+  // Lấy searchParams và router từ Next.js
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Khởi tạo state từ initialParams
+  const [search, setSearch] = React.useState(initialParams.searchTerm);
+  const [page, setPage] = React.useState(initialParams.page);
+  const [categoryId, setCategoryId] = React.useState(initialParams.categoryId);
+  const [limit] = React.useState(initialParams.limit);
 
   const debouncedSearch = useDebounce(search, 300);
-  const MIN_LOADING_DURATION = 200; // Ngưỡng thời gian tối thiểu để hiển thị spinner (ms)
 
-  const params = {
-    page,
-    limit,
-    categoryId,
-    searchTerm: debouncedSearch,
+  // Hàm cập nhật URL query parameters
+  const updateQueryParams = (newParams: {
+    page?: number;
+    id?: string;
+    query?: string;
+  }) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const newPage = newParams.page ?? page;
+    const newId = newParams.id ?? categoryId;
+    const newQuery = newParams.query ?? debouncedSearch;
+
+    // Only navigate if params have changed
+    if (
+      newPage.toString() === searchParams.get("page") &&
+      newId === searchParams.get("id") &&
+      newQuery === searchParams.get("query")
+    ) {
+      return;
+    }
+
+    if (newParams.page) {
+      params.set("page", newParams.page.toString());
+    }
+    if (newParams.id !== undefined) {
+      if (newParams.id) {
+        params.set("id", newParams.id);
+      } else {
+        params.delete("id");
+      }
+    }
+    if (newParams.query !== undefined) {
+      if (newParams.query) {
+        params.set("query", newParams.query);
+      } else {
+        params.delete("query");
+      }
+    }
+    const newUrl = `/services?${params.toString()}`;
+    console.log("ServiceDataTable - Navigating to:", newUrl);
+    router.replace(newUrl, { scroll: false });
   };
 
-  // Lấy tất cả category khi component mount
+  // Đồng bộ state với debouncedSearch
   React.useEffect(() => {
-    async function fetchCategories() {
-      try {
-        const result = await client.fetch(CATEGORIES_QUERY);
-        setCategories(result || []);
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-      }
+    const currentQuery = searchParams.get("query") || "";
+    if (debouncedSearch !== currentQuery) {
+      console.log("ServiceDataTable - Search changed:", debouncedSearch);
+      updateQueryParams({ query: debouncedSearch, page: 1 });
     }
-
-    fetchCategories();
-  }, []);
-
-  async function fetchData() {
-    const startTime = Date.now();
-    setIsLoading(true);
-    try {
-      const [result, totalResult] = await Promise.all([
-        client.fetch(SERVICES_QUERY, params),
-        client.fetch(TOTAL_SERVICES_QUERY, {
-          categoryId: params.categoryId,
-          searchTerm: params.searchTerm,
-        }),
-      ]);
-
-      // Chỉ hiển thị spinner nếu thời gian tải vượt ngưỡng
-      const elapsedTime = Date.now() - startTime;
-      if (elapsedTime >= MIN_LOADING_DURATION) {
-        setShowSpinner(true);
-      }
-
-      setData(result || []);
-      setTotal(totalResult || 0);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      // Đảm bảo spinner hiển thị ít nhất MIN_LOADING_DURATION để tránh nhấp nháy
-      const elapsedTime = Date.now() - startTime;
-      const remainingTime = MIN_LOADING_DURATION - elapsedTime;
-      if (remainingTime > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remainingTime));
-      }
-      setIsLoading(false);
-      setShowSpinner(false);
-    }
-  }
-
-  React.useEffect(() => {
-    fetchData();
-  }, [page, limit, categoryId, debouncedSearch]);
+  }, [debouncedSearch, searchParams]);
 
   const table = useReactTable({
-    data,
+    data: memoizedData,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -227,7 +224,8 @@ export function ServiceDataTable() {
           placeholder="Search by service name..."
           value={search}
           onChange={(event) => {
-            setSearch(event.target.value);
+            const newSearch = event.target.value;
+            setSearch(newSearch);
             setPage(1);
           }}
           className="max-w-sm"
@@ -236,10 +234,12 @@ export function ServiceDataTable() {
           className="border rounded px-2 py-1"
           value={categoryId}
           onChange={(e) => {
-            setCategoryId(e.target.value);
+            const newCategoryId = e.target.value;
+            setCategoryId(newCategoryId);
             setPage(1);
+            console.log("ServiceDataTable - Category changed:", newCategoryId);
+            updateQueryParams({ id: newCategoryId, page: 1 });
           }}
-          disabled={isLoading}
         >
           <option value="">All Groups</option>
           {categories.map((cat) => (
@@ -249,15 +249,7 @@ export function ServiceDataTable() {
           ))}
         </select>
       </div>
-      <div className="rounded-md border relative">
-        {showSpinner && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 animate-in fade-in duration-200 z-10">
-            <div className="flex items-center">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="ml-2">Loading...</span>
-            </div>
-          </div>
-        )}
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -281,7 +273,6 @@ export function ServiceDataTable() {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={showSpinner ? "opacity-50" : ""}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -313,16 +304,26 @@ export function ServiceDataTable() {
         <Button
           variant="outline"
           size="default"
-          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-          disabled={page <= 1 || isLoading}
+          onClick={() => {
+            const newPage = Math.max(1, page - 1);
+            setPage(newPage);
+            console.log("ServiceDataTable - Page changed:", newPage);
+            updateQueryParams({ page: newPage });
+          }}
+          disabled={page <= 1}
         >
           Previous
         </Button>
         <Button
           variant="outline"
           size="default"
-          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-          disabled={page >= totalPages || isLoading}
+          onClick={() => {
+            const newPage = Math.min(totalPages, page + 1);
+            setPage(newPage);
+            console.log("ServiceDataTable - Page changed:", newPage);
+            updateQueryParams({ page: newPage });
+          }}
+          disabled={page >= totalPages}
         >
           Next
         </Button>

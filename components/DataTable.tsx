@@ -68,6 +68,7 @@ interface DataTableProps<TData, TValue> {
   titleEmpty?: string; // Optional title for empty state
   searchColumn?: string; // Optional search column
   isShowPagination?: boolean; // Optional prop to show pagination
+  getRowId?: (row: TData, index: number) => string; // <-- Add this line
 }
 
 export const columns: ColumnDef<HistoryData>[] = [
@@ -123,6 +124,7 @@ const DataTable = <TData, TValue>({
   titleEmpty,
   searchColumn = "customer",
   isShowPagination = true,
+  getRowId,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -140,6 +142,13 @@ const DataTable = <TData, TValue>({
       sorting,
       columnFilters,
     },
+    // show all data by default
+    initialState: {
+      pagination: {
+        pageSize: data.length,
+      },
+    },
+    getRowId,
   });
   return (
     <>

@@ -9,4 +9,5 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem("customer").title("Customers"),
       S.documentTypeListItem("service").title("Services"),
       S.documentTypeListItem("category").title("Categories"),
+      S.documentTypeListItem("appointment").title("Appointments"),
     ]);

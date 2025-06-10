@@ -9,6 +9,8 @@ const CreateInfoButton = ({ type }: { type: string }) => {
         return "New Customer";
       case "services":
         return "New Service";
+      case "schedule":
+        return "New Appointment";
       default:
         return "New Item";
     }
@@ -17,7 +19,7 @@ const CreateInfoButton = ({ type }: { type: string }) => {
   return (
     <FormButton
       mode="create"
-      type={type as "employees" | "customers" | "services"}
+      type={type as "employees" | "customers" | "services" | "schedule"}
     >
       {getTitle(type)}
     </FormButton>

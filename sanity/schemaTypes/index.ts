@@ -5,6 +5,7 @@ import { employeeType } from "@/sanity/schemaTypes/employee";
 import { timeOffScheduleType } from "@/sanity/schemaTypes/timeOffSchedule";
 import { workingType } from "@/sanity/schemaTypes/workingTime";
 import { customerType } from "@/sanity/schemaTypes/customer";
+import { appointmentType } from "@/sanity/schemaTypes/appointment";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -14,5 +15,6 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     customerType,
     timeOffScheduleType,
     workingType,
+    appointmentType,
   ],
 };

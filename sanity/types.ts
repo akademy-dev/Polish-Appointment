@@ -13,6 +13,46 @@
  */
 
 // Source: schema.json
+export type Appointment = {
+  _id: string;
+  _type: "appointment";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  startTime: string;
+  endTime: string;
+  duration?: number;
+  note?: string;
+  reminder?: boolean;
+  employee?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _id: string;
+    firstName: string;
+    lastName: string;
+    [internalGroqTypeReferenceTo]?: "employee";
+  };
+  customer?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _id: string;
+    firstName: string;
+    lastName: string;
+    [internalGroqTypeReferenceTo]?: "customer";
+  };
+  service?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    _id: string;
+    name: string;
+    duration: number;
+    [internalGroqTypeReferenceTo]?: "service";
+  };
+};
+
 export type WorkingTime = {
   _type: "workingTime";
   from?: string;
@@ -52,12 +92,16 @@ export type Employee = {
   lastName?: string;
   phone?: string;
   position?: "owner" | "serviceProvider" | "backRoom";
-  workingTimes?: Array<{
-    _key: string;
-  } & WorkingTime>;
-  timeOffSchedules?: Array<{
-    _key: string;
-  } & TimeOffSchedule>;
+  workingTimes?: Array<
+    {
+      _key: string;
+    } & WorkingTime
+  >;
+  timeOffSchedules?: Array<
+    {
+      _key: string;
+    } & TimeOffSchedule
+  >;
 };
 
 export type Service = {
@@ -205,5 +249,23 @@ export type SanityAssetSourceData = {
   url?: string;
 };
 
-export type AllSanitySchemaTypes = WorkingTime | TimeOffSchedule | Customer | Employee | Service | Category | SanityImagePaletteSwatch | SanityImagePalette | SanityImageDimensions | SanityImageHotspot | SanityImageCrop | SanityFileAsset | SanityImageAsset | SanityImageMetadata | Geopoint | Slug | SanityAssetSourceData;
+export type AllSanitySchemaTypes =
+  | Appointment
+  | WorkingTime
+  | TimeOffSchedule
+  | Customer
+  | Employee
+  | Service
+  | Category
+  | SanityImagePaletteSwatch
+  | SanityImagePalette
+  | SanityImageDimensions
+  | SanityImageHotspot
+  | SanityImageCrop
+  | SanityFileAsset
+  | SanityImageAsset
+  | SanityImageMetadata
+  | Geopoint
+  | Slug
+  | SanityAssetSourceData;
 export declare const internalGroqTypeReferenceTo: unique symbol;

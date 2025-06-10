@@ -232,8 +232,19 @@
     }
 
     .rbc-header {
-        height: 48px !important;
+        white-space: normal !important;
+        height: auto !important;
         min-height: 48px !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    .rbc-time-header-content + .rbc-time-header-content {
+        margin-left: 0 !important;
+    }
+
+    .rbc-time-view-resources .rbc-time-header-content {
+        min-width: 140px !important;
     }
 
     .rbc-header > *,
@@ -245,9 +256,23 @@
         justify-content: center;
     }
 
+    .rbc-time-header {
+        margin-right: 0 !important;
+        border: 0 !important;
+    }
+
     .rbc-time-content {
         overflow: auto;
-        scrollbar-width: thin;
+        scrollbar-width: none;
+    }
+
+    .rbc-event, .rbc-background-event {
+        padding: 0 !important;
+        border: none !important;
+    }
+
+    .rbc-event-label {
+        display: none !important;
     }
 }
 

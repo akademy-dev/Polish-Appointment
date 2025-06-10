@@ -104,42 +104,13 @@ export const customerFormSchema = z.object({
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
-export const appointmentFormSchema = z.object({
-  firstName: z.string().min(1, { message: "First name cannot be empty." }),
-  lastName: z.string().min(1, { message: "Last name cannot be empty." }),
-  phone: z
-    .string()
-    .refine(
-      (value) => /^[+]{1}(?:[0-9-()/.]\s?){6,15}[0-9]{1}$/.test(value),
-      "Please enter a valid phone number",
-    ),
-  time: z.date({
-    required_error: "Please select a time",
-  }),
-  staff: z.string().refine((value) => value !== "", {
-    message: "Please select a staff member",
-  }),
-  note: z.string().optional(),
-  reminder: z.boolean().optional(),
-  services: z
-    .array(
-      z.object({
-        type: z.string(),
-        name: z.string(),
-        cost: z.string(),
-        date: z.date(),
-        duration: z.number(),
-        order: z.number(),
-      }),
-    )
-    .min(1, { message: "Please select at least one service." }),
+const referenceSchema = z.object({
+  _ref: z.string().min(1, "Reference is required"),
+  _type: z.string(),
 });
 
 export const serviceFormSchema = z.object({
-  category: z.object({
-    _ref: z.string().min(1, "Category reference is required"),
-    _type: z.literal("reference"),
-  }),
+  category: referenceSchema,
   name: z.string().min(1, "Service name is required"),
   price: z.number().min(0, "Price must be at least 0"),
   duration: z.number().positive("Duration must be a positive number"),
@@ -147,3 +118,29 @@ export const serviceFormSchema = z.object({
 });
 
 export type ServiceFormValues = z.infer<typeof serviceFormSchema>;
+
+export const appointmentFormSchema = z.object({
+  time: z.string().min(1, { message: "Time is required" }),
+  note: z.string().optional(),
+  reminder: z.boolean(),
+  customer: z.object({
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
+    phone: z.string().min(1, "Phone is required"),
+    _ref: z.string().optional(),
+    _type: z.literal("reference"),
+  }),
+  employee: z.object({
+    _ref: z.string().min(1, "Employee reference is required"),
+    _type: z.literal("reference"),
+  }),
+  services: z
+    .array(
+      z.object({
+        _ref: z.string().min(1, "Service reference is required"),
+        _type: z.string(),
+        duration: z.number().positive("Duration must be a positive number"),
+      }),
+    )
+    .min(1, { message: "Please select at least one service." }),
+});

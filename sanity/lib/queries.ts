@@ -15,6 +15,21 @@ export const SERVICES_QUERY = defineQuery(`
 } | order(_id asc) [($page - 1) * $limit ... $page * $limit]
 `);
 
+export const All_SERVICES_QUERY = defineQuery(`
+*[_type == "service" && showOnline == true]{
+  _id,
+  name,
+  price,
+  duration,
+  showOnline,
+  category -> {
+    _ref,
+    _type,
+    name
+  }
+}
+`);
+
 export const TOTAL_SERVICES_QUERY = defineQuery(`
 count(*[_type == "service" && ($categoryId == "" || category._ref == $categoryId) && ($searchTerm == "" || name match $searchTerm + "*")])`);
 
@@ -43,4 +58,65 @@ export const CUSTOMERS_QUERY = defineQuery(
       _createdAt,
       phone
 }`,
+);
+
+export const APPOINTMENTS_QUERY = defineQuery(
+  `
+*[_type == "appointment"]{
+ _id,
+  startTime,
+  endTime,
+  duration,
+  customer -> {
+  _id,
+  firstName,
+  lastName,
+  },
+  employee -> {
+  _id,
+  firstName,
+  lastName,
+  },
+  note,
+  reminder,
+  service -> {
+    _id,
+    name,
+    duration,
+  },
+}
+`,
+);
+
+export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
+  `
+*[_type == "appointment" 
+  && ($date == null || (
+    dateTime(startTime) >= dateTime($date) 
+    && dateTime(startTime) < dateTime($date) + 86400000
+  )) 
+  && (!defined($customerId) || customer._ref == $customerId)] {
+  _id,
+  startTime,
+  endTime,
+  duration,
+  customer -> {
+  _id,
+  firstName,
+  lastName
+  },
+  employee -> {
+  _id,
+  firstName,
+  lastName,
+  },
+  note,
+  reminder,
+  service -> {
+    _id,
+    name,
+    duration
+  }
+}
+`,
 );

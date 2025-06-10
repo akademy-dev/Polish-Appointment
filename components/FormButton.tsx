@@ -29,6 +29,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  appointmentFormSchema,
   customerFormSchema,
   employeeFormSchema,
   serviceFormSchema,
@@ -41,6 +42,7 @@ import {
   updateCustomer,
   updateService,
   createService,
+  createAppointment,
 } from "@/lib/actions";
 import {
   TimeOffSchedule,
@@ -52,9 +54,10 @@ import {
   getProfileId,
 } from "@/models/profile";
 import { getServiceId, Service } from "@/models/service";
+import { AppointmentForm } from "@/components/forms/AppointmentForm";
 
 type FormMode = "create" | "edit" | "history";
-type FormType = "employees" | "customers" | "services";
+type FormType = "employees" | "customers" | "services" | "schedule";
 
 interface FormButtonProps {
   children: ReactNode;
@@ -200,6 +203,27 @@ const FormButton = ({
     },
   });
 
+  const appointmentForm = useForm<z.infer<typeof appointmentFormSchema>>({
+    resolver: zodResolver(appointmentFormSchema),
+    defaultValues: {
+      customer: {
+        firstName: "",
+        lastName: "",
+        phone: "",
+        _ref: "",
+        _type: "reference",
+      },
+      employee: {
+        _ref: "",
+        _type: "reference",
+      },
+      time: "",
+      note: "",
+      reminder: true,
+      services: [],
+    },
+  });
+
   // Get appropriate form instance based on type
   const getFormInstance = () => {
     switch (type) {
@@ -207,6 +231,10 @@ const FormButton = ({
         return employeeForm;
       case "customers":
         return customerForm;
+      case "services":
+        return serviceForm;
+      case "schedule":
+        return appointmentForm;
       default:
         return employeeForm;
     }
@@ -231,6 +259,8 @@ const FormButton = ({
         return "New Customer";
       case "services":
         return "New Service";
+      case "schedule":
+        return "New Appointment";
       default:
         return "New Item";
     }
@@ -255,6 +285,8 @@ const FormButton = ({
         return "Create a new customer with basic information, contact information and address.";
       case "services":
         return "Create a new service with details and pricing.";
+      case "schedule":
+        return "Create a new appointment with service, customer and employee.";
       default:
         return "";
     }
@@ -275,6 +307,8 @@ const FormButton = ({
         return "New Customer created successfully";
       case "services":
         return "New Service created successfully";
+      case "schedule":
+        return "New Appointment created successfully";
       default:
         return "Operation completed successfully";
     }
@@ -475,6 +509,57 @@ const FormButton = ({
     }
   };
 
+  // Handle appointment form success
+  const handleAppointmentSuccess = async () => {
+    if (isSubmitting) return; // Prevent double submission
+    setIsSubmitting(true);
+
+    try {
+      const formValues = appointmentForm.getValues();
+
+      const formData = new FormData();
+      formData.append("time", formValues.time);
+      formData.append("note", formValues.note || "");
+      formData.append("reminder", formValues.reminder.toString());
+      if (formValues.customer._ref) {
+        // Create mode
+        const result = await createAppointment(
+          formData,
+          {
+            _ref: formValues.customer._ref,
+            _type: formValues.customer._type,
+          },
+          formValues.employee,
+          formValues.services,
+        );
+
+        if (result.status == "SUCCESS") {
+          setOpen(false);
+          appointmentForm.reset();
+          toast.success("Success", {
+            description: getToastDescription(),
+          });
+        } else {
+          toast.error("Error", {
+            description: result.error,
+          });
+        }
+      } else {
+        toast.error("Error", {
+          description: "Customer reference is required for appointment",
+        });
+        return;
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Error", {
+        description: "An unexpected error occurred",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Main form success handler
   const handleFormSuccess = async () => {
     switch (type) {
@@ -486,6 +571,9 @@ const FormButton = ({
         break;
       case "services":
         await handleServiceSuccess();
+        break;
+      case "schedule":
+        await handleAppointmentSuccess();
         break;
       default:
         console.log("Unknown form type:", type);
@@ -537,6 +625,17 @@ const FormButton = ({
             }
           />
         );
+      case "schedule":
+        return (
+          <AppointmentForm
+            form={appointmentForm}
+            onSuccess={handleFormSuccess}
+            hideSubmitButton={isMobile}
+            formRef={isMobile ? formRef : undefined}
+            isSubmitting={isSubmitting}
+          />
+        );
+
       default:
         return null;
     }
@@ -651,11 +750,12 @@ const FormButton = ({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl"
+        className={`sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl`}
         aria-describedby="form-dialog"
       >
         <DialogHeader>
           <DialogTitle>{getTitle()}</DialogTitle>
+
           <DialogDescription className="sr-only">
             {getDescription()}
           </DialogDescription>
