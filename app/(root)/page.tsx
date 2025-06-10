@@ -1,11 +1,11 @@
 import AppointmentSchedule from "@/components/AppointmentSchedule";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
-import { APPOINTMENTS_QUERY, EMPLOYEES_QUERY } from "@/sanity/lib/queries";
+import { ALL_EMPLOYEES_QUERY, APPOINTMENTS_QUERY } from "@/sanity/lib/queries";
 import React, { Suspense } from "react";
 
 export default async function HomePage() {
   const employees = await sanityFetch({
-    query: EMPLOYEES_QUERY,
+    query: ALL_EMPLOYEES_QUERY,
     params: {
       search: null,
     },

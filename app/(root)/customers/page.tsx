@@ -1,27 +1,43 @@
-import ProfileList from "@/components/ProfileList";
+import ProfileList from "@/components/profiles/ProfileList";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { CUSTOMERS_QUERY } from "@/sanity/lib/queries";
+
+const DEFAULT_ITEMS_PER_PAGE = 5;
 
 const Page = async ({
   searchParams,
 }: {
-  searchParams: Promise<{ query?: string }>;
+  searchParams: Promise<{ query?: string; page?: string; limit?: string }>;
 }) => {
-  const { query } = await searchParams;
-  const params = { search: query || null };
+  const { query, page: pageString, limit: limitString } = await searchParams;
+  const currentPage = parseInt(pageString || "1", 10);
+  const itemsPerPage = parseInt(
+    limitString || String(DEFAULT_ITEMS_PER_PAGE),
+    10
+  );
 
-  const { data: customers } = await sanityFetch({
+  const params = {
+    search: query || null,
+    page: currentPage,
+    limit: itemsPerPage,
+  };
+
+  const { data: customersResult } = await sanityFetch({
     query: CUSTOMERS_QUERY,
     params,
   });
 
-  console.log("customers", customers);
+  console.log("customersResult", customersResult);
 
   return (
     <>
       <h2 className="heading">Customer List</h2>
 
-      <ProfileList data={customers} />
+      <ProfileList
+        data={customersResult.data}
+        totalItems={customersResult.total}
+        itemsPerPage={itemsPerPage}
+      />
 
       <SanityLive />
     </>

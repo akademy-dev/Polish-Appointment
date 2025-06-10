@@ -185,7 +185,6 @@ export function ServiceDataTable({
       }
     }
     const newUrl = `/services?${params.toString()}`;
-    console.log("ServiceDataTable - Navigating to:", newUrl);
     router.replace(newUrl, { scroll: false });
   };
 

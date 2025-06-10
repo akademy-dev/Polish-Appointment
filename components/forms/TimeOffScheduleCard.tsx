@@ -37,7 +37,7 @@ const TimeOffScheduleCard = forwardRef<
   ) => {
     const displayFormattedDate = () => {
       if (period === "Exact") {
-        return date ? date.toDateString() : "invalid date";
+        return date ? date.toDateString() : "Invalid Date";
       }
       if (period === "Daily") {
         return "Everyday";

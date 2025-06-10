@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import {
   Pagination,
   PaginationContent,
@@ -9,20 +9,47 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Profile } from "@/models/profile";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Profile, getProfileId } from "@/models/profile";
 import ProfileCard from "./ProfileCard";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 
-const ProfileList = ({ data }: { data: Profile[] }) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
-  const totalPages = Math.ceil(data.length / itemsPerPage);
+const ProfileList = ({
+  data,
+  totalItems,
+  itemsPerPage,
+}: {
+  data: Profile[];
+  totalItems: number;
+  itemsPerPage: number;
+}) => {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const currentPage = parseInt(searchParams.get("page") || "1", 10);
 
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentItems = data.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+  const startIndexDisplay = (currentPage - 1) * itemsPerPage;
+  const currentItemsCount = data.length;
+
+  const createPageURL = (pageNumber: number | string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(pageNumber));
+    return `${pathname}?${params.toString()}`;
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("limit", value);
+    params.set("page", "1"); // Reset to first page when changing items per page
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const renderPaginationItems = () => {
@@ -35,8 +62,7 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
         items.push(
           <PaginationItem key={i}>
             <PaginationLink
-              href="#"
-              onClick={() => handlePageChange(i)}
+              href={createPageURL(i)}
               isActive={currentPage === i}
             >
               {i}
@@ -48,11 +74,7 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
       // Always show first page
       items.push(
         <PaginationItem key={1}>
-          <PaginationLink
-            href="#"
-            onClick={() => handlePageChange(1)}
-            isActive={currentPage === 1}
-          >
+          <PaginationLink href={createPageURL(1)} isActive={currentPage === 1}>
             1
           </PaginationLink>
         </PaginationItem>
@@ -76,8 +98,7 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
         items.push(
           <PaginationItem key={i}>
             <PaginationLink
-              href="#"
-              onClick={() => handlePageChange(i)}
+              href={createPageURL(i)}
               isActive={currentPage === i}
             >
               {i}
@@ -99,8 +120,7 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
       items.push(
         <PaginationItem key={totalPages}>
           <PaginationLink
-            href="#"
-            onClick={() => handlePageChange(totalPages)}
+            href={createPageURL(totalPages)}
             isActive={currentPage === totalPages}
           >
             {totalPages}
@@ -114,30 +134,53 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
 
   return (
     <section className="space-y-6 max-w-4xl">
-      {data.length === 0 ? (
+      {totalItems === 0 ? (
         <p className="text-center text-lg-medium">No results found</p>
       ) : (
         <>
-          {/* Results Info */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pr-4">
+          {/* Results Info and Items Per Page Selector */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pr-4">
             <p className="text-sm text-muted-foreground">
-              Showing <span className="font-medium">{startIndex + 1}</span> to{" "}
+              Showing{" "}
+              <span className="font-medium">{startIndexDisplay + 1}</span> to{" "}
               <span className="font-medium">
-                {Math.min(endIndex, data.length)}
+                {startIndexDisplay + currentItemsCount}
               </span>{" "}
-              of <span className="font-medium">{data.length}</span> people
+              of <span className="font-medium">{totalItems}</span> people
             </p>
 
-            <div className="text-sm text-muted-foreground">
-              Page <span className="font-medium">{currentPage}</span> of{" "}
-              <span className="font-medium">{totalPages}</span>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                Page <span className="font-medium">{currentPage}</span> of{" "}
+                <span className="font-medium">{totalPages}</span>
+              </div>
+
+              {/* Items Per Page Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Show:</span>
+                <Select
+                  value={String(itemsPerPage)}
+                  onValueChange={handleItemsPerPageChange}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
           {/* Human List */}
           <ul className="list-container">
-            {currentItems.map((profile, index) => (
-              <ProfileCard profile={profile} key={index} />
+            {data.map((profile) => (
+              <ProfileCard profile={profile} key={getProfileId(profile)} />
             ))}
           </ul>
 
@@ -148,11 +191,7 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
                 {/* Previous Button */}
                 <PaginationItem>
                   <PaginationPrevious
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handlePageChange(currentPage - 1);
-                    }}
+                    href={createPageURL(currentPage - 1)}
                     className={
                       currentPage === 1
                         ? "pointer-events-none opacity-50"
@@ -173,11 +212,7 @@ const ProfileList = ({ data }: { data: Profile[] }) => {
                 {/* Next Button */}
                 <PaginationItem>
                   <PaginationNext
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handlePageChange(currentPage + 1);
-                    }}
+                    href={createPageURL(currentPage + 1)}
                     className={
                       currentPage === totalPages
                         ? "pointer-events-none opacity-50"

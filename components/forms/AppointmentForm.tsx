@@ -40,8 +40,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   All_SERVICES_QUERY,
   APPOINTMENTS_BY_DATE_QUERY,
-  CUSTOMERS_QUERY,
-  EMPLOYEES_QUERY,
+  ALL_CUSTOMERS_QUERY,
+  ALL_EMPLOYEES_QUERY,
 } from "@/sanity/lib/queries";
 import { Customer, getProfileName } from "@/models/profile";
 import { client } from "@/sanity/lib/client";
@@ -115,7 +115,7 @@ export const AppointmentForm = ({
   React.useEffect(() => {
     async function fetchData() {
       // Fetch customers
-      const customersRes = await client.fetch(CUSTOMERS_QUERY, {
+      const customersRes = await client.fetch(ALL_CUSTOMERS_QUERY, {
         search: null,
       });
       setCustomers(
@@ -144,7 +144,7 @@ export const AppointmentForm = ({
       }
 
       // Fetch employees
-      const employeesRes = await client.fetch(EMPLOYEES_QUERY, {
+      const employeesRes = await client.fetch(ALL_EMPLOYEES_QUERY, {
         search: null,
       });
       const employeeList = employeesRes.map((employee: any) => ({

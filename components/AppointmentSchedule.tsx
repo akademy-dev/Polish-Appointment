@@ -13,7 +13,7 @@ import {
 import moment from "moment";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
-import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CalendarContext } from "@/hooks/context";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
