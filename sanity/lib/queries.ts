@@ -82,7 +82,7 @@ export const CUSTOMERS_QUERY = defineQuery(
 );
 
 export const ALL_CUSTOMERS_QUERY = defineQuery(
-  `{
+  `
     *[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)]{
       _id,
       _type,
@@ -91,7 +91,7 @@ export const ALL_CUSTOMERS_QUERY = defineQuery(
       _createdAt,
       phone
     }
-  }`,
+  `,
 );
 
 export const APPOINTMENTS_QUERY = defineQuery(
