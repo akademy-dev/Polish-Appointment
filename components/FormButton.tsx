@@ -32,7 +32,7 @@ import {
   appointmentFormSchema,
   customerFormSchema,
   employeeFormSchema,
-  serviceFormSchema
+  serviceFormSchema,
 } from "@/lib/validation";
 import { useRef, useState, ReactNode, useEffect } from "react";
 import {
@@ -540,7 +540,7 @@ const FormButton = ({
             _type: formValues.customer._type,
           },
           formValues.employee,
-          formValues.services,
+          formValues.services
         );
 
         if (result.status == "SUCCESS") {
@@ -872,40 +872,39 @@ const FormButton = ({
 
   return (
     <>
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant={variant} size={size} className={className}>
-          {children}
-        </Button>
-      </DialogTrigger>
-      <DialogContent
-        className={`sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl`}
-        aria-describedby="form-dialog"
-      >
-        <DialogHeader>
-          <DialogTitle>{getTitle()}</DialogTitle>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
+          <Button variant={variant} size={size} className={className}>
+            {children}
+          </Button>
+        </DialogTrigger>
+        <DialogContent
+          className={`sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl`}
+          aria-describedby="form-dialog"
+        >
+          <DialogHeader>
+            <DialogTitle>{getTitle()}</DialogTitle>
 
-          <DialogDescription className="sr-only">
-            {getDescription()}
-          </DialogDescription>
-        </DialogHeader>
-        {renderForm()}
-      </DialogContent>
-    </Dialog>
+            <DialogDescription className="sr-only">
+              {getDescription()}
+            </DialogDescription>
+          </DialogHeader>
+          {renderForm()}
+        </DialogContent>
+      </Dialog>
 
-  {/* Delete Confirmation Dialog */}
-  <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogDescription>This action cannot be undone.</DialogDescription>
-      </DialogHeader>
-      {renderDeleteConfirmation()}
-    </DialogContent>
-  </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogDescription>This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          {renderDeleteConfirmation()}
+        </DialogContent>
+      </Dialog>
     </>
   );
-
 };
 
 export default FormButton;
