@@ -68,14 +68,17 @@ export const ALL_EMPLOYEES_QUERY = defineQuery(
 );
 
 export const CUSTOMERS_QUERY = defineQuery(
-  `*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || phone match $search || email match $search)] | order(_createdAt desc){
+  `{
+    "data": *[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)]{
       _id,
       _type,
       firstName,
       lastName,
       _createdAt,
       phone
-}`,
+    } | order(_createdAt desc) [($page - 1) * $limit ... $page * $limit],
+    "total": count(*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)])
+  }`,
 );
 
 export const ALL_CUSTOMERS_QUERY = defineQuery(
