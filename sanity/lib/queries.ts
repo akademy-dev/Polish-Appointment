@@ -125,9 +125,9 @@ export const APPOINTMENTS_QUERY = defineQuery(
 export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
   `
 *[_type == "appointment" 
-  && ($date == null || (
-    dateTime(startTime) >= dateTime($date) 
-    && dateTime(startTime) < dateTime($date) + 86400000
+&& ($date == null || (
+    dateTime(startTime) >= dateTime($date + "T00:00:00.000Z") 
+    && dateTime(startTime) < dateTime($date + "T23:59:59.999Z")
   )) 
   && (!defined($customerId) || customer._ref == $customerId)] {
   _id,

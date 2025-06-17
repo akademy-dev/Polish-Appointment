@@ -356,7 +356,7 @@ const FormButton = ({
           profileId,
           formData,
           formValues.workingTimes as unknown as WorkingTime[],
-          formValues.timeOffSchedules as unknown as TimeOffSchedule[]
+          formValues.timeOffSchedules as unknown as TimeOffSchedule[],
         );
 
         if (result.status == "SUCCESS") {
@@ -377,7 +377,7 @@ const FormButton = ({
       const result = await createEmployee(
         formData,
         formValues.workingTimes as unknown as WorkingTime[],
-        formValues.timeOffSchedules as unknown as TimeOffSchedule[]
+        formValues.timeOffSchedules as unknown as TimeOffSchedule[],
       );
 
       if (result.status == "SUCCESS") {
@@ -438,6 +438,8 @@ const FormButton = ({
 
       // Create mode
       const result = await createCustomer(formData);
+
+      console.log("Customer creation result:", result);
 
       if (result.status == "SUCCESS") {
         setOpen(false);
@@ -540,7 +542,7 @@ const FormButton = ({
             _type: formValues.customer._type,
           },
           formValues.employee,
-          formValues.services
+          formValues.services,
         );
 
         if (result.status == "SUCCESS") {
@@ -555,10 +557,43 @@ const FormButton = ({
           });
         }
       } else {
-        toast.error("Error", {
-          description: "Customer reference is required for appointment",
-        });
-        return;
+        // create customer then get customer ID to create appointment
+        const customerFormData = new FormData();
+        customerFormData.append("firstName", formValues.customer.firstName);
+        customerFormData.append("lastName", formValues.customer.lastName);
+        customerFormData.append("phone", formValues.customer.phone || "");
+
+        const customerResult = await createCustomer(customerFormData);
+        console.log("Customer creation result:", customerResult);
+        if (customerResult.status === "SUCCESS") {
+          // Now create appointment with new customer
+          const customerId = customerResult._id; // Assuming data contains the new customer object
+          const result = await createAppointment(
+            formData,
+            {
+              _ref: customerId,
+              _type: "reference",
+            },
+            formValues.employee,
+            formValues.services,
+          );
+
+          if (result.status === "SUCCESS") {
+            setOpen(false);
+            appointmentForm.reset();
+            toast.success("Success", {
+              description: getToastDescription(),
+            });
+          } else {
+            toast.error("Error", {
+              description: result.error,
+            });
+          }
+        } else {
+          toast.error("Error", {
+            description: customerResult.error,
+          });
+        }
       }
     } catch (error) {
       console.log(error);

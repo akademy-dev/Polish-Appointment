@@ -1,9 +1,23 @@
 import AppointmentSchedule from "@/components/AppointmentSchedule";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
-import { ALL_EMPLOYEES_QUERY, APPOINTMENTS_QUERY } from "@/sanity/lib/queries";
-import React, { Suspense } from "react";
+import {
+  ALL_EMPLOYEES_QUERY,
+  APPOINTMENTS_BY_DATE_QUERY,
+} from "@/sanity/lib/queries";
 
-export default async function HomePage() {
+interface PageProps {
+  searchParams: Promise<{
+    date?: string;
+  }>;
+}
+
+const page = async ({ searchParams }: PageProps) => {
+  const resolvedSearchParams = await searchParams;
+  const date =
+    resolvedSearchParams.date || new Date().toISOString().split("T")[0];
+  console.log(
+    `Fetching appointments for date: ${date} with search params: ${JSON.stringify(resolvedSearchParams)}`,
+  );
   const employees = await sanityFetch({
     query: ALL_EMPLOYEES_QUERY,
     params: {
@@ -11,18 +25,25 @@ export default async function HomePage() {
     },
   });
   const appointments = await sanityFetch({
-    query: APPOINTMENTS_QUERY,
+    query: APPOINTMENTS_BY_DATE_QUERY,
+    params: {
+      date,
+      customerId: null,
+    },
   });
+  console.log(
+    `Fetched ${employees.data.length} employees and ${appointments.data.length} appointments`,
+  );
 
   return (
     <>
-      <Suspense fallback={<div>Loading schedule...</div>}>
-        <AppointmentSchedule
-          initialEmployees={employees.data}
-          initialAppointments={appointments.data}
-        />
-      </Suspense>
+      <AppointmentSchedule
+        initialEmployees={employees.data}
+        initialAppointments={appointments.data}
+      />
       <SanityLive />
     </>
   );
-}
+};
+
+export default page;

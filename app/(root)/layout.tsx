@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { CalendarContext } from "@/hooks/context";
 import CreateInfoButton from "@/components/CreateInfoButton";
 import SearchForm from "@/components/forms/SearchForm";
+import { useSearchParams } from "next/navigation";
 
 export default function Layout({
   children,
@@ -15,8 +16,11 @@ export default function Layout({
   const value = pathname.split("/")[1] || "schedule";
 
   const isRoot = pathname === "/";
-  const [date, setDate] = useState<Date | undefined>(new Date());
-
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get("date");
+  const [date, setDate] = useState<Date | undefined>(
+    dateParam ? new Date(dateParam) : new Date(),
+  );
   return (
     <>
       {isRoot ? (

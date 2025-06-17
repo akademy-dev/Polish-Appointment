@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown, CalendarIcon } from "lucide-react";
+import { ArrowUpDown, ChevronDownIcon } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import DataTable from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "../ui/calendar";
-import { ScrollBar, ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
@@ -47,8 +46,15 @@ import { Customer, getProfileName } from "@/models/profile";
 import { client } from "@/sanity/lib/client";
 import { Service } from "@/models/service";
 import { Appointment } from "@/models/appointment";
-import Loading from "@/app/(root)/Loading";
 import { useWatch } from "react-hook-form";
+import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const AppointmentForm = ({
   onSuccess,
@@ -87,6 +93,57 @@ export const AppointmentForm = ({
   });
 
   const form = externalForm || internalForm;
+
+  const [open, setOpen] = useState(false);
+
+  // Helper to parse time string to Date, time, and AM/PM
+  const parseTimeString = (timeString: string) => {
+    if (!timeString) return { date: undefined, time: "", ampm: "AM" };
+    const date = new Date(timeString);
+    if (isNaN(date.getTime())) return { date: undefined, time: "", ampm: "AM" };
+    const hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
+    const ampmValue = hours >= 12 ? "PM" : "AM";
+    const displayHours = hours % 12 || 12;
+    const time = `${displayHours.toString().padStart(2, "0")}:${minutes}:${seconds}`;
+    return { date, time, ampm: ampmValue };
+  };
+
+  // Get initial values
+  const {
+    date: initialDate,
+    time: initialTime,
+    ampm: initialAmpm,
+  } = parseTimeString(form.getValues("time"));
+
+  // Local state
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
+    initialDate,
+  );
+  const [selectedTime, setSelectedTime] = useState<string>(initialTime);
+  const [selectedAmpm, setSelectedAmpm] = useState<"AM" | "PM">(
+    initialAmpm as "AM" | "PM",
+  );
+
+  // Update form's time field
+  const updateFormTime = (
+    date: Date | undefined,
+    time: string,
+    ampm: "AM" | "PM",
+  ) => {
+    if (date && time) {
+      let [hours, minutes, seconds] = time.split(":").map(Number);
+      // Adjust hours for AM/PM
+      if (ampm === "PM" && hours < 12) hours += 12;
+      if (ampm === "AM" && hours === 12) hours = 0;
+      const combinedDate = new Date(date);
+      combinedDate.setHours(hours, minutes, seconds || 0);
+      form.setValue("time", combinedDate.toISOString());
+    } else {
+      form.setValue("time", "");
+    }
+  };
 
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
   const [customerHistory, setCustomerHistory] = React.useState<Appointment[]>(
@@ -256,44 +313,10 @@ export const AppointmentForm = ({
     onSuccess?.();
   }
 
-  function handleDateSelect(date: Date | undefined) {
-    if (date) {
-      form.setValue("time", date.toISOString(), { shouldValidate: true });
-    }
-  }
-
-  function handleTimeChange(type: "hour" | "minute" | "ampm", value: string) {
-    const currentDate = form.getValues("time") || new Date();
-    const newDate = new Date(currentDate);
-
-    if (type === "hour") {
-      const hour = parseInt(value, 10);
-      newDate.setHours(newDate.getHours() >= 12 ? hour + 12 : hour);
-    } else if (type === "minute") {
-      newDate.setMinutes(parseInt(value, 10));
-    } else if (type === "ampm") {
-      const hours = newDate.getHours();
-      if (value === "AM" && hours >= 12) {
-        newDate.setHours(hours - 12);
-      } else if (value === "PM" && hours < 12) {
-        newDate.setHours(hours + 12);
-      }
-    }
-
-    form.setValue("time", newDate.toISOString());
-  }
-
   const hasClientError = !!form.formState.errors.customer;
 
-  const hasAppointmentError =
-    !!form.formState.errors.time || !!form.formState.errors.employee?.ref;
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loading />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-full"></div>;
   }
   return (
     <>
@@ -587,171 +610,96 @@ export const AppointmentForm = ({
                   <FormField
                     control={form.control}
                     name="time"
-                    render={({ field }) => (
-                      <FormItem className="flex">
-                        <div className="flex items-start">
-                          <Label
-                            className="whitespace-nowrap flex items-center pt-1 text-md min-w-[50px] text-right"
-                            htmlFor="time"
-                          >
-                            Date
-                          </Label>
-                          <div className="flex flex-col gap-1">
-                            <Popover>
+                    render={() => (
+                      <FormItem className="flex flex-col">
+                        <div className="flex gap-4">
+                          {/* Date Input */}
+                          <div className="flex flex-col gap-3">
+                            <Label htmlFor="date" className="px-1 text-md">
+                              Date
+                            </Label>
+                            <Popover open={open} onOpenChange={setOpen}>
                               <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                      "w-2xs text-left font-normal ml-4",
-                                      !field.value && "text-muted-foreground",
-                                    )}
-                                    id="time"
-                                  >
-                                    {field.value ? (
-                                      format(
-                                        new Date(field.value),
-                                        "MM/dd/yyyy hh:mm aa",
-                                      )
-                                    ) : (
-                                      <span>MM/DD/YYYY hh:mm aa</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                                </FormControl>
+                                <Button
+                                  variant="outline"
+                                  id="date"
+                                  className={cn(
+                                    "w-32 justify-between font-normal",
+                                    !selectedDate && "text-muted-foreground",
+                                  )}
+                                >
+                                  {selectedDate
+                                    ? selectedDate.toLocaleDateString()
+                                    : "Select date"}
+                                  <ChevronDownIcon />
+                                </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                <div className="sm:flex">
-                                  <Calendar
-                                    mode="single"
-                                    selected={
-                                      field.value
-                                        ? new Date(field.value)
-                                        : undefined
-                                    }
-                                    onSelect={handleDateSelect}
-                                    initialFocus
-                                  />
-                                  <div className="flex flex-col sm:flex-row sm:h-[300px] divide-y sm:divide-y-0 sm:divide-x">
-                                    <ScrollArea className="w-64 sm:w-auto">
-                                      <div className="flex sm:flex-col p-2">
-                                        {Array.from(
-                                          { length: 12 },
-                                          (_, i) => i + 1,
-                                        )
-                                          .reverse()
-                                          .map((hour) => {
-                                            const date = field.value
-                                              ? new Date(field.value)
-                                              : undefined;
-                                            return (
-                                              <Button
-                                                key={hour}
-                                                type="button"
-                                                size="icon"
-                                                variant={
-                                                  date &&
-                                                  date.getHours() % 12 ===
-                                                    hour % 12
-                                                    ? "default"
-                                                    : "ghost"
-                                                }
-                                                className="sm:w-full shrink-0 aspect-square"
-                                                onClick={() =>
-                                                  handleTimeChange(
-                                                    "hour",
-                                                    hour.toString(),
-                                                  )
-                                                }
-                                              >
-                                                {hour}
-                                              </Button>
-                                            );
-                                          })}
-                                      </div>
-                                      <ScrollBar
-                                        orientation="horizontal"
-                                        className="sm:hidden"
-                                      />
-                                    </ScrollArea>
-                                    <ScrollArea className="w-64 sm:w-auto">
-                                      <div className="flex sm:flex-col p-2">
-                                        {Array.from(
-                                          { length: 12 },
-                                          (_, i) => i * 5,
-                                        ).map((minute) => {
-                                          const date = field.value
-                                            ? new Date(field.value)
-                                            : undefined;
-                                          return (
-                                            <Button
-                                              key={minute}
-                                              type="button"
-                                              size="icon"
-                                              variant={
-                                                date &&
-                                                date.getMinutes() === minute
-                                                  ? "default"
-                                                  : "ghost"
-                                              }
-                                              className="sm:w-full shrink-0 aspect-square"
-                                              onClick={() =>
-                                                handleTimeChange(
-                                                  "minute",
-                                                  minute.toString(),
-                                                )
-                                              }
-                                            >
-                                              {minute
-                                                .toString()
-                                                .padStart(2, "0")}
-                                            </Button>
-                                          );
-                                        })}
-                                      </div>
-                                      <ScrollBar
-                                        orientation="horizontal"
-                                        className="sm:hidden"
-                                      />
-                                    </ScrollArea>
-                                    <ScrollArea className="">
-                                      <div className="flex sm:flex-col p-2">
-                                        {["AM", "PM"].map((ampm) => {
-                                          const date = field.value
-                                            ? new Date(field.value)
-                                            : undefined;
-                                          return (
-                                            <Button
-                                              key={ampm}
-                                              type="button"
-                                              size="icon"
-                                              variant={
-                                                date &&
-                                                ((ampm === "AM" &&
-                                                  date.getHours() < 12) ||
-                                                  (ampm === "PM" &&
-                                                    date.getHours() >= 12))
-                                                  ? "default"
-                                                  : "ghost"
-                                              }
-                                              className="sm:w-full shrink-0 aspect-square"
-                                              onClick={() =>
-                                                handleTimeChange("ampm", ampm)
-                                              }
-                                            >
-                                              {ampm}
-                                            </Button>
-                                          );
-                                        })}
-                                      </div>
-                                    </ScrollArea>
-                                  </div>
-                                </div>
+                              <PopoverContent
+                                className="w-auto overflow-hidden p-0"
+                                align="start"
+                              >
+                                <Calendar
+                                  mode="single"
+                                  selected={selectedDate}
+                                  captionLayout="dropdown"
+                                  onSelect={(date) => {
+                                    setSelectedDate(date);
+                                    updateFormTime(
+                                      date,
+                                      selectedTime,
+                                      selectedAmpm,
+                                    );
+                                    setOpen(false);
+                                  }}
+                                />
                               </PopoverContent>
                             </Popover>
-                            <FormMessage className="ml-4" />
+                          </div>
+                          {/* Time Input */}
+                          <div className="flex flex-col gap-3">
+                            <Label htmlFor="time" className="px-1 text-md">
+                              Time
+                            </Label>
+                            <div className="flex gap-2">
+                              <Input
+                                type="time"
+                                id="time"
+                                step="60"
+                                value={selectedTime || "08:00"}
+                                onChange={(e) => {
+                                  const newTime = e.target.value;
+                                  setSelectedTime(newTime);
+                                  updateFormTime(
+                                    selectedDate,
+                                    newTime,
+                                    selectedAmpm,
+                                  );
+                                }}
+                                className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-datetime-edit-ampm-field]:hidden"
+                              />
+                              <Select
+                                value={selectedAmpm}
+                                onValueChange={(value: "AM" | "PM") => {
+                                  setSelectedAmpm(value);
+                                  updateFormTime(
+                                    selectedDate,
+                                    selectedTime,
+                                    value,
+                                  );
+                                }}
+                              >
+                                <SelectTrigger className="w-20">
+                                  <SelectValue placeholder="AM/PM" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="AM">AM</SelectItem>
+                                  <SelectItem value="PM">PM</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
                         </div>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />

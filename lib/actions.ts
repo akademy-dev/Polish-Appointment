@@ -7,10 +7,10 @@ import { TimeOffSchedule, WorkingTime } from "@/models/profile";
 export const createEmployee = async (
   form: FormData,
   workingTimes: WorkingTime[],
-  timeOffSchedules: TimeOffSchedule[]
+  timeOffSchedules: TimeOffSchedule[],
 ) => {
   const { firstName, lastName, phone, position } = Object.fromEntries(
-    Array.from(form)
+    Array.from(form),
   );
 
   try {
@@ -56,10 +56,10 @@ export const updateEmployee = async (
   _id: string,
   form: FormData,
   workingTimes: WorkingTime[],
-  timeOffSchedules: TimeOffSchedule[]
+  timeOffSchedules: TimeOffSchedule[],
 ) => {
   const { firstName, lastName, phone, position } = Object.fromEntries(
-    Array.from(form)
+    Array.from(form),
   );
 
   try {
@@ -95,7 +95,7 @@ export const updateEmployee = async (
 
 export const createCustomer = async (form: FormData) => {
   const { firstName, lastName, phone, email } = Object.fromEntries(
-    Array.from(form)
+    Array.from(form),
   );
 
   try {
@@ -110,6 +110,8 @@ export const createCustomer = async (form: FormData) => {
       _type: "customer",
       ...customer,
     });
+
+    console.log("Customer created successfully", result);
 
     return parseServerActionResponse({
       ...result,
@@ -229,7 +231,7 @@ export const updateAppointment = async (
 
 export const updateCustomer = async (_id: string, form: FormData) => {
   const { firstName, lastName, phone, email } = Object.fromEntries(
-    Array.from(form)
+    Array.from(form),
   );
 
   try {
@@ -266,10 +268,10 @@ export const createService = async (
   category: {
     _ref: string;
     _type: string;
-  }
+  },
 ) => {
   const { name, price, duration, showOnline } = Object.fromEntries(
-    Array.from(form)
+    Array.from(form),
   );
 
   try {
@@ -302,7 +304,7 @@ export const createService = async (
 
 export const updateService = async (_id: string, form: FormData) => {
   const { name, description, price, duration, category } = Object.fromEntries(
-    Array.from(form)
+    Array.from(form),
   );
 
   try {

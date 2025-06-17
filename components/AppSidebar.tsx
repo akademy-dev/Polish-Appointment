@@ -6,6 +6,7 @@ import { useContext } from "react";
 import { CalendarContext } from "@/hooks/context";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
+import { useRouter } from "next/navigation";
 
 export function AppSidebar() {
   const { date, setDate } = useContext(CalendarContext);
@@ -15,7 +16,7 @@ export function AppSidebar() {
     if (date) {
       const nextWeek = new Date(date);
       nextWeek.setDate(nextWeek.getDate() + numberOfWeek * 7);
-      setDate(nextWeek);
+      handleDateChange(nextWeek);
     }
   };
 
@@ -23,8 +24,23 @@ export function AppSidebar() {
     if (date) {
       const previousWeek = new Date(date);
       previousWeek.setDate(previousWeek.getDate() - numberOfWeek * 7);
-      setDate(previousWeek);
+      handleDateChange(previousWeek);
     }
+  };
+
+  const router = useRouter();
+
+  const handleDateChange = (newDate: Date) => {
+    setDate(newDate);
+    const localDate = new Date(
+      newDate.getTime() - newDate.getTimezoneOffset() * 60000,
+    )
+      .toISOString()
+      .split("T")[0];
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.set("date", localDate);
+    const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+    router.push(newUrl);
   };
 
   return (
@@ -34,16 +50,23 @@ export function AppSidebar() {
         <Calendar
           mode="single"
           selected={date}
-          onSelect={setDate}
+          onSelect={(newDate) => {
+            if (newDate) {
+              handleDateChange(newDate); // Pass Date object
+            }
+          }}
           month={date}
           onMonthChange={(newMonth) => setDate(newMonth)}
           className="rounded-md border"
+          required={false}
         />
         <div className="flex flex-between">
           <span className="text-m font-bold mt-2">Navigation</span>
           <Button
-            onClick={() => setDate(new Date())}
-            className="bg-[var(--color-accent-blue)] text-white transition hover:bg-[color:rgba(51,143,255,0.85)] "
+            onClick={() => {
+              const today = new Date();
+              handleDateChange(today);
+            }}
           >
             Today
           </Button>
@@ -56,7 +79,6 @@ export function AppSidebar() {
               key={week}
               variant="outline"
               size="sm"
-              className="text-accent-blue"
               onClick={() => handlePreviousWeek(week)}
             >
               -{week}
@@ -69,7 +91,6 @@ export function AppSidebar() {
               key={week}
               variant="outline"
               size="sm"
-              className="text-accent-blue"
               onClick={() => handleNextWeek(week)}
             >
               +{week}

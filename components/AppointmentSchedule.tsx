@@ -16,7 +16,7 @@ import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CalendarContext } from "@/hooks/context";
-import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -28,6 +28,8 @@ import { Appointment } from "@/models/appointment";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
 import { createAppointment, updateAppointment } from "@/lib/actions";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+
 import {
   Dialog,
   DialogContent,
@@ -73,10 +75,10 @@ const AppointmentSchedule = ({
   const [myEvents, setEvents] = useState(
     (initialAppointments || []).map(
       (appointment: Appointment, idx: number) => ({
-        id: appointment._id, // Use appointment _id directly
+        id: appointment._id,
         start: new Date(appointment.startTime),
         end: new Date(appointment.endTime),
-        title: appointment.service?.name || "Unknown Service", // Access service name from single service reference
+        title: appointment.service?.name || "Unknown Service",
         resourceId: appointment.employee?._id,
         data: appointment,
       }),
@@ -87,25 +89,10 @@ const AppointmentSchedule = ({
     setEvents(
       (initialAppointments || []).map(
         (appointment: Appointment, idx: number) => ({
-          id: appointment._id, // Use appointment _id directly
+          id: appointment._id,
           start: new Date(appointment.startTime),
           end: new Date(appointment.endTime),
-          title: appointment.service?.name || "Unknown Service", // Access service name from single service reference
-          resourceId: appointment.employee?._id,
-          data: appointment,
-        }),
-      ),
-    );
-  }, [initialAppointments]);
-
-  useEffect(() => {
-    setEvents(
-      (initialAppointments || []).map(
-        (appointment: Appointment, idx: number) => ({
-          id: appointment._id, // Use appointment _id directly
-          start: new Date(appointment.startTime),
-          end: new Date(appointment.endTime),
-          title: appointment.service?.name || "Unknown Service", // Access service name from single service reference
+          title: appointment.service?.name || "Unknown Service",
           resourceId: appointment.employee?._id,
           data: appointment,
         }),
@@ -118,6 +105,17 @@ const AppointmentSchedule = ({
   const [duration, setDuration] = useState<number>(0);
 
   const { date, setDate } = useContext(CalendarContext);
+
+  const router = useRouter();
+
+  const handleDateChange = (newDate: Date) => {
+    setDate(newDate);
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.set("date", newDate.toISOString().split("T")[0]);
+    const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+    router.push(newUrl); // Sử dụng router.push để điều hướng
+  };
+
   const views = [Views.DAY];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,9 +124,10 @@ const AppointmentSchedule = ({
   const formRef = React.useRef<HTMLFormElement>(null);
 
   const [showConfirm, setShowConfirm] = useState(false);
+
   const handleConfirm = async () => {
     setShowConfirm(false);
-    await handleAppointmentSuccess(); // your update logic
+    await handleAppointmentSuccess();
   };
 
   const appointmentForm = useForm<z.infer<typeof appointmentFormSchema>>({
@@ -153,7 +152,7 @@ const AppointmentSchedule = ({
   });
 
   const handleAppointmentSuccess = async () => {
-    if (isSubmitting) return; // Prevent double submission
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
@@ -165,7 +164,6 @@ const AppointmentSchedule = ({
       formData.append("reminder", formValues.reminder.toString());
       if (formValues.customer._ref) {
         if (type === "edit") {
-          // log form values
           console.log("Updating appointment with values:", formValues);
           const result = await updateAppointment(
             appointmentId,
@@ -192,7 +190,6 @@ const AppointmentSchedule = ({
           return;
         }
 
-        // Create mode
         const result = await createAppointment(
           formData,
           {
@@ -230,32 +227,27 @@ const AppointmentSchedule = ({
     }
   };
 
-  // Handle open/close dialog để reset form
   const handleOpenChange = (newOpen: boolean) => {
-    if (isSubmitting && !newOpen) return; // Prevent closing while submitting
+    if (isSubmitting && !newOpen) return;
     setOpen(newOpen);
 
     if (newOpen) {
-      setIsSubmitting(false); // Reset submitting state when opening
+      setIsSubmitting(false);
     } else {
-      // Reset form on close
       appointmentForm.reset();
-      setIsSubmitting(false); // Reset submitting state when closing
+      setIsSubmitting(false);
     }
   };
 
   const handleSelectSlot = useCallback(
     (slotInfo: import("react-big-calendar").SlotInfo) => {
-      const { start, end, resourceId } = slotInfo as {
+      const { start, resourceId } = slotInfo as {
         start: Date;
         end: Date;
         resourceId: string;
       };
 
-      // set type to create
       setType("create");
-
-      // update date of appointment form
       appointmentForm.setValue("time", start.toISOString());
       appointmentForm.setValue("employee", {
         _ref: resourceId,
@@ -268,9 +260,7 @@ const AppointmentSchedule = ({
 
   const handleSelectEvent = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
-    // set type to edit
     setType("edit");
-    // set date of appointment form
     setAppointmentId(calendarEvent.data._id);
     appointmentForm.setValue("time", calendarEvent.data.startTime.toString());
     appointmentForm.setValue("employee", {
@@ -296,10 +286,7 @@ const AppointmentSchedule = ({
         ]
       : [];
     appointmentForm.setValue("services", newServices);
-    setDuration(
-      calendarEvent.data.service?.duration || 0, // Set duration from service or default to 0
-    );
-    // Open the dialog
+    setDuration(calendarEvent.data.service?.duration || 0);
     setOpen(true);
   }, []);
 
@@ -310,7 +297,7 @@ const AppointmentSchedule = ({
       end: Date | string;
       resourceId?: number | string;
     }) => {
-      const { event, start, end, resourceId } = args;
+      const { event, start, resourceId } = args;
       const calendarEvent = event as CalendarEvent;
 
       setType("edit");
@@ -340,10 +327,7 @@ const AppointmentSchedule = ({
         : [];
       appointmentForm.setValue("services", newServices);
 
-      setDuration(
-        calendarEvent.data.service?.duration || 0, // Set duration from service or default to 0
-      );
-      // Open the dialog confirming the move
+      setDuration(calendarEvent.data.service?.duration || 0);
       setShowConfirm(true);
     },
     [],
@@ -384,52 +368,38 @@ const AppointmentSchedule = ({
       appointmentForm.setValue("services", newServices);
 
       setDuration(
-        // Calculate the new duration based on the resized event
-        Math.round(
-          (endDate.getTime() - startDate.getTime()) / (1000 * 60), // Convert milliseconds to minutes
-        ),
+        Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60)),
       );
       setShowConfirm(true);
     },
     [],
   );
 
-  const moveResource = (dragIndex: number, hoverIndex: number) => {
-    setResources((prevResources = []) => {
-      const updated = [...prevResources];
-      const [removed] = updated.splice(dragIndex, 1);
-      updated.splice(hoverIndex, 0, removed);
-      return updated;
-    });
-  };
   const CustomToolbar = (toolbar: any) => {
     const goToBack = () => {
       const newDate = new Date(toolbar.date);
       newDate.setDate(newDate.getDate() - 1);
-      setDate(newDate);
       toolbar.onNavigate("PREV");
+      handleDateChange(newDate);
     };
+
     const goToNext = () => {
       const newDate = new Date(toolbar.date);
       newDate.setDate(newDate.getDate() + 1);
-      setDate(newDate);
       toolbar.onNavigate("NEXT");
+      handleDateChange(newDate);
     };
+
     const goToToday = () => {
       const today = new Date();
-      setDate(today);
       toolbar.onNavigate("TODAY");
+      handleDateChange(today);
     };
 
     return (
       <div className="flex items-center mb-2 gap-2">
         <div className="flex items-center gap-2">
-          <Button
-            onClick={goToToday}
-            className="bg-[var(--color-accent-blue)] text-white transition hover:bg-[color:rgba(51,143,255,0.85)]"
-          >
-            Today
-          </Button>
+          <Button onClick={goToToday}>Today</Button>
           <Button
             variant="ghost"
             size="icon"
@@ -488,14 +458,14 @@ const AppointmentSchedule = ({
               event: ({ event }: EventProps<object>) => {
                 const calendarEvent = event as CalendarEvent;
                 return (
-                  <div className="bg-pink-400 h-full rounded">
-                    <div className="flex flex-col justify-between align-middle p-2 gap-1">
+                  <div className="bg-pink-400 h-full rounded border border-gray-100 ">
+                    <div className="flex flex-col justify-center items-center p-1 gap-0.5 ">
                       <span className="text-md text-black">
                         {calendarEvent.data.customer
                           ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                           : "No Customer"}
                       </span>
-                      <span className="text-sm text-white">
+                      <span className="text-[14px] text-white">
                         {calendarEvent.title}
                       </span>
                     </div>
@@ -515,7 +485,6 @@ const AppointmentSchedule = ({
         >
           <DialogHeader>
             <DialogTitle>New Appointment</DialogTitle>
-
             <DialogDescription className="sr-only">
               Create a new appointment with service, customer and employee.
             </DialogDescription>
