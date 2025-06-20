@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
-import { BackButton } from "@/components/auth/BackButton";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Poppins } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +31,6 @@ export const CardWrapper = ({
               font.className,
             )}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/nail-polish.png"
               alt="Nail Polish Icon"

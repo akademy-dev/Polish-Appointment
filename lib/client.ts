@@ -5,7 +5,7 @@ export type SignUpPayload = {
   password: string;
   name?: string;
   image?: string;
-} & Record<string, any>;
+} & Record<string, never>;
 
 export const signUp = async (payload: SignUpPayload): Promise<User> => {
   const res = await fetch("/api/sanity/signUp", {
