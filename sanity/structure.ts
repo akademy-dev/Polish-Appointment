@@ -10,4 +10,15 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem("service").title("Services"),
       S.documentTypeListItem("category").title("Categories"),
       S.documentTypeListItem("appointment").title("Appointments"),
+      S.documentTypeListItem("user").title("Users"),
+      S.documentTypeListItem("session").title("Sessions"),
+      S.documentTypeListItem("account").title("Accounts"),
+      S.documentTypeListItem("verificationToken").title("Verification Tokens"),
+      S.documentTypeListItem("passwordResetToken").title(
+        "Password Reset Tokens",
+      ),
+      S.documentTypeListItem("twoFactorToken").title("Two Factor Tokens"),
+      S.documentTypeListItem("twoFactorConfirmation").title(
+        "Two Factor Confirmations",
+      ),
     ]);

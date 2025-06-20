@@ -6,6 +6,13 @@ import { timeOffScheduleType } from "@/sanity/schemaTypes/timeOffSchedule";
 import { workingType } from "@/sanity/schemaTypes/workingTime";
 import { customerType } from "@/sanity/schemaTypes/customer";
 import { appointmentType } from "@/sanity/schemaTypes/appointment";
+import user from "./user";
+import session from "./session";
+import account from "./account";
+import verificationToken from "./verificationToken";
+import passwordResetToken from "./passwordResetToken";
+import twoFactorToken from "./twoFactorToken";
+import twoFactorConfirmation from "./twoFactorConfirmation";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -16,5 +23,12 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     timeOffScheduleType,
     workingType,
     appointmentType,
+    user,
+    session,
+    account,
+    verificationToken,
+    passwordResetToken,
+    twoFactorToken,
+    twoFactorConfirmation,
   ],
 };

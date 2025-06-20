@@ -62,7 +62,7 @@ export const ALL_EMPLOYEES_QUERY = defineQuery(
       _createdAt,
       phone,
       position,
-      workingTimes[]->,
+      workingTimes,
       timeOffSchedules[]->
   }`,
 );
@@ -92,34 +92,6 @@ export const ALL_CUSTOMERS_QUERY = defineQuery(
       phone
     }
   `,
-);
-
-export const APPOINTMENTS_QUERY = defineQuery(
-  `
-*[_type == "appointment"]{
- _id,
-  startTime,
-  endTime,
-  duration,
-  customer -> {
-  _id,
-  firstName,
-  lastName,
-  },
-  employee -> {
-  _id,
-  firstName,
-  lastName,
-  },
-  note,
-  reminder,
-  service -> {
-    _id,
-    name,
-    duration,
-  },
-}
-`,
 );
 
 export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(

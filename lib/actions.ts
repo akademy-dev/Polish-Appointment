@@ -3,6 +3,7 @@
 import { writeClient } from "@/sanity/lib/write-client";
 import { parseServerActionResponse } from "./utils";
 import { TimeOffSchedule, WorkingTime } from "@/models/profile";
+import bcrypt from "bcrypt";
 
 export const createEmployee = async (
   form: FormData,
@@ -339,6 +340,15 @@ export const updateService = async (_id: string, form: FormData) => {
 
 export const deleteEmployee = async (_id: string) => {
   try {
+    const referencingDocs = await writeClient.fetch(
+      `*[_type == "appointment" && employee._ref == $id]{_id}`,
+      { id: _id },
+    );
+
+    for (const refDoc of referencingDocs) {
+      await writeClient.delete(refDoc._id);
+    }
+
     const result = await writeClient.delete(_id);
 
     return parseServerActionResponse({
@@ -347,7 +357,6 @@ export const deleteEmployee = async (_id: string) => {
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -357,6 +366,15 @@ export const deleteEmployee = async (_id: string) => {
 
 export const deleteCustomer = async (_id: string) => {
   try {
+    const referencingDocs = await writeClient.fetch(
+      `*[_type == "appointment" && customer._ref == $id]{_id}`,
+      { id: _id },
+    );
+
+    for (const refDoc of referencingDocs) {
+      await writeClient.delete(refDoc._id);
+    }
+
     const result = await writeClient.delete(_id);
 
     return parseServerActionResponse({
@@ -365,7 +383,6 @@ export const deleteCustomer = async (_id: string) => {
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -375,6 +392,15 @@ export const deleteCustomer = async (_id: string) => {
 
 export const deleteService = async (_id: string) => {
   try {
+    const referencingDocs = await writeClient.fetch(
+      `*[_type == "appointment" && service._ref == $id]{_id}`,
+      { id: _id },
+    );
+
+    for (const refDoc of referencingDocs) {
+      await writeClient.delete(refDoc._id);
+    }
+
     const result = await writeClient.delete(_id);
 
     return parseServerActionResponse({
@@ -383,7 +409,6 @@ export const deleteService = async (_id: string) => {
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",

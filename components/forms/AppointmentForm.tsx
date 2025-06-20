@@ -55,6 +55,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import AppointmentFormLoading from "@/components/AppointmentFormLoading";
 
 export const AppointmentForm = ({
   onSuccess,
@@ -258,8 +259,7 @@ export const AppointmentForm = ({
             endTime: new Date(appointment.endTime),
           })),
         );
-        const startDate =
-          new Date(time).toISOString().split("T")[0] + "T00:00:00Z";
+        const startDate = new Date(time).toISOString().split("T")[0];
         const appointmentsRes = await client.fetch(APPOINTMENTS_BY_DATE_QUERY, {
           date: startDate,
           customerId,
@@ -279,7 +279,6 @@ export const AppointmentForm = ({
 
   React.useEffect(() => {
     async function fetchCustomerHistory() {
-      console.log(customerRef);
       if (customerRef) {
         const customerHistoryRes = await client.fetch(
           APPOINTMENTS_BY_DATE_QUERY,
@@ -316,7 +315,7 @@ export const AppointmentForm = ({
   const hasClientError = !!form.formState.errors.customer;
 
   if (loading) {
-    return <div className="flex items-center justify-center h-full"></div>;
+    return <AppointmentFormLoading />;
   }
   return (
     <>
@@ -326,7 +325,7 @@ export const AppointmentForm = ({
           <TabsTrigger value="appointment">Appointment</TabsTrigger>
         </TabsList>
       </Tabs>
-      <div className="relative flex-1 p-2">
+      <div className="relative flex-1 ">
         <Form {...form}>
           <form ref={formRef} onSubmit={form.handleSubmit(onSubmit)}>
             {tab === "client" && (
@@ -605,7 +604,7 @@ export const AppointmentForm = ({
             )}
             {tab === "appointment" && (
               <div>
-                <h2 className="text-lg font-semibold mb-2">Information</h2>
+                <h2 className="text-lg font-semibold">Information</h2>
                 <div className="flex flex-col gap-2">
                   <FormField
                     control={form.control}
@@ -614,7 +613,7 @@ export const AppointmentForm = ({
                       <FormItem className="flex flex-col">
                         <div className="flex gap-4">
                           {/* Date Input */}
-                          <div className="flex flex-col gap-3">
+                          <div className="flex flex-col gap-1">
                             <Label htmlFor="date" className="px-1 text-md">
                               Date
                             </Label>
@@ -656,7 +655,7 @@ export const AppointmentForm = ({
                             </Popover>
                           </div>
                           {/* Time Input */}
-                          <div className="flex flex-col gap-3">
+                          <div className="flex flex-col gap-1">
                             <Label htmlFor="time" className="px-1 text-md">
                               Time
                             </Label>
@@ -703,7 +702,6 @@ export const AppointmentForm = ({
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="employee._ref"

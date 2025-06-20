@@ -79,7 +79,6 @@ const ServiceForm = ({
 
   const form = externalForm || internalForm;
   React.useEffect(() => {
-    console.log(initialData);
     // Reset the form with initial data if provided
     if (initialData) {
       form.reset(initialData);

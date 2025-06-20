@@ -1,5 +1,4 @@
 /* eslint-disable */
-
 "use client";
 
 import React, { useCallback, useContext, useEffect, useState } from "react";
@@ -26,7 +25,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Employee, getProfileName } from "@/models/profile";
 import { Appointment } from "@/models/appointment";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
-import { createAppointment, updateAppointment } from "@/lib/actions";
+import {
+  createAppointment,
+  createCustomer,
+  updateAppointment,
+} from "@/lib/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -39,6 +42,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import {
+  addDays,
+  addMinutes,
+  format,
+  isWithinInterval,
+  parse,
+  startOfWeek,
+} from "date-fns";
 
 const localizer = momentLocalizer(moment);
 const DragAndDropCalendar = withDragAndDrop(Calendar);
@@ -50,6 +61,7 @@ interface CalendarEvent {
   title: string;
   resourceId: number;
   data: Appointment;
+  type: string;
 }
 
 interface Resource {
@@ -60,11 +72,124 @@ interface Resource {
 interface AppointmentScheduleProps {
   initialEmployees: Employee[];
   initialAppointments: Appointment[];
+  currentDate: string;
 }
+
+const generateNotWorkingEvents = (
+  employees: Employee[],
+  standardStart: string, // e.g., '8:00 AM'
+  standardEnd: string, // e.g., '6:00 PM'
+  startDate: Date, // Ngày cụ thể từ appointment
+) => {
+  const notWorkingEvents: any[] = [];
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  // Lấy ngày của tuần từ startDate
+  const dayIndex = startDate.getDay();
+  const dayOfWeek = daysOfWeek[dayIndex];
+
+  // Lấy ngày cụ thể (bỏ thời gian)
+  const currentDate = new Date(startDate.setHours(0, 0, 0, 0));
+
+  employees.forEach((employee) => {
+    const workingTimes = employee.workingTimes || [];
+
+    // Tìm lịch làm việc cho ngày trong tuần
+    const workSchedule = workingTimes.find((wt) => wt.day === dayOfWeek);
+
+    // Parse standard start và end times cho ngày hiện tại
+    const standardStartTime = parse(
+      `${format(currentDate, "yyyy-MM-dd")} ${standardStart}`,
+      "yyyy-MM-dd h:mm a",
+      new Date(),
+    );
+    const standardEndTime = parse(
+      `${format(currentDate, "yyyy-MM-dd")} ${standardEnd}`,
+      "yyyy-MM-dd h:mm a",
+      new Date(),
+    );
+
+    if (!workSchedule) {
+      // Không có lịch làm việc cho ngày này, đánh dấu toàn bộ thời gian tiêu chuẩn là "Not Working"
+      notWorkingEvents.push({
+        id: `not_working_${employee._id}_${dayOfWeek}`,
+        start: standardStartTime,
+        end: standardEndTime,
+        title: "Not Working",
+        resourceId: employee._id,
+        type: "not_working",
+      });
+    } else {
+      // Có lịch làm việc, kiểm tra các khoảng trống
+      const workStart = parse(
+        `${format(currentDate, "yyyy-MM-dd")} ${workSchedule.from}`,
+        "yyyy-MM-dd h:mm a",
+        new Date(),
+      );
+      const workEnd = parse(
+        `${format(currentDate, "yyyy-MM-dd")} ${workSchedule.to}`,
+        "yyyy-MM-dd h:mm a",
+        new Date(),
+      );
+
+      // Trước giờ làm việc
+      if (workStart > standardStartTime) {
+        notWorkingEvents.push({
+          id: `not_working_${employee._id}_${dayOfWeek}_before`,
+          start: standardStartTime,
+          end: workStart,
+          title: "Not Working",
+          resourceId: employee._id,
+          type: "not_working",
+        });
+      }
+
+      // Sau giờ làm việc
+      if (workEnd < standardEndTime) {
+        notWorkingEvents.push({
+          id: `not_working_${employee._id}_${dayOfWeek}_after`,
+          start: workEnd,
+          end: standardEndTime,
+          title: "Not Working",
+          resourceId: employee._id,
+          type: "not_working",
+        });
+      }
+
+      // Khoảng thời gian không làm việc cụ thể (ví dụ: 8:00 AM - 8:30 AM)
+      const notWorkingStart = parse(
+        `${format(currentDate, "yyyy-MM-dd")} 8:00 AM`,
+        "yyyy-MM-dd h:mm a",
+        new Date(),
+      );
+      const notWorkingEnd = addMinutes(notWorkingStart, 30); // 8:30 AM
+
+      if (
+        isWithinInterval(notWorkingStart, {
+          start: workStart,
+          end: workEnd,
+        }) &&
+        isWithinInterval(notWorkingEnd, { start: workStart, end: workEnd })
+      ) {
+        notWorkingEvents.push({
+          id: `not_working_${employee._id}_${dayOfWeek}_specific`,
+          start: notWorkingStart,
+          end: notWorkingEnd,
+          title: "Not Working",
+          resourceId: employee._id,
+          type: "not_working",
+        });
+      }
+    }
+  });
+
+  return notWorkingEvents;
+};
 
 const AppointmentSchedule = ({
   initialEmployees,
   initialAppointments,
+  currentDate,
 }: AppointmentScheduleProps) => {
   const [resources, setResources] = useState(
     (initialEmployees || []).map((employee: any) => ({
@@ -72,8 +197,9 @@ const AppointmentSchedule = ({
       resourceTitle: getProfileName(employee),
     })),
   );
-  const [myEvents, setEvents] = useState(
-    (initialAppointments || []).map(
+  const [myEvents, setEvents] = useState(() => {
+    // Tạo sự kiện appointment
+    const appointmentEvents = (initialAppointments || []).map(
       (appointment: Appointment, idx: number) => ({
         id: appointment._id,
         start: new Date(appointment.startTime),
@@ -81,24 +207,55 @@ const AppointmentSchedule = ({
         title: appointment.service?.name || "Unknown Service",
         resourceId: appointment.employee?._id,
         data: appointment,
+        type: "appointment",
       }),
-    ),
-  );
+    );
+
+    // Tạo sự kiện not working cho ngày của date
+    const notWorkingEvents = generateNotWorkingEvents(
+      initialEmployees,
+      "8:00 AM",
+      "6:00 PM",
+      currentDate ? new Date(currentDate) : new Date(), // Truyền date từ CalendarContext
+    );
+
+    // Gộp cả hai loại sự kiện
+    return [...appointmentEvents, ...notWorkingEvents];
+  });
 
   useEffect(() => {
-    setEvents(
-      (initialAppointments || []).map(
-        (appointment: Appointment, idx: number) => ({
-          id: appointment._id,
-          start: new Date(appointment.startTime),
-          end: new Date(appointment.endTime),
-          title: appointment.service?.name || "Unknown Service",
-          resourceId: appointment.employee?._id,
-          data: appointment,
-        }),
-      ),
+    // Tạo sự kiện appointment
+    const appointmentEvents = (initialAppointments || []).map(
+      (appointment: Appointment, idx: number) => ({
+        id: appointment._id,
+        start: new Date(appointment.startTime),
+        end: new Date(appointment.endTime),
+        title: appointment.service?.name || "Unknown Service",
+        resourceId: appointment.employee?._id,
+        data: appointment,
+        type: "appointment",
+      }),
     );
-  }, [initialAppointments]);
+
+    // Tạo sự kiện not working
+    const notWorkingEvents = generateNotWorkingEvents(
+      initialEmployees,
+      "8:00 AM",
+      "6:00 PM",
+      currentDate ? new Date(currentDate) : new Date(),
+    );
+
+    // Gộp cả hai loại sự kiện
+    setEvents([...appointmentEvents, ...notWorkingEvents]);
+  }, [initialAppointments, initialEmployees]);
+
+  // setDate từ CalendarContext
+  useEffect(() => {
+    if (currentDate) {
+      const parsedDate = new Date(currentDate);
+      setDate(parsedDate);
+    }
+  }, []);
 
   const [type, setType] = useState<"create" | "edit">("create");
   const [appointmentId, setAppointmentId] = useState<string>("");
@@ -111,9 +268,11 @@ const AppointmentSchedule = ({
   const handleDateChange = (newDate: Date) => {
     setDate(newDate);
     const searchParams = new URLSearchParams(window.location.search);
-    searchParams.set("date", newDate.toISOString().split("T")[0]);
+    // Định dạng ngày theo múi giờ thiết bị
+    const formattedDate = format(newDate, "yyyy-MM-dd"); // 2025-06-17
+    searchParams.set("date", formattedDate);
     const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-    router.push(newUrl); // Sử dụng router.push để điều hướng
+    router.push(newUrl);
   };
 
   const views = [Views.DAY];
@@ -164,7 +323,6 @@ const AppointmentSchedule = ({
       formData.append("reminder", formValues.reminder.toString());
       if (formValues.customer._ref) {
         if (type === "edit") {
-          console.log("Updating appointment with values:", formValues);
           const result = await updateAppointment(
             appointmentId,
             duration,
@@ -204,7 +362,7 @@ const AppointmentSchedule = ({
           setOpen(false);
           appointmentForm.reset();
           toast.success("Success", {
-            description: `Appointment created successfully for ${formValues.customer.firstName} ${formValues.customer.lastName}`,
+            description: `Appointment created successfully`,
           });
         } else {
           toast.error("Error", {
@@ -212,10 +370,43 @@ const AppointmentSchedule = ({
           });
         }
       } else {
-        toast.error("Error", {
-          description: "Customer reference is required for appointment",
-        });
-        return;
+        // create customer then get customer ID to create appointment
+        const customerFormData = new FormData();
+        customerFormData.append("firstName", formValues.customer.firstName);
+        customerFormData.append("lastName", formValues.customer.lastName);
+        customerFormData.append("phone", formValues.customer.phone || "");
+
+        const customerResult = await createCustomer(customerFormData);
+        console.log("Customer creation result:", customerResult);
+        if (customerResult.status === "SUCCESS") {
+          // Now create appointment with new customer
+          const customerId = customerResult._id; // Assuming data contains the new customer object
+          const result = await createAppointment(
+            formData,
+            {
+              _ref: customerId,
+              _type: "reference",
+            },
+            formValues.employee,
+            formValues.services,
+          );
+
+          if (result.status === "SUCCESS") {
+            setOpen(false);
+            appointmentForm.reset();
+            toast.success("Success", {
+              description: "New Appointment created successfully",
+            });
+          } else {
+            toast.error("Error", {
+              description: result.error,
+            });
+          }
+        } else {
+          toast.error("Error", {
+            description: customerResult.error,
+          });
+        }
       }
     } catch (error) {
       console.log(error);
@@ -253,6 +444,7 @@ const AppointmentSchedule = ({
         _ref: resourceId,
         _type: "reference",
       });
+
       setOpen(true);
     },
     [myEvents, resources],
@@ -260,6 +452,12 @@ const AppointmentSchedule = ({
 
   const handleSelectEvent = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
+
+    // check if the event is not_working
+    if (calendarEvent.type === "not_working") {
+      return;
+    }
+
     setType("edit");
     setAppointmentId(calendarEvent.data._id);
     appointmentForm.setValue("time", calendarEvent.data.startTime.toString());
@@ -271,11 +469,12 @@ const AppointmentSchedule = ({
       firstName: "",
       lastName: "",
       phone: "",
-      _ref: calendarEvent.data.customer?._id,
+      _ref: calendarEvent.data.customer?._id || "",
       _type: "reference",
     });
     appointmentForm.setValue("note", calendarEvent.data.note || "");
     appointmentForm.setValue("reminder", calendarEvent.data.reminder || true);
+
     const newServices = calendarEvent.data.service
       ? [
           {
@@ -299,6 +498,11 @@ const AppointmentSchedule = ({
     }) => {
       const { event, start, resourceId } = args;
       const calendarEvent = event as CalendarEvent;
+
+      // check if the event is not_working
+      if (calendarEvent.type === "not_working") {
+        return;
+      }
 
       setType("edit");
       setAppointmentId(calendarEvent.data._id);
@@ -337,6 +541,12 @@ const AppointmentSchedule = ({
     (args: { event: object; start: Date | string; end: Date | string }) => {
       const { event, start, end } = args;
       const calendarEvent = event as CalendarEvent;
+
+      // check if the event is not_working
+      if (calendarEvent.type === "not_working") {
+        toast.error("Cannot resize not working events");
+        return;
+      }
       const startDate = typeof start === "string" ? new Date(start) : start;
       const endDate = typeof end === "string" ? new Date(end) : end;
 
@@ -427,6 +637,16 @@ const AppointmentSchedule = ({
     );
   };
 
+  const resizableAccessor = useCallback((event: object) => {
+    const calendarEvent = event as CalendarEvent;
+    return calendarEvent.type !== "not_working"; // Chỉ cho phép resize nếu không phải not_working
+  }, []);
+
+  const draggableAccessor = useCallback((event: object) => {
+    const calendarEvent = event as CalendarEvent;
+    return calendarEvent.type !== "not_working"; // Chỉ cho phép kéo nếu không phải not_working
+  }, []);
+
   return (
     <>
       <DndProvider backend={HTML5Backend}>
@@ -444,6 +664,8 @@ const AppointmentSchedule = ({
             resourceTitleAccessor={(resource) =>
               (resource as Resource).resourceTitle
             }
+            resizableAccessor={resizableAccessor}
+            draggableAccessor={draggableAccessor}
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
             onEventDrop={moveEvent}
@@ -457,20 +679,32 @@ const AppointmentSchedule = ({
               toolbar: CustomToolbar,
               event: ({ event }: EventProps<object>) => {
                 const calendarEvent = event as CalendarEvent;
-                return (
-                  <div className="bg-pink-400 h-full rounded border border-gray-100 ">
-                    <div className="flex flex-col justify-center items-center p-1 gap-0.5 ">
-                      <span className="text-md text-black">
-                        {calendarEvent.data.customer
-                          ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
-                          : "No Customer"}
-                      </span>
-                      <span className="text-[14px] text-white">
-                        {calendarEvent.title}
-                      </span>
+                if (calendarEvent.type === "appointment") {
+                  return (
+                    <div className="bg-pink-400 h-full rounded border border-gray-100 cursor-pointer ">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span className="text-md text-black">
+                          {calendarEvent.data?.customer
+                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                            : "No Customer"}
+                        </span>
+                        <span className="text-[14px] text-white">
+                          {calendarEvent.title}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
+                  );
+                } else {
+                  return (
+                    <div className="bg-gray-400 h-full rounded border border-gray-100 cursor-default resize-none ">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span className="text-[14px] text-white">
+                          {calendarEvent.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
               },
             }}
           />

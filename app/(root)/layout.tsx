@@ -8,6 +8,9 @@ import { CalendarContext } from "@/hooks/context";
 import CreateInfoButton from "@/components/CreateInfoButton";
 import SearchForm from "@/components/forms/SearchForm";
 import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/auth/LogoutButton";
+import { LogOutIcon } from "lucide-react";
 
 export default function Layout({
   children,
@@ -50,20 +53,30 @@ export default function Layout({
           <header className="mb-5 w-full space-y-4 lg:space-y-0">
             <div className="flex items-center justify-between">
               <Navbar value={value} />
-              <div className="hidden lg:flex items-center gap-4">
-                <div className="w-80">
+              {value !== "settings" ? (
+                <div className="hidden lg:flex items-center gap-4">
+                  <div className="w-80">
+                    <SearchForm action={`/${value}`} />
+                  </div>
+                  <CreateInfoButton type={value} />
+                </div>
+              ) : (
+                <Button variant="outline" className="hidden lg:flex" asChild>
+                  <LogoutButton>
+                    <LogOutIcon />
+                  </LogoutButton>
+                </Button>
+              )}
+            </div>
+
+            {value !== "settings" && (
+              <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex-1 sm:max-w-md">
                   <SearchForm action={`/${value}`} />
                 </div>
                 <CreateInfoButton type={value} />
               </div>
-            </div>
-
-            <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex-1 sm:max-w-md">
-                <SearchForm action={`/${value}`} />
-              </div>
-              <CreateInfoButton type={value} />
-            </div>
+            )}
           </header>
 
           {children}

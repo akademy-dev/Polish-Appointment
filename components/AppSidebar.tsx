@@ -7,6 +7,7 @@ import { CalendarContext } from "@/hooks/context";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { useRouter } from "next/navigation";
+import { format } from "date-fns";
 
 export function AppSidebar() {
   const { date, setDate } = useContext(CalendarContext);
@@ -32,13 +33,10 @@ export function AppSidebar() {
 
   const handleDateChange = (newDate: Date) => {
     setDate(newDate);
-    const localDate = new Date(
-      newDate.getTime() - newDate.getTimezoneOffset() * 60000,
-    )
-      .toISOString()
-      .split("T")[0];
     const searchParams = new URLSearchParams(window.location.search);
-    searchParams.set("date", localDate);
+    // Định dạng ngày theo múi giờ thiết bị
+    const formattedDate = format(newDate, "yyyy-MM-dd"); // 2025-06-17
+    searchParams.set("date", formattedDate);
     const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
     router.push(newUrl);
   };

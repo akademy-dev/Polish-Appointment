@@ -548,6 +548,8 @@
     .rbc-event, .rbc-background-event {
         padding: 0 !important;
         border: none !important;
+        background-color: transparent !important;
+        outline: none !important;
     }
 
     .rbc-event-label {
@@ -558,7 +560,7 @@
         margin: 0 !important;
     }
 
-  
+
 }
 
 @layer utilities {

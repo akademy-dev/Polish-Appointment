@@ -6,7 +6,7 @@ import { TabsList, TabsTrigger } from "./ui/tabs";
 const Navbar = ({ value = "schedule" }) => {
   return (
     <div className="flex items-center gap-4">
-      <span className="font-bold text-lg">Polish Appointment</span>
+      <span className="font-bold text-lg">The Polish Lounge</span>
       <Tabs defaultValue={value} className="flex-1">
         <TabsList>
           <TabsTrigger asChild value="schedule">
@@ -32,11 +32,6 @@ const Navbar = ({ value = "schedule" }) => {
           <TabsTrigger asChild value="settings">
             <Link href="/settings" prefetch={true}>
               Settings
-            </Link>
-          </TabsTrigger>
-          <TabsTrigger asChild value="login">
-            <Link href="/login" prefetch={true}>
-              Login
             </Link>
           </TabsTrigger>
         </TabsList>

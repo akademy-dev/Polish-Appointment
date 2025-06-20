@@ -15,9 +15,7 @@ const page = async ({ searchParams }: PageProps) => {
   const resolvedSearchParams = await searchParams;
   const date =
     resolvedSearchParams.date || new Date().toISOString().split("T")[0];
-  console.log(
-    `Fetching appointments for date: ${date} with search params: ${JSON.stringify(resolvedSearchParams)}`,
-  );
+  
   const employees = await sanityFetch({
     query: ALL_EMPLOYEES_QUERY,
     params: {
@@ -31,15 +29,13 @@ const page = async ({ searchParams }: PageProps) => {
       customerId: null,
     },
   });
-  console.log(
-    `Fetched ${employees.data.length} employees and ${appointments.data.length} appointments`,
-  );
 
   return (
     <>
       <AppointmentSchedule
         initialEmployees={employees.data}
         initialAppointments={appointments.data}
+        currentDate={date}
       />
       <SanityLive />
     </>

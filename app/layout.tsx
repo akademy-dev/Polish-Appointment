@@ -3,6 +3,8 @@ import { Lexend } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { auth } from "@/auth";
+import { SessionProvider } from "next-auth/react";
 
 const lexend = Lexend({
   variable: "--font-lexend",
@@ -10,38 +12,44 @@ const lexend = Lexend({
 });
 
 export const metadata: Metadata = {
-  title: "Polish Appointment",
-  description: "Polish Appointment",
+  title: "The Polish Lounge",
+  description: "The Polish Lounge",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={` ${lexend.variable} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          themes={[
-            "light",
-            "red",
-            "rose",
-            "orange",
-            "green",
-            "blue",
-            "yellow",
-            "violet",
-            "pink",
-          ]}
-          disableTransitionOnChange
+    <SessionProvider session={session}>
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className={` ${lexend.variable} antialiased lexend_abe6586a-module__pyLM9W__variable`}
+          suppressHydrationWarning
         >
-          {children}
-        </ThemeProvider>
-        <Toaster richColors />
-      </body>
-    </html>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="pink"
+            themes={[
+              "light",
+              "red",
+              "rose",
+              "orange",
+              "green",
+              "blue",
+              "yellow",
+              "violet",
+              "pink",
+            ]}
+            disableTransitionOnChange
+          >
+            {children}
+          </ThemeProvider>
+          <Toaster richColors />
+        </body>
+      </html>
+    </SessionProvider>
   );
 }

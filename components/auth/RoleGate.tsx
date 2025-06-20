@@ -1,0 +1,23 @@
+"use client";
+
+import { UserRole } from "@/models/typings";
+
+import { useCurrentRole } from "@/hooks/user-current-role";
+import { FormError } from "@/components/FormError";
+
+interface RoleGateProps {
+  children: React.ReactNode;
+  allowedRole: UserRole;
+}
+
+export const RoleGate = ({ children, allowedRole }: RoleGateProps) => {
+  const role = useCurrentRole();
+
+  if (role !== allowedRole) {
+    return (
+      <FormError message="You do not have permission to view this content!" />
+    );
+  }
+
+  return <>{children}</>;
+};

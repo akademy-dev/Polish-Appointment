@@ -152,9 +152,7 @@ export function ServiceDataTable({
   const handleAppointmentSuccess = async () => {
     // try catch delete service
     try {
-      const result = await deleteService(
-        id, // Pass the service
-      );
+      const result = await deleteService(id);
 
       if (result.status == "SUCCESS") {
         toast.success("Success", {
@@ -166,6 +164,7 @@ export function ServiceDataTable({
         });
       }
     } catch (error) {
+      console.error("Failed to delete service:", error);
       toast.error("Error", {
         description: "Failed to delete service. Please try again.",
       });
@@ -375,7 +374,7 @@ export function ServiceDataTable({
         open={showConfirm}
         onOpenChange={setShowConfirm}
         title="Delete Service"
-        description="Are you sure you want to delete this service? This action cannot be undone."
+        description="Are you sure you want to delete this service? The appointments associated with this service will also be deleted. This action cannot be undone."
         onConfirm={handleConfirm}
       />
     </>
