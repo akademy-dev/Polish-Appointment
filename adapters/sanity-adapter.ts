@@ -148,14 +148,17 @@ export function SanityAdapter(
 
         const userToUpdate = await sanityClient.getDocument(account.userId);
 
+        // @ts-expect-error
         await sanityClient.createOrReplace<User>({
           ...userToUpdate,
           emailVerified: new Date().toISOString(),
-          accounts: {
-            _type: "reference",
-            _key: uuid(),
-            _ref: createdAccount._id,
-          },
+          accounts: [
+            ...(userToUpdate?.accounts || []),
+            {
+              _type: "reference",
+              _ref: createdAccount._id,
+            },
+          ],
         });
 
         return account;
@@ -180,7 +183,7 @@ export function SanityAdapter(
         const updatedUserAccounts = (accountUser?.accounts || []).filter(
           (ac) => ac._ref !== account._id,
         );
-
+        // @ts-expect-error
         await sanityClient.createOrReplace({
           ...accountUser,
           accounts: updatedUserAccounts,
