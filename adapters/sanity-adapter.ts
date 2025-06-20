@@ -38,8 +38,7 @@ export function SanityAdapter(
           id: createdUser._id,
           ...createdUser,
         };
-      } catch (error) {
-        console.error("Error creating user:", error);
+      } catch {
         throw new Error("Failed to Create user");
       }
     },
@@ -47,11 +46,8 @@ export function SanityAdapter(
     async getUser(id) {
       try {
         const user_qry = `*[_type == "user" && _id== "${id}"][0]`;
-        const user = await sanityClient.fetch(user_qry);
-
-        return user;
-      } catch (error) {
-        console.error("Error fetching user:", error);
+        return await sanityClient.fetch(user_qry);
+      } catch {
         throw new Error("Couldnt get the user");
       }
     },
@@ -59,12 +55,9 @@ export function SanityAdapter(
     async getUserByEmail(email) {
       try {
         const user_qry = `*[_type == "user" && email== "${email}"][0]`;
-        const user = await sanityClient.fetch(user_qry);
-
-        return user;
-      } catch (error) {
-        console.error("Error fetching user by email:", error);
-        throw new Error("Couldnt get the user");
+        return await sanityClient.fetch(user_qry);
+      } catch {
+        throw new Error("Couldn't get the user");
       }
     },
 
@@ -83,46 +76,8 @@ export function SanityAdapter(
           role: user.role,
           ...user,
         };
-      } catch (error) {
-        console.error("Error fetching user by account:", error);
+      } catch {
         throw new Error("Couldnt get the user");
-      }
-    },
-
-    async updateUser(updatedUser) {
-      try {
-        const existingUser_qry = `*[_type == "user" && _id == "${updatedUser?.id}"][0]`;
-        const existingUser = await sanityClient.fetch(existingUser_qry);
-
-        if (!existingUser) {
-          throw new Error(
-            `Could not update user: ${updatedUser.id}; unable to find user`,
-          );
-        }
-
-        const patchedUser = await sanityClient
-          .patch(existingUser._id)
-          .set({
-            emailVerified:
-              updatedUser.emailVerified === null
-                ? undefined
-                : updatedUser.emailVerified,
-            ...existingUser,
-          })
-          .commit();
-
-        return patchedUser as any;
-      } catch (error) {
-        console.error("Error updating user:", error);
-        throw new Error("Couldnt update the user");
-      }
-    },
-
-    async deleteUser(userId) {
-      try {
-        return await sanityClient.delete(userId);
-      } catch (error: any) {
-        throw new Error("Could not delete user", error);
       }
     },
 
@@ -148,22 +103,19 @@ export function SanityAdapter(
 
         const userToUpdate = await sanityClient.getDocument(account.userId);
 
-        // @ts-expect-error
         await sanityClient.createOrReplace<User>({
           ...userToUpdate,
           emailVerified: new Date().toISOString(),
-          accounts: [
-            ...(userToUpdate?.accounts || []),
-            {
-              _type: "reference",
-              _ref: createdAccount._id,
-            },
-          ],
+          accounts: {
+            //@ts-expect-error// Sanity types are not strict
+            _type: "reference",
+            _key: uuid(),
+            _ref: createdAccount._id,
+          },
         });
 
         return account;
-      } catch (error) {
-        console.error("Error linking account:", error);
+      } catch {
         throw new Error("Error linking account");
       }
     },
@@ -183,15 +135,15 @@ export function SanityAdapter(
         const updatedUserAccounts = (accountUser?.accounts || []).filter(
           (ac) => ac._ref !== account._id,
         );
-        // @ts-expect-error
+
+        // @ts-expect-error// Sanity types are not strict
         await sanityClient.createOrReplace({
           ...accountUser,
           accounts: updatedUserAccounts,
         });
 
         await sanityClient.delete(account._id);
-      } catch (error) {
-        console.error("Error unlinking account:", error);
+      } catch {
         throw new Error("Could not Unlink account");
       }
     },
@@ -208,8 +160,7 @@ export function SanityAdapter(
         });
 
         return session;
-      } catch (error) {
-        console.error("Error creating session:", error);
+      } catch {
         throw new Error("Error Creating Session");
       }
     },
@@ -229,8 +180,7 @@ export function SanityAdapter(
           session: session,
           user: user,
         };
-      } catch (error) {
-        console.error("Error fetching session and user:", error);
+      } catch {
         throw new Error("Operation Failed");
       }
     },
@@ -247,8 +197,7 @@ export function SanityAdapter(
             ...session,
           })
           .commit();
-      } catch (error) {
-        console.error("Error updating session:", error);
+      } catch {
         throw new Error("Operation Failed");
       }
     },
@@ -260,20 +209,17 @@ export function SanityAdapter(
         if (!session) return null;
 
         await sanityClient.delete(session._id);
-      } catch (error) {
-        console.error("Error deleting session:", error);
+      } catch {
         throw new Error("Operation Failed");
       }
     },
     async createVerificationToken({ identifier, expires, token }) {
-      const verificationToken = await sanityClient.create({
+      return await sanityClient.create({
         _type: options.schemas.verificationToken,
         identifier,
         token,
         expires,
       });
-
-      return verificationToken;
     },
     async useVerificationToken({ identifier, token }) {
       const verToken_qry = `*[_type == "verificationToken" && identifier == "${identifier}" && token == "${token}"][0]`;

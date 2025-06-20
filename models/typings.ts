@@ -19,8 +19,8 @@ export type User = {
 
 export type Account = {
   _id: string;
-  _ref: string;
-  _type: string;
+  _ref?: string;
+  _type?: string;
   userId: string;
   type: string;
   provider: string;

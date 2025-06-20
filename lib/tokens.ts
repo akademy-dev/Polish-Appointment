@@ -9,7 +9,7 @@ import crypto from "crypto";
 export const generateVerificationToken = async (email: string) => {
   const token = `token.${uuid()}`;
 
-  //expires in 1hour
+  //expires in 1 hour
   const expires = new Date(new Date().getTime() + 3600 * 1000).toISOString();
 
   const existingToken = await getVerificationTokenByEmail(email);
@@ -18,20 +18,18 @@ export const generateVerificationToken = async (email: string) => {
     await client.delete(existingToken._id);
   }
 
-  const verificationToken = await client.create({
+  return await client.create({
     _type: "verificationToken",
     identifier: email,
     token,
     expires,
   });
-
-  return verificationToken;
 };
 
 export const generatePasswordResetToken = async (email: string) => {
   const token = `token.${uuid()}`;
 
-  //expires in 1hour
+  //expires in 1 hour
   const expires = new Date(new Date().getTime() + 3600 * 1000).toISOString();
 
   const existingToken = await getPasswordResetTokenByEmail(email);
@@ -40,14 +38,12 @@ export const generatePasswordResetToken = async (email: string) => {
     await client.delete(existingToken._id);
   }
 
-  const passwordResetToken = await client.create({
+  return await client.create({
     _type: "passwordResetToken",
     identifier: email,
     token,
     expires,
   });
-
-  return passwordResetToken;
 };
 
 export const generateTwoFactorToken = async (email: string) => {
@@ -62,12 +58,10 @@ export const generateTwoFactorToken = async (email: string) => {
     await client.delete(existingToken._id);
   }
 
-  const twoFactorToken = await client.create({
+  return await client.create({
     _type: "twoFactorToken",
     identifier: email,
     token,
     expires,
   });
-
-  return twoFactorToken;
 };
