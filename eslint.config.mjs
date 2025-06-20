@@ -1,7 +1,9 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
-import { rules } from "eslint-config-next";
+import pkg from "eslint-config-next";
+
+const { rules } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,6 +16,7 @@ const eslintConfig = [
   ...compat.config({
     extends: ["next"],
     rules: {
+      ...rules,
       "react/no-unescaped-entities": "off",
       "@next/next/no-page-custom-font": "off",
     },

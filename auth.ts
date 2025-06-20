@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs";
 import { getUserById } from "./data/user";
 import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation";
 import { getAccountByUserId } from "./data/account";
+import { UserRole } from "./models/typings";
 
 export const {
   handlers: { GET, POST },
@@ -81,7 +82,7 @@ export const {
       }
 
       if (token.role && session.user) {
-        session.user.role = token.role;
+        session.user.role = (token.role as UserRole) ?? "user";
       }
 
       if (session.user) {
@@ -90,7 +91,9 @@ export const {
 
       if (session.user) {
         session.user.name = token.name;
-        session.user.email = token.email;
+        if (token.email != null) {
+          session.user.email = token.email;
+        }
         session.user.isOAuth = token.isOAuth as boolean;
       }
 
