@@ -63,12 +63,14 @@ export const AppointmentForm = ({
   formRef,
   form: externalForm,
   isSubmitting = false,
+  type,
 }: {
   onSuccess?: () => void;
   hideSubmitButton?: boolean;
   formRef?: React.RefObject<HTMLFormElement | null>;
   form?: UseFormReturn<z.infer<typeof appointmentFormSchema>>;
   isSubmitting?: boolean;
+  type?: "create" | "edit";
 }) => {
   const [tab, setTab] = React.useState("client");
   // Define the form
@@ -1111,7 +1113,13 @@ export const AppointmentForm = ({
             )}
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save"}
+                {isSubmitting
+                  ? type === "edit"
+                    ? "Updating..."
+                    : "Creating..."
+                  : type === "edit"
+                    ? "Update"
+                    : "Create"}
               </Button>
             </div>
           </form>

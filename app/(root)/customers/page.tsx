@@ -2,7 +2,7 @@ import ProfileList from "@/components/profiles/ProfileList";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { CUSTOMERS_QUERY } from "@/sanity/lib/queries";
 
-const DEFAULT_ITEMS_PER_PAGE = 5;
+const DEFAULT_ITEMS_PER_PAGE = 20;
 
 const Page = async ({
   searchParams,
@@ -13,7 +13,7 @@ const Page = async ({
   const currentPage = parseInt(pageString || "1", 10);
   const itemsPerPage = parseInt(
     limitString || String(DEFAULT_ITEMS_PER_PAGE),
-    10
+    10,
   );
 
   const params = {

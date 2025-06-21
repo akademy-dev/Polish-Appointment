@@ -1,17 +1,28 @@
 "use client";
+
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 import { Calendar } from "./ui/calendar";
-import React from "react";
-import { useContext } from "react";
+import React, { useContext, useTransition } from "react";
 import { CalendarContext } from "@/hooks/context";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 
 export function AppSidebar() {
-  const { date, setDate } = useContext(CalendarContext);
+  const { date, setDate, setIsLoading } = useContext(CalendarContext);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [, startTransition] = useTransition();
   const numOfWeeklyJump = [1, 2, 3, 4];
+
+  // Sync initial date with URL
+  React.useEffect(() => {
+    const dateFromUrl = searchParams.get("date");
+    if (dateFromUrl && !isNaN(Date.parse(dateFromUrl))) {
+      setDate(new Date(dateFromUrl));
+    }
+  }, [searchParams, setDate]);
 
   const handleNextWeek = (numberOfWeek: number) => {
     if (date) {
@@ -29,16 +40,16 @@ export function AppSidebar() {
     }
   };
 
-  const router = useRouter();
-
   const handleDateChange = (newDate: Date) => {
-    setDate(newDate);
-    const searchParams = new URLSearchParams(window.location.search);
-    // Định dạng ngày theo múi giờ thiết bị
-    const formattedDate = format(newDate, "yyyy-MM-dd"); // 2025-06-17
-    searchParams.set("date", formattedDate);
-    const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
-    router.push(newUrl);
+    setIsLoading(true); // Set loading immediately
+    startTransition(() => {
+      setDate(newDate);
+      const currentParams = new URLSearchParams(window.location.search);
+      const formattedDate = format(newDate, "yyyy-MM-dd");
+      currentParams.set("date", formattedDate);
+      const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+      router.push(newUrl);
+    });
   };
 
   return (
@@ -50,15 +61,20 @@ export function AppSidebar() {
           selected={date}
           onSelect={(newDate) => {
             if (newDate) {
-              handleDateChange(newDate); // Pass Date object
+              handleDateChange(newDate);
             }
           }}
           month={date}
-          onMonthChange={(newMonth) => setDate(newMonth)}
+          onMonthChange={(newMonth) => {
+            setIsLoading(true); // Set loading immediately
+            startTransition(() => {
+              setDate(newMonth);
+            });
+          }}
           className="rounded-md border"
           required={false}
         />
-        <div className="flex flex-between">
+        <div className="flex justify-between items-center">
           <span className="text-m font-bold mt-2">Navigation</span>
           <Button
             onClick={() => {

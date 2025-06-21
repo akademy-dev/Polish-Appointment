@@ -4,8 +4,8 @@ const RootLoading = () => {
   return (
     <div className="p-4">
       <div className="flex justify-between mb-4">
-        <Skeleton className="h-8 w-1/6" /> {/* Today button placeholder */}
-        <Skeleton className="h-8 w-1/3" /> {/* Date placeholder */}
+        <Skeleton className="h-8 w-1/6" />
+        <Skeleton className="h-8 w-1/3" />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
