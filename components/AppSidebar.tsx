@@ -125,7 +125,7 @@ export function AppSidebar() {
             className="flex items-center space-x-2"
             onClick={() => handleNotWorkingChange(!notWorking)}
           >
-            <Checkbox id="not-working" checked={notWorking} readOnly />
+            <Checkbox id="not-working" checked={notWorking} />
             <label
               htmlFor="not-working"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
