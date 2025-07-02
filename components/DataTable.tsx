@@ -10,6 +10,7 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  VisibilityState,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -128,6 +129,10 @@ const DataTable = <TData, TValue>({
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({
+      "column-name-to-hide-by-default": false,
+    });
 
   const table = useReactTable({
     data,
@@ -141,8 +146,10 @@ const DataTable = <TData, TValue>({
     state: {
       sorting,
       columnFilters,
+      columnVisibility,
     },
     // show all data by default
+    onColumnVisibilityChange: setColumnVisibility,
     initialState: {
       pagination: {
         pageSize: data.length,

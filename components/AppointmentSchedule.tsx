@@ -72,6 +72,7 @@ interface AppointmentScheduleProps {
   initialEmployees: Employee[];
   initialAppointments: Appointment[];
   currentDate: string;
+  notWorking?: boolean;
 }
 
 const generateNotWorkingEvents = (
@@ -174,10 +175,139 @@ const generateNotWorkingEvents = (
   return notWorkingEvents;
 };
 
+const isValidTimeString = (timeStr: string): boolean => {
+  const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i;
+  return timeRegex.test(timeStr.trim());
+};
+
+const setTimeToDate = (date: Date, timeStr: string): Date | null => {
+  timeStr = timeStr.trim();
+  if (!isValidTimeString(timeStr)) {
+    console.error(
+      `Invalid time format: ${timeStr}. Expected HH:mm AM/PM (e.g., "10:00 AM").`,
+    );
+    return null;
+  }
+
+  // Tách giờ, phút, và AM/PM
+  const [time, period] = timeStr.split(" ");
+  const [hoursStr, minutesStr] = time.split(":");
+  let hours = parseInt(hoursStr, 10);
+  const minutes = parseInt(minutesStr, 10);
+
+  // Chuyển đổi giờ 12h sang 24h
+  if (period.toUpperCase() === "PM" && hours !== 12) {
+    hours += 12;
+  } else if (period.toUpperCase() === "AM" && hours === 12) {
+    hours = 0;
+  }
+
+  const newDate = new Date(date);
+  newDate.setHours(hours, minutes, 0, 0);
+
+  // Kiểm tra Date hợp lệ
+  if (isNaN(newDate.getTime())) {
+    console.error(`Invalid Date created from: ${date}, ${timeStr}`);
+    return null;
+  }
+
+  return newDate;
+};
+const generateTimeOffEvents = (
+  employees: Employee[],
+  date: Date,
+): CalendarEvent[] => {
+  const events: any[] = [];
+
+  // Duyệt qua từng nhân viên
+  employees.forEach((employee) => {
+    if (!employee.timeOffSchedules || employee.timeOffSchedules.length === 0) {
+      return;
+    }
+    employee.timeOffSchedules.forEach((schedule) => {
+      const {
+        period,
+        date: scheduleDate,
+        from,
+        to,
+        reason,
+        dayOfWeek,
+        dayOfMonth,
+      } = schedule;
+
+      // Kiểm tra xem schedule có khớp với ngày hiện tại không
+      let isMatchingDate = false;
+
+      switch (period) {
+        case "Exact":
+          // So sánh ngày cụ thể
+          if (scheduleDate) {
+            const exactDate = new Date(scheduleDate);
+            isMatchingDate =
+              exactDate.getFullYear() === date.getFullYear() &&
+              exactDate.getMonth() === date.getMonth() &&
+              exactDate.getDate() === date.getDate();
+          }
+          break;
+
+        case "Daily":
+          // Daily luôn khớp vì là hàng ngày
+          isMatchingDate = true;
+          break;
+
+        case "Weekly":
+          // Kiểm tra ngày trong tuần (0 = Chủ nhật, 1 = Thứ hai, ..., 6 = Thứ bảy)
+          if (dayOfWeek) {
+            const currentDayOfWeek = date.getDay();
+            // Chuyển đổi getDay() sang hệ thống dayOfWeek (giả sử 1 = Thứ hai, 7 = Chủ nhật)
+            const adjustedDayOfWeek =
+              currentDayOfWeek === 0 ? 7 : currentDayOfWeek;
+            isMatchingDate = dayOfWeek.includes(adjustedDayOfWeek);
+          }
+          break;
+
+        case "Monthly":
+          // Kiểm tra ngày trong tháng
+          if (dayOfMonth) {
+            const currentDayOfMonth = date.getDate();
+            isMatchingDate = dayOfMonth.includes(currentDayOfMonth);
+          }
+          break;
+
+        default:
+          break;
+      }
+
+      // Nếu ngày khớp, tạo sự kiện
+      if (isMatchingDate) {
+        // Chuyển đổi giờ từ chuỗi sang Date
+        if (!from || !to) {
+          return;
+        }
+        const startTime = setTimeToDate(date, from);
+        const endTime = setTimeToDate(date, to);
+
+        const event = {
+          id: `time_off_${employee._id}_${scheduleDate || date.toISOString()}`,
+          start: startTime,
+          end: endTime,
+          title: `Time Off`,
+          resourceId: employee._id,
+          type: "timeOff",
+        };
+
+        events.push(event);
+      }
+    });
+  });
+  return events;
+};
+
 const AppointmentSchedule = ({
   initialEmployees,
   initialAppointments,
   currentDate,
+  notWorking = false,
 }: AppointmentScheduleProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -194,14 +324,34 @@ const AppointmentSchedule = ({
   const [showConfirm, setShowConfirm] = useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
 
+  const isEmployeeNotWorkingAllDay = (employee: Employee, date: Date) => {
+    const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayOfWeek = daysOfWeek[date.getDay()];
+    const workingTimes = employee.workingTimes || [];
+    return !workingTimes.some((wt) => wt.day === dayOfWeek);
+  };
+
+  const filteredEmployees = useMemo(() => {
+    if (!notWorking) {
+      return initialEmployees || [];
+    }
+    return (initialEmployees || []).filter(
+      (employee) =>
+        !isEmployeeNotWorkingAllDay(
+          employee,
+          currentDate ? new Date(currentDate) : new Date(),
+        ),
+    );
+  }, [initialEmployees, currentDate, notWorking]);
+
   // Memoize resources
   const resources = useMemo(
     () =>
-      (initialEmployees || []).map((employee: any) => ({
+      filteredEmployees.map((employee: any) => ({
         resourceId: employee._id,
         resourceTitle: getProfileName(employee),
       })),
-    [initialEmployees],
+    [filteredEmployees],
   );
 
   // Memoize not working events
@@ -210,6 +360,14 @@ const AppointmentSchedule = ({
       initialEmployees,
       "8:00 AM",
       "6:00 PM",
+      currentDate ? new Date(currentDate) : new Date(),
+    );
+  }, [initialEmployees, currentDate]);
+
+  // Memoize time off events
+  const timeOffEvents = useMemo(() => {
+    return generateTimeOffEvents(
+      initialEmployees,
       currentDate ? new Date(currentDate) : new Date(),
     );
   }, [initialEmployees, currentDate]);
@@ -232,12 +390,12 @@ const AppointmentSchedule = ({
   // State for events
   const [myEvents, setEvents] = useState<CalendarEvent[]>([]);
 
-  // Update events when appointmentEvents or notWorkingEvents change
+  // Update events when appointmentEvents or notWorkingEvents change or timeOffEvents change
   useEffect(() => {
     setProcessing(true);
-    setEvents([...appointmentEvents, ...notWorkingEvents]);
+    setEvents([...appointmentEvents, ...notWorkingEvents, ...timeOffEvents]);
     setProcessing(false);
-  }, [appointmentEvents, notWorkingEvents]);
+  }, [appointmentEvents, notWorkingEvents, timeOffEvents]);
 
   // Update date when currentDate changes
   useEffect(() => {
@@ -397,7 +555,6 @@ const AppointmentSchedule = ({
       });
     } finally {
       setIsSubmitting(false);
-      // Note: isLoading is reset by useEffect when initialAppointments updates
     }
   };
 
@@ -436,7 +593,10 @@ const AppointmentSchedule = ({
   const handleSelectEvent = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
 
-    if (calendarEvent.type === "not_working") {
+    if (
+      calendarEvent.type === "not_working" ||
+      calendarEvent.type === "timeOff"
+    ) {
       return;
     }
 
@@ -481,7 +641,10 @@ const AppointmentSchedule = ({
       const { event, start, resourceId } = args;
       const calendarEvent = event as CalendarEvent;
 
-      if (calendarEvent.type === "not_working") {
+      if (
+        calendarEvent.type === "not_working" ||
+        calendarEvent.type === "timeOff"
+      ) {
         return;
       }
 
@@ -523,8 +686,10 @@ const AppointmentSchedule = ({
       const { event, start, end } = args;
       const calendarEvent = event as CalendarEvent;
 
-      if (calendarEvent.type === "not_working") {
-        toast.error("Cannot resize not working events");
+      if (
+        calendarEvent.type === "not_working" ||
+        calendarEvent.type === "timeOff"
+      ) {
         return;
       }
       const startDate = typeof start === "string" ? new Date(start) : start;
@@ -619,12 +784,16 @@ const AppointmentSchedule = ({
 
   const resizableAccessor = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
-    return calendarEvent.type !== "not_working";
+    return (
+      calendarEvent.type !== "not_working" && calendarEvent.type !== "timeOff"
+    );
   }, []);
 
   const draggableAccessor = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
-    return calendarEvent.type !== "not_working";
+    return (
+      calendarEvent.type !== "not_working" && calendarEvent.type !== "timeOff"
+    );
   }, []);
 
   return (
@@ -640,7 +809,7 @@ const AppointmentSchedule = ({
             defaultView={Views.DAY}
             events={myEvents}
             localizer={localizer}
-            dayLayoutAlgorithm={"no-overlap"}
+            // dayLayoutAlgorithm={"no-overlap"}
             resources={resources}
             resourceIdAccessor={(resource) => (resource as Resource).resourceId}
             resourceTitleAccessor={(resource) =>
@@ -676,11 +845,21 @@ const AppointmentSchedule = ({
                       </div>
                     </div>
                   );
-                } else {
+                } else if (calendarEvent.type === "not_working") {
                   return (
-                    <div className="bg-gray-400 h-full rounded border border-gray-100 cursor-default resize-none">
+                    <div className="bg-gray-500 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
                         <span className="text-[14px] text-white">
+                          {calendarEvent.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                } else if (calendarEvent.type === "timeOff") {
+                  return (
+                    <div className="bg-blue-400 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span className="text-[14px] text-black ">
                           {calendarEvent.title}
                         </span>
                       </div>

@@ -1,6 +1,8 @@
 import { defineQuery } from "next-sanity";
 
 export const SERVICES_QUERY = defineQuery(`
+{
+"data": 
 *[_type == "service" && ($categoryId == "" || category._ref == $categoryId) && ($searchTerm == "" || name match $searchTerm + "*")]{
   _id,
   name,
@@ -12,7 +14,9 @@ export const SERVICES_QUERY = defineQuery(`
     _type,
     name
   }
-} | order(_id asc) [($page - 1) * $limit ... $page * $limit]
+} | order(_id asc) [($page - 1) * $limit ... $page * $limit],
+"total": count(*[_type == "service" && ($categoryId == "" || category._ref == $categoryId) && ($searchTerm == "" || name match $searchTerm + "*")])
+}
 `);
 
 export const All_SERVICES_QUERY = defineQuery(`
@@ -29,10 +33,6 @@ export const All_SERVICES_QUERY = defineQuery(`
   }
 }
 `);
-
-export const TOTAL_SERVICES_QUERY = defineQuery(
-  `count(*[_type == "service" && ($categoryId == "" || category._ref == $categoryId) && ($searchTerm == "" || name match $searchTerm + "*")])`,
-);
 
 export const CATEGORIES_QUERY = `*[_type == "category"]{_id, name} | order(name asc)`;
 
@@ -63,7 +63,7 @@ export const ALL_EMPLOYEES_QUERY = defineQuery(
       phone,
       position,
       workingTimes,
-      timeOffSchedules[]->
+      timeOffSchedules
   }`,
 );
 
@@ -125,4 +125,58 @@ export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
   }
 }
 `,
+);
+
+export const APPOINTMENTS_BY_EMPLOYEE_QUERY = defineQuery(
+  `*[_type == "appointment"
+  && employee._ref == $employeeId] {
+  _id,
+  startTime,
+  endTime,
+  duration,
+  customer -> {
+    _id,
+    firstName,
+    lastName,
+     "fullName": firstName + " " + lastName
+  },
+  employee -> {
+    _id,
+    firstName,
+    lastName,
+   
+  },
+  service -> {
+    _id,
+    name,
+    duration
+  }
+} | order(startTime asc)`,
+);
+
+export const APPOINTMENTS_BY_CUSTOMER_QUERY = defineQuery(
+  `*[_type == "appointment"
+  && customer._ref == $customerId] {
+  _id,
+  startTime,
+  endTime,
+  duration,
+  customer -> {
+    _id,
+    firstName,
+    lastName, 
+    
+  },
+  employee -> {
+    _id,
+    firstName,
+    lastName,
+    "fullName": firstName + " " + lastName
+  },
+  service -> {
+    _id,
+    name,
+    duration
+  }
+} | order(startTime asc)`,
 );

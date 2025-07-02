@@ -81,10 +81,21 @@ const ProfileCard = ({ profile }: { profile: Profile }) => {
           >
             <Pencil className="size-5" aria-hidden="true" />
           </FormButton>
-          {isEmployee(profile) && (
+          {isEmployee(profile) ? (
             <FormButton
               mode="history"
               type="employees"
+              profile={profile}
+              variant="default"
+              size="icon"
+              className="bg-yellow-500 hover:bg-yellow-400"
+            >
+              <History className="size-5" aria-hidden="true" />
+            </FormButton>
+          ) : (
+            <FormButton
+              mode="history"
+              type="customers"
               profile={profile}
               variant="default"
               size="icon"

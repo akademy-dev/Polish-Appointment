@@ -8,6 +8,7 @@ import {
 interface PageProps {
   searchParams: Promise<{
     date?: string;
+    notWorking?: string;
   }>;
 }
 
@@ -15,7 +16,8 @@ const page = async ({ searchParams }: PageProps) => {
   const resolvedSearchParams = await searchParams;
   const date =
     resolvedSearchParams.date || new Date().toISOString().split("T")[0];
-  
+  const notWorking = resolvedSearchParams.notWorking === "true";
+
   const employees = await sanityFetch({
     query: ALL_EMPLOYEES_QUERY,
     params: {
@@ -36,6 +38,7 @@ const page = async ({ searchParams }: PageProps) => {
         initialEmployees={employees.data}
         initialAppointments={appointments.data}
         currentDate={date}
+        notWorking={notWorking}
       />
       <SanityLive />
     </>

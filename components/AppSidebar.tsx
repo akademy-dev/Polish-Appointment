@@ -15,6 +15,15 @@ export function AppSidebar() {
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
   const numOfWeeklyJump = [1, 2, 3, 4];
+  const [notWorking, setNotWorking] = React.useState(false);
+
+  const handleNotWorkingChange = (checked: boolean) => {
+    setNotWorking(checked);
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.set("notWorking", checked ? "true" : "false");
+    const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+    router.push(newUrl);
+  };
 
   // Sync initial date with URL
   React.useEffect(() => {
@@ -66,10 +75,9 @@ export function AppSidebar() {
           }}
           month={date}
           onMonthChange={(newMonth) => {
-            setIsLoading(true); // Set loading immediately
-            startTransition(() => {
-              setDate(newMonth);
-            });
+            if (newMonth) {
+              handleDateChange(newMonth);
+            }
           }}
           className="rounded-md border"
           required={false}
@@ -113,31 +121,16 @@ export function AppSidebar() {
         </div>
         <span className="text-m font-bold mt-2">View options</span>
         <div className="flex flex-col gap-4 mt-2">
-          <div className="flex items-center space-x-2">
-            <Checkbox id="cancelled" />
+          <div
+            className="flex items-center space-x-2"
+            onClick={() => handleNotWorkingChange(!notWorking)}
+          >
+            <Checkbox id="not-working" checked={notWorking} readOnly />
             <label
-              htmlFor="cancelled"
+              htmlFor="not-working"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Appointment Cancelled
-            </label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="time-off" />
-            <label
-              htmlFor="time-off"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Time-off staffs
-            </label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Checkbox id="cancelled-time-off" />
-            <label
-              htmlFor="cancelled-time-off"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Cancelled Time Off
+              Not working
             </label>
           </div>
         </div>

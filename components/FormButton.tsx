@@ -23,7 +23,7 @@ import {
 import CustomerForm from "./forms/CustomerForm";
 import EmployeeForm from "./forms/EmployeeForm";
 import ServiceForm from "./forms/ServiceForm";
-import DataTable, { columns, historyData } from "./DataTable";
+import DataTable from "./DataTable";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -58,9 +58,31 @@ import {
 } from "@/models/profile";
 import { getServiceId, Service } from "@/models/service";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
+import { client } from "@/sanity/lib/client";
+import {
+  APPOINTMENTS_BY_CUSTOMER_QUERY,
+  APPOINTMENTS_BY_EMPLOYEE_QUERY,
+} from "@/sanity/lib/queries";
+import { ColumnDef } from "@tanstack/react-table";
+import ProfileTableLoading from "./ProfileTableLoading";
+import { ArrowUpDown } from "lucide-react";
+import * as React from "react";
+import { formatMinuteDuration } from "@/lib/utils";
 
 type FormMode = "create" | "edit" | "history" | "delete";
 type FormType = "employees" | "customers" | "services" | "schedule";
+type EmployeeHistoryRow = {
+  startTime: string;
+  customer: { firstName: string; lastName: string; fullName: string };
+  service: { name: string };
+  duration: number;
+};
+type CustomerHistoryRow = {
+  startTime: string;
+  employee: { firstName: string; lastName: string; fullName: string };
+  service: { name: string };
+  duration: number;
+};
 
 interface FormButtonProps {
   children: ReactNode;
@@ -94,6 +116,42 @@ const FormButton = ({
   const isMobile = useIsMobile();
   const formRef = useRef<HTMLFormElement>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [employeeHistory, setEmployeeHistory] = useState([]);
+  const [customerHistory, setCustomerHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const fetchEmployeeHistory = async () => {
+    if (profile) {
+      setLoadingHistory(true);
+      try {
+        const result = await client.fetch(APPOINTMENTS_BY_EMPLOYEE_QUERY, {
+          employeeId: getProfileId(profile),
+        });
+        console.log("Employee history result:", result);
+        setEmployeeHistory(result || []);
+      } catch {
+        setEmployeeHistory([]);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+  };
+
+  const fetchCustomerHistory = async () => {
+    if (profile) {
+      setLoadingHistory(true);
+      try {
+        const result = await client.fetch(APPOINTMENTS_BY_CUSTOMER_QUERY, {
+          customerId: getProfileId(profile),
+        });
+        setCustomerHistory(result || []);
+      } catch {
+        setCustomerHistory([]);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+  };
 
   // Aggressively fix aria-hidden conflicts using MutationObserver
   useEffect(() => {
@@ -221,7 +279,7 @@ const FormButton = ({
         _ref: "",
         _type: "reference",
       },
-      time: "",
+      time: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
       note: "",
       reminder: true,
       services: [],
@@ -528,6 +586,7 @@ const FormButton = ({
 
     try {
       const formValues = appointmentForm.getValues();
+      console.log("Appointment formValues", formValues);
 
       const formData = new FormData();
       formData.append("time", formValues.time);
@@ -627,8 +686,149 @@ const FormButton = ({
 
   // Render appropriate form based on mode and type
   const renderForm = () => {
-    if (mode === "history") {
-      return <DataTable columns={columns} data={historyData} />;
+    if (mode === "history" && type === "employees") {
+      if (loadingHistory) {
+        return <ProfileTableLoading />;
+      }
+      const columns: ColumnDef<EmployeeHistoryRow>[] = [
+        {
+          header: ({ column }) => {
+            return (
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  column.toggleSorting(column.getIsSorted() === "asc")
+                }
+              >
+                Date
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            );
+          },
+          accessorKey: "startTime",
+          cell: (info) => {
+            const date = new Date(info.getValue() as string);
+            return date.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            });
+          },
+        },
+        {
+          header: "Customer",
+          accessorKey: "customerFullName",
+          accessorFn: (row) => row.customer.fullName,
+        },
+        {
+          header: "Service",
+          accessorKey: "service",
+          cell: (info) => {
+            const service = info.getValue() as EmployeeHistoryRow["service"];
+            return service.name;
+          },
+        },
+        {
+          header: ({ column }) => {
+            return (
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  column.toggleSorting(column.getIsSorted() === "asc")
+                }
+              >
+                Duration
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            );
+          },
+          accessorKey: "duration",
+          cell: ({ row }) =>
+            formatMinuteDuration(row.getValue("duration") as number),
+        },
+      ];
+      return (
+        <DataTable
+          columns={columns}
+          data={employeeHistory}
+          height={isMobile ? "calc(100vh - 200px)" : "calc(100vh - 300px)"}
+          title={""}
+          isShowPagination={false}
+          titleEmpty={"No history found"}
+          searchColumn={"customerFullName"}
+        />
+      );
+    } else if (mode === "history" && type === "customers") {
+      if (loadingHistory) {
+        return <ProfileTableLoading />;
+      }
+      const columns: ColumnDef<CustomerHistoryRow>[] = [
+        {
+          header: ({ column }) => {
+            return (
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  column.toggleSorting(column.getIsSorted() === "asc")
+                }
+              >
+                Date
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            );
+          },
+          accessorKey: "startTime",
+          cell: (info) => {
+            const date = new Date(info.getValue() as string);
+            return date.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            });
+          },
+        },
+        {
+          header: "Employee",
+          accessorKey: "employeeFullName",
+          accessorFn: (row) => row.employee.fullName,
+        },
+        {
+          header: "Service",
+          accessorKey: "service",
+          cell: (info) => {
+            const service = info.getValue() as EmployeeHistoryRow["service"];
+            return service.name;
+          },
+        },
+        {
+          header: ({ column }) => {
+            return (
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  column.toggleSorting(column.getIsSorted() === "asc")
+                }
+              >
+                Duration
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            );
+          },
+          accessorKey: "duration",
+          cell: ({ row }) =>
+            formatMinuteDuration(row.getValue("duration") as number),
+        },
+      ];
+      return (
+        <DataTable
+          columns={columns}
+          data={customerHistory}
+          height={isMobile ? "calc(100vh - 200px)" : "calc(100vh - 300px)"}
+          title={""}
+          isShowPagination={false}
+          searchColumn={"employeeFullName"}
+        />
+      );
     }
 
     switch (type) {
@@ -736,6 +936,10 @@ const FormButton = ({
       } else if (mode === "edit" && profile && type === "customers") {
         // Load existing customer data via CustomerForm's initialData prop
         // CustomerForm will handle the reset internally
+      } else if (mode === "history" && type === "employees" && profile) {
+        fetchEmployeeHistory();
+      } else if (mode === "history" && type === "customers" && profile) {
+        fetchCustomerHistory();
       } else {
         // Create mode - reset to defaults
         currentForm.reset();

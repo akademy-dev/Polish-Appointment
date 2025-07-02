@@ -565,6 +565,11 @@
         pointer-events: none;
     }
 
+    .rbc-events-container div {
+        left: 0 !important;
+        width: 100% !important;
+    }
+
 }
 
 @layer utilities {

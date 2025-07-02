@@ -47,7 +47,7 @@ import { client } from "@/sanity/lib/client";
 import { Service } from "@/models/service";
 import { Appointment } from "@/models/appointment";
 import { useWatch } from "react-hook-form";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -56,6 +56,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AppointmentFormLoading from "@/components/AppointmentFormLoading";
+
+const intervals: number[] = [];
+for (let min = 15; min <= 240; min += 15) {
+  intervals.push(min);
+}
 
 export const AppointmentForm = ({
   onSuccess,
@@ -88,7 +93,7 @@ export const AppointmentForm = ({
         _ref: "",
         _type: "reference",
       },
-      time: "",
+      time: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
       note: "",
       reminder: true,
       services: [],
@@ -113,12 +118,18 @@ export const AppointmentForm = ({
     return { date, time, ampm: ampmValue };
   };
 
-  // Get initial values
   const {
     date: initialDate,
     time: initialTime,
     ampm: initialAmpm,
-  } = parseTimeString(form.getValues("time"));
+  } = parseTimeString(
+    form.getValues("time") ||
+      (() => {
+        const now = new Date();
+        now.setHours(9, 0, 0, 0);
+        return now.toISOString();
+      })(),
+  );
 
   // Local state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -147,6 +158,16 @@ export const AppointmentForm = ({
       form.setValue("time", "");
     }
   };
+
+  const formatDuration = useMemo(() => {
+    return (min: number): string => {
+      const hr = Math.floor(min / 60);
+      const m = min % 60;
+      if (hr && m) return `${hr}hr ${m}min`;
+      if (hr) return `${hr}hr`;
+      return `${m}min`;
+    };
+  }, []);
 
   const [appointments, setAppointments] = React.useState<Appointment[]>([]);
   const [customerHistory, setCustomerHistory] = React.useState<Appointment[]>(
@@ -1090,9 +1111,43 @@ export const AppointmentForm = ({
                             </Button>
                           ),
                           cell: ({ row }: { row: any }) => (
-                            <div>
-                              {formatMinuteDuration(row.original.duration || 0)}
-                            </div>
+                            <Select
+                              value={row.original.duration?.toString() || "0"}
+                              onValueChange={(value) => {
+                                const newDuration = Number(value);
+                                const currentServices =
+                                  form.getValues("services") || [];
+                                const updatedServices = currentServices.map(
+                                  (s: any) => {
+                                    if (s._ref === row.original._id) {
+                                      return { ...s, duration: newDuration };
+                                    }
+                                    return s;
+                                  },
+                                );
+                                form.setValue("services", updatedServices);
+
+                                // Cập nhật lại state services để row.original thay đổi
+                                setServices((prev) =>
+                                  prev.map((service) =>
+                                    service._id === row.original._id
+                                      ? { ...service, duration: newDuration }
+                                      : service,
+                                  ),
+                                );
+                              }}
+                            >
+                              <SelectTrigger className="w-24">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {intervals.map((min) => (
+                                  <SelectItem key={min} value={min.toString()}>
+                                    {formatDuration(min)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           ),
                         },
                       ]}

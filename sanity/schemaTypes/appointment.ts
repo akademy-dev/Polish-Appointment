@@ -67,5 +67,18 @@ export const appointmentType = defineType({
         },
       ],
     }),
+    defineField({
+      name: "status",
+      title: "Status",
+      type: "string",
+      options: {
+        list: [
+          { title: "Scheduled", value: "scheduled" },
+          { title: "Completed", value: "completed" },
+          { title: "Cancelled", value: "cancelled" },
+        ],
+      },
+      initialValue: "scheduled",
+    }),
   ],
 });
