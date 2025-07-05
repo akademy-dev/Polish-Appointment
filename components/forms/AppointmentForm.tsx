@@ -1169,7 +1169,7 @@ export const AppointmentForm = ({
               </div>
             )}
             <div className="flex justify-between pt-4">
-              {type === "edit" && (
+              {type === "edit" ? (
                 <Button
                   variant="destructive"
                   type="submit"
@@ -1179,18 +1179,20 @@ export const AppointmentForm = ({
                 >
                   Cancel Appointment
                 </Button>
-              )}
-              <div>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting
-                    ? type === "edit"
-                      ? "Updating..."
-                      : "Creating..."
-                    : type === "edit"
-                      ? "Update"
-                      : "Create"}
-                </Button>
-              </div>
+              ) : null}
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className={type !== "edit" ? "ml-auto" : ""}
+              >
+                {isSubmitting
+                  ? type === "edit"
+                    ? "Updating..."
+                    : "Creating..."
+                  : type === "edit"
+                    ? "Update"
+                    : "Create"}
+              </Button>
             </div>
           </form>
         </Form>
