@@ -332,7 +332,7 @@ const AppointmentSchedule = ({
   };
 
   const filteredEmployees = useMemo(() => {
-    if (!notWorking) {
+    if (notWorking) {
       return initialEmployees || [];
     }
     return (initialEmployees || []).filter(
@@ -441,12 +441,17 @@ const AppointmentSchedule = ({
       note: "",
       reminder: true,
       services: [],
+      status: "scheduled",
     },
   });
 
   const handleConfirm = async () => {
     setShowConfirm(false);
     await handleAppointmentSuccess();
+  };
+
+  const handleFormSave = () => {
+    setShowConfirm(true); // Show confirm dialog
   };
 
   const handleAppointmentSuccess = async () => {
@@ -457,9 +462,11 @@ const AppointmentSchedule = ({
     try {
       const formValues = appointmentForm.getValues();
       const formData = new FormData();
+      console.log("Form Values:", formValues);
       formData.append("time", formValues.time);
       formData.append("note", formValues.note || "");
       formData.append("reminder", formValues.reminder.toString());
+      formData.append("status", formValues.status || "scheduled");
 
       if (formValues.customer._ref) {
         if (type === "edit") {
@@ -602,6 +609,7 @@ const AppointmentSchedule = ({
 
     setType("edit");
     setAppointmentId(calendarEvent.data._id);
+    console.log("Selected Event:", calendarEvent);
     appointmentForm.setValue("time", calendarEvent.data.startTime.toString());
     appointmentForm.setValue("employee", {
       _ref: calendarEvent.resourceId.toString(),
@@ -615,8 +623,7 @@ const AppointmentSchedule = ({
       _type: "reference",
     });
     appointmentForm.setValue("note", calendarEvent.data.note || "");
-    appointmentForm.setValue("reminder", calendarEvent.data.reminder || true);
-
+    appointmentForm.setValue("reminder", !!calendarEvent.data.reminder);
     const newServices = calendarEvent.data.service
       ? [
           {
@@ -627,7 +634,11 @@ const AppointmentSchedule = ({
         ]
       : [];
     appointmentForm.setValue("services", newServices);
-    setDuration(calendarEvent.data.service?.duration || 0);
+    appointmentForm.setValue(
+      "status",
+      calendarEvent.data.status || "scheduled",
+    );
+    setDuration(calendarEvent.data.duration || 0);
     setOpen(true);
   }, []);
 
@@ -663,7 +674,7 @@ const AppointmentSchedule = ({
         _type: "reference",
       });
       appointmentForm.setValue("note", calendarEvent.data.note || "");
-      appointmentForm.setValue("reminder", calendarEvent.data.reminder || true);
+      appointmentForm.setValue("reminder", !!calendarEvent.data.reminder);
       const newServices = calendarEvent.data.service
         ? [
             {
@@ -674,6 +685,10 @@ const AppointmentSchedule = ({
           ]
         : [];
       appointmentForm.setValue("services", newServices);
+      appointmentForm.setValue(
+        "status",
+        calendarEvent.data.status || "scheduled",
+      );
 
       setDuration(calendarEvent.data.service?.duration || 0);
       setShowConfirm(true);
@@ -721,6 +736,10 @@ const AppointmentSchedule = ({
           ]
         : [];
       appointmentForm.setValue("services", newServices);
+      appointmentForm.setValue(
+        "status",
+        calendarEvent.data.status || "scheduled",
+      );
 
       setDuration(
         Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60)),
@@ -879,14 +898,14 @@ const AppointmentSchedule = ({
           aria-describedby="form-dialog"
         >
           <DialogHeader>
-            <DialogTitle>New Appointment</DialogTitle>
+            <DialogTitle>Update Appointment</DialogTitle>
             <DialogDescription className="sr-only">
               Create a new appointment with service, customer and employee.
             </DialogDescription>
           </DialogHeader>
           <AppointmentForm
             form={appointmentForm}
-            onSuccess={handleAppointmentSuccess}
+            onSuccess={handleFormSave}
             hideSubmitButton={isMobile}
             formRef={isMobile ? formRef : undefined}
             isSubmitting={isSubmitting}
@@ -898,7 +917,7 @@ const AppointmentSchedule = ({
         open={showConfirm}
         onOpenChange={setShowConfirm}
         title="Confirm Update"
-        description="Are you sure you want to reschedule this appointment?"
+        description="Are you sure you want to update this appointment?"
         onConfirm={handleConfirm}
       />
     </div>

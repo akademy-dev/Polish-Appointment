@@ -127,7 +127,6 @@ const FormButton = ({
         const result = await client.fetch(APPOINTMENTS_BY_EMPLOYEE_QUERY, {
           employeeId: getProfileId(profile),
         });
-        console.log("Employee history result:", result);
         setEmployeeHistory(result || []);
       } catch {
         setEmployeeHistory([]);
@@ -283,6 +282,7 @@ const FormButton = ({
       note: "",
       reminder: true,
       services: [],
+      status: "scheduled",
     },
   });
 
@@ -586,7 +586,6 @@ const FormButton = ({
 
     try {
       const formValues = appointmentForm.getValues();
-      console.log("Appointment formValues", formValues);
 
       const formData = new FormData();
       formData.append("time", formValues.time);
@@ -623,7 +622,6 @@ const FormButton = ({
         customerFormData.append("phone", formValues.customer.phone || "");
 
         const customerResult = await createCustomer(customerFormData);
-        console.log("Customer creation result:", customerResult);
         if (customerResult.status === "SUCCESS") {
           // Now create appointment with new customer
           const customerId = customerResult._id; // Assuming data contains the new customer object

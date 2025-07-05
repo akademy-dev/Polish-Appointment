@@ -53,6 +53,42 @@ export const EMPLOYEES_QUERY = defineQuery(
   }`,
 );
 
+export const APPOINTMENTS_QUERY = defineQuery(
+  `{
+    "data": *[_type == "appointment"  
+     && ($status == "" || status == $status)
+     && ($searchTerm == "" || !defined($searchTerm) || customer->firstName match "*" + $searchTerm + "*" || customer->lastName match "*" + $searchTerm + "*" || (customer->firstName + " " + customer->lastName) match "*" + $searchTerm + "*" || employee->firstName match "*" + $searchTerm + "*" || employee->lastName match "*" + $searchTerm + "*" || service->name match "*" + $searchTerm + "*")]{
+      _id,
+      startTime,
+      endTime,
+      duration,
+      customer -> {
+        _id,
+        firstName,
+        lastName,
+        "fullName": firstName + " " + lastName
+      },
+      employee -> {
+        _id,
+        firstName,
+        lastName,
+        "fullName": firstName + " " + lastName
+      },
+      note,
+      reminder,
+      service -> {
+        _id,
+        name,
+        duration
+      },
+      status
+    } | order(startTime asc) [($page - 1) * $limit ... $page * $limit],
+    "total": count(*[_type == "appointment" 
+     && ($status == "" || status == $status)
+     && ($searchTerm == "" || !defined($searchTerm) || customer->firstName match "*" + $searchTerm + "*" || customer->lastName match "*" + $searchTerm + "*" || (customer->firstName + " " + customer->lastName) match "*" + $searchTerm + "*" || employee->firstName match "*" + $searchTerm + "*" || employee->lastName match "*" + $searchTerm + "*" || service->name match "*" + $searchTerm + "*")])
+}`,
+);
+
 export const ALL_EMPLOYEES_QUERY = defineQuery(
   `*[_type == "employee" && (!defined($search) || firstName match $search || lastName match $search || position match $search || phone match $search)] | order(_createdAt desc){
       _id,
@@ -122,7 +158,8 @@ export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
     _id,
     name,
     duration
-  }
+  },
+  status
 }
 `,
 );

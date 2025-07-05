@@ -27,33 +27,6 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import * as React from "react";
 
-export const historyData: HistoryData[] = [
-  {
-    service: "Service 1",
-    customer: "Customer 1",
-    date: new Date().toISOString(),
-    duration: 60,
-  },
-  {
-    service: "Service 2",
-    customer: "Customer 2",
-    date: new Date().toISOString(),
-    duration: 120,
-  },
-  {
-    service: "Service 3",
-    customer: "Customer 3",
-    date: new Date().toISOString(),
-    duration: 15,
-  },
-  {
-    service: "Service 4",
-    customer: "Customer 4",
-    date: new Date().toISOString(),
-    duration: 20,
-  },
-];
-
 export type HistoryData = {
   service: string;
   customer: string;

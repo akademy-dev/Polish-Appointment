@@ -51,6 +51,7 @@ export type Appointment = {
     duration: number;
     [internalGroqTypeReferenceTo]?: "service";
   };
+  status?: "scheduled" | "completed" | "cancelled";
 };
 
 export type WorkingTime = {

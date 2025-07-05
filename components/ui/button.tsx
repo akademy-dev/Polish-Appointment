@@ -20,6 +20,8 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        confirm:
+          "bg-green-600 text-white shadow-xs hover:bg-green-600 focus-visible:ring-green-200 dark:focus-visible:ring-green-400 dark:bg-green-700",
       },
       size: {
         default: "h-8 px-4 py-2 has-[>svg]:px-3",
@@ -32,7 +34,7 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
 function Button({
@@ -52,7 +54,7 @@ function Button({
       data-slot="button"
       className={cn(
         buttonVariants({ variant, size, className }),
-        "cursor-pointer"
+        "cursor-pointer",
       )}
       {...props}
     />

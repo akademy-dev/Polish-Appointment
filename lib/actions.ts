@@ -155,13 +155,14 @@ export const createAppointment = async (
         endTime: endTime.toISOString(),
         duration: service.duration,
         note,
-        reminder: reminder === "true",
+        reminder: reminder == "true",
         customer,
         employee,
         service: {
           _ref: service._ref,
           _type: service._type,
         },
+        status: "scheduled",
       };
 
       // Create the appointment
@@ -193,8 +194,9 @@ export const updateAppointment = async (
   customer: { _ref: string; _type: string },
   employee: { _ref: string; _type: string },
 ) => {
-  const { time, note, reminder } = Object.fromEntries(Array.from(form));
+  const { time, note, reminder, status } = Object.fromEntries(Array.from(form));
 
+  console.log(status);
   try {
     const appointment = {
       startTime: new Date(time as string).toISOString(),
@@ -203,9 +205,10 @@ export const updateAppointment = async (
       ).toISOString(),
       duration: duration,
       note,
-      reminder: reminder === "true",
+      reminder: reminder == "true",
       customer,
       employee,
+      status,
     };
 
     const result = await writeClient

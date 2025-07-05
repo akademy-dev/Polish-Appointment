@@ -29,6 +29,11 @@ const Navbar = ({ value = "schedule" }) => {
               Services
             </Link>
           </TabsTrigger>
+          <TabsTrigger asChild value="appointments">
+            <Link href="/appointments" prefetch={true}>
+              Appointments
+            </Link>
+          </TabsTrigger>
           <TabsTrigger asChild value="settings">
             <Link href="/settings" prefetch={true}>
               Settings

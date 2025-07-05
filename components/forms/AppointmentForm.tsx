@@ -348,7 +348,7 @@ export const AppointmentForm = ({
           <TabsTrigger value="appointment">Appointment</TabsTrigger>
         </TabsList>
       </Tabs>
-      <div className="relative flex-1 ">
+      <div className="relative flex-1">
         <Form {...form}>
           <form ref={formRef} onSubmit={form.handleSubmit(onSubmit)}>
             {tab === "client" && (
@@ -622,6 +622,7 @@ export const AppointmentForm = ({
                   titleEmpty="No service history available."
                   searchColumn="service"
                   isShowPagination={false}
+                  title={"Customer History"}
                 />
               </div>
             )}
@@ -990,6 +991,7 @@ export const AppointmentForm = ({
                     searchColumn="service"
                     isShowPagination={false}
                     getRowId={(row: any) => row._id}
+                    title={"Today's Services"}
                   />
                 ) : (
                   <>
@@ -1166,16 +1168,29 @@ export const AppointmentForm = ({
                 )}
               </div>
             )}
-            <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting
-                  ? type === "edit"
-                    ? "Updating..."
-                    : "Creating..."
-                  : type === "edit"
-                    ? "Update"
-                    : "Create"}
-              </Button>
+            <div className="flex justify-between pt-4">
+              {type === "edit" && (
+                <Button
+                  variant="destructive"
+                  type="submit"
+                  onClick={() => {
+                    form.setValue("status", "cancelled");
+                  }}
+                >
+                  Cancel Appointment
+                </Button>
+              )}
+              <div>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting
+                    ? type === "edit"
+                      ? "Updating..."
+                      : "Creating..."
+                    : type === "edit"
+                      ? "Update"
+                      : "Create"}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>

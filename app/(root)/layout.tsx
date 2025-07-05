@@ -49,7 +49,7 @@ export default function Layout({
           <header className="mb-5 w-full space-y-4 lg:space-y-0">
             <div className="flex items-center justify-between">
               <Navbar value={value} />
-              {value !== "settings" ? (
+              {value !== "settings" && value !== "appointments" ? (
                 <div className="hidden lg:flex items-center gap-4">
                   {value !== "services" && (
                     <div className="w-80">
@@ -58,16 +58,16 @@ export default function Layout({
                   )}
                   <CreateInfoButton type={value} />
                 </div>
-              ) : (
+              ) : value !== "appointments" ? (
                 <Button variant="outline" className="hidden lg:flex" asChild>
                   <LogoutButton>
                     <LogOutIcon />
                   </LogoutButton>
                 </Button>
-              )}
+              ) : null}
             </div>
 
-            {value !== "settings" && (
+            {value !== "settings" && value !== "appointments" && (
               <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
                 {value !== "services" && (
                   <div className="flex-1 sm:max-w-md">

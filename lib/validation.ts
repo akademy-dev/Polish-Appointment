@@ -143,4 +143,7 @@ export const appointmentFormSchema = z.object({
       }),
     )
     .min(1, { message: "Please select at least one service." }),
+  status: z.enum(["scheduled", "cancelled", "completed"], {
+    required_error: "Status is required",
+  }),
 });

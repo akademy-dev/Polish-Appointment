@@ -78,7 +78,6 @@ export const appointmentType = defineType({
           { title: "Cancelled", value: "cancelled" },
         ],
       },
-      initialValue: "scheduled",
     }),
   ],
 });
