@@ -136,8 +136,9 @@ export const createAppointment = async (
     _type: string;
     duration: number;
   }[],
+  reminder: string[],
 ) => {
-  const { time, note, reminder } = Object.fromEntries(Array.from(form));
+  const { time, note, smsMessage } = Object.fromEntries(Array.from(form));
 
   try {
     const results = [];
@@ -155,14 +156,41 @@ export const createAppointment = async (
         endTime: endTime.toISOString(),
         duration: service.duration,
         note,
-        reminder: reminder == "true",
+        reminder: reminder || [],
         customer,
         employee,
+        smsMessage,
         service: {
           _ref: service._ref,
           _type: service._type,
         },
         status: "scheduled",
+        // calculate Reminder Date Times based on reminder array and startTime
+        reminderDateTimes: reminder
+          .map((reminderTime) => {
+            const reminderDate = new Date(startTime);
+            switch (reminderTime) {
+              case "1h":
+                reminderDate.setHours(reminderDate.getHours() - 1);
+                break;
+              case "2h":
+                reminderDate.setHours(reminderDate.getHours() - 2);
+                break;
+              case "12h":
+                reminderDate.setHours(reminderDate.getHours() - 12);
+                break;
+              case "24h":
+                reminderDate.setDate(reminderDate.getDate() - 1);
+                break;
+              case "2d":
+                reminderDate.setDate(reminderDate.getDate() - 2);
+                break;
+              default:
+                return null; // Skip invalid reminders
+            }
+            return reminderDate.toISOString();
+          })
+          .filter(Boolean), // Filter out any null values
       };
 
       // Create the appointment
@@ -193,10 +221,12 @@ export const updateAppointment = async (
   form: FormData,
   customer: { _ref: string; _type: string },
   employee: { _ref: string; _type: string },
+  reminder: string[],
 ) => {
-  const { time, note, reminder, status } = Object.fromEntries(Array.from(form));
+  const { time, note, status, smsMessage } = Object.fromEntries(
+    Array.from(form),
+  );
 
-  console.log(status);
   try {
     const appointment = {
       startTime: new Date(time as string).toISOString(),
@@ -205,10 +235,34 @@ export const updateAppointment = async (
       ).toISOString(),
       duration: duration,
       note,
-      reminder: reminder == "true",
+      reminder,
       customer,
       employee,
       status,
+      smsMessage,
+      // calculate Reminder Date Times base on reminder array and startTime
+      reminderDateTimes: reminder
+        .map((reminderTime) => {
+          const reminderDate = new Date(time as string);
+          switch (reminderTime) {
+            case "15 minutes":
+              reminderDate.setMinutes(reminderDate.getMinutes() - 15);
+              break;
+            case "30 minutes":
+              reminderDate.setMinutes(reminderDate.getMinutes() - 30);
+              break;
+            case "1 hour":
+              reminderDate.setHours(reminderDate.getHours() - 1);
+              break;
+            case "1 day":
+              reminderDate.setDate(reminderDate.getDate() - 1);
+              break;
+            default:
+              return null; // Skip invalid reminders
+          }
+          return reminderDate.toISOString();
+        })
+        .filter(Boolean), // Filter out any null values
     };
 
     const result = await writeClient

@@ -13,6 +13,123 @@
  */
 
 // Source: schema.json
+export type TwoFactorToken = {
+  _id: string;
+  _type: "twoFactorToken";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  identifier?: string;
+  token?: string;
+  expires?: string;
+};
+
+export type PasswordResetToken = {
+  _id: string;
+  _type: "passwordResetToken";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  identifier?: string;
+  token?: string;
+  expires?: string;
+};
+
+export type VerificationToken = {
+  _id: string;
+  _type: "verificationToken";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  identifier?: string;
+  token?: string;
+  expires?: string;
+};
+
+export type Session = {
+  _id: string;
+  _type: "session";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  sessionToken?: string;
+  userId?: string;
+  expires?: string;
+  user?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+};
+
+export type User = {
+  _id: string;
+  _type: "user";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  name?: string;
+  email?: string;
+  emailVerified?: string;
+  image?: string;
+  password?: string;
+  role?: "ADMIN" | "USER";
+  accounts?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "account";
+  };
+  isTwoFactorEnabled?: boolean;
+  twoFactorConfirmation?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "twoFactorConfirmation";
+  };
+};
+
+export type TwoFactorConfirmation = {
+  _id: string;
+  _type: "twoFactorConfirmation";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  userId?: string;
+  user?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+};
+
+export type Account = {
+  _id: string;
+  _type: "account";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  userId?: string;
+  type?: string;
+  provider?: string;
+  providerAccountId?: string;
+  refreshToken?: string;
+  accessToken?: string;
+  expiresAt?: number;
+  tokenType?: string;
+  scope?: string;
+  idToken?: string;
+  sessionState?: string;
+  user?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "user";
+  };
+};
+
 export type Appointment = {
   _id: string;
   _type: "appointment";
@@ -21,37 +138,39 @@ export type Appointment = {
   _rev: string;
   startTime: string;
   endTime: string;
-  duration?: number;
-  note?: string;
-  reminder?: boolean;
-  employee?: {
-    _ref: string;
-    _type: "reference";
-    _weak?: boolean;
+  duration: number;
+  note: string;
+  reminder: Array<"1h" | "2h" | "12h" | "24h" | "2d">;
+  smsMessage: string;
+  employee: {
     _id: string;
+    _ref: string;
     firstName: string;
     lastName: string;
+    _type: "reference";
+    _weak?: boolean;
     [internalGroqTypeReferenceTo]?: "employee";
   };
-  customer?: {
-    _ref: string;
-    _type: "reference";
-    _weak?: boolean;
+  customer: {
     _id: string;
+    _ref: string;
     firstName: string;
     lastName: string;
-    [internalGroqTypeReferenceTo]?: "customer";
-  };
-  service?: {
-    _ref: string;
+    phone: string;
     _type: "reference";
     _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "customer";
+  };
+  service: {
     _id: string;
+    _ref: string;
     name: string;
     duration: number;
+    _type: "reference";
+    _weak?: boolean;
     [internalGroqTypeReferenceTo]?: "service";
   };
-  status?: "scheduled" | "completed" | "cancelled";
+  status: "scheduled" | "completed" | "cancelled";
 };
 
 export type WorkingTime = {
@@ -251,6 +370,13 @@ export type SanityAssetSourceData = {
 };
 
 export type AllSanitySchemaTypes =
+  | TwoFactorToken
+  | PasswordResetToken
+  | VerificationToken
+  | Session
+  | User
+  | TwoFactorConfirmation
+  | Account
   | Appointment
   | WorkingTime
   | TimeOffSchedule

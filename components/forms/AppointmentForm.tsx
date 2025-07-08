@@ -1,14 +1,20 @@
 /* eslint-disable */
 "use client";
 import * as React from "react";
+import { useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { ArrowUpDown, ChevronDownIcon } from "lucide-react";
+import {
+  ArrowUpDown,
+  Check,
+  ChevronDownIcon,
+  ChevronsUpDown,
+} from "lucide-react";
 import { Label } from "@/components/ui/label";
 import DataTable from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { cn, formatMinuteDuration } from "@/lib/utils";
-import { useForm, UseFormReturn } from "react-hook-form";
+import { useForm, UseFormReturn, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { appointmentFormSchema } from "@/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +32,6 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "../ui/calendar";
 import { format } from "date-fns";
-import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -37,17 +42,15 @@ import {
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  All_SERVICES_QUERY,
-  APPOINTMENTS_BY_DATE_QUERY,
   ALL_CUSTOMERS_QUERY,
   ALL_EMPLOYEES_QUERY,
+  All_SERVICES_QUERY,
+  APPOINTMENTS_BY_DATE_QUERY,
 } from "@/sanity/lib/queries";
 import { Customer, getProfileName } from "@/models/profile";
 import { client } from "@/sanity/lib/client";
 import { Service } from "@/models/service";
 import { Appointment } from "@/models/appointment";
-import { useWatch } from "react-hook-form";
-import { useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -56,11 +59,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AppointmentFormLoading from "@/components/AppointmentFormLoading";
+import { Textarea } from "@/components/ui/textarea";
 
 const intervals: number[] = [];
 for (let min = 15; min <= 240; min += 15) {
   intervals.push(min);
 }
+
+const VARIABLE_LIST = ["Customer", "Employee", "Service", "Date Time"];
 
 export const AppointmentForm = ({
   onSuccess,
@@ -95,14 +101,22 @@ export const AppointmentForm = ({
       },
       time: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
       note: "",
-      reminder: true,
+      reminder: [],
       services: [],
+      smsMessage: "",
     },
   });
 
   const form = externalForm || internalForm;
 
   const [open, setOpen] = useState(false);
+  const REMINDER_OPTIONS = [
+    { label: "1hr", value: "1h" },
+    { label: "2hr", value: "2h" },
+    { label: "12hr", value: "12h" },
+    { label: "24hr", value: "24h" },
+    { label: "2d", value: "2d" },
+  ];
 
   // Helper to parse time string to Date, time, and AM/PM
   const parseTimeString = (timeString: string) => {
@@ -282,6 +296,7 @@ export const AppointmentForm = ({
             endTime: new Date(appointment.endTime),
           })),
         );
+        console.log("Customer history fetched:", customerHistoryRes);
         const startDate = new Date(time).toISOString().split("T")[0];
         const appointmentsRes = await client.fetch(APPOINTMENTS_BY_DATE_QUERY, {
           date: startDate,
@@ -354,7 +369,7 @@ export const AppointmentForm = ({
             {tab === "client" && (
               <div>
                 {/* Client tab content */}
-                <div className="flex flex-between justify-between items-center mb-2">
+                <div className="flex flex-between justify-between items-center">
                   <h2 className="text-lg font-semibold">Information</h2>
                   <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
                     <PopoverTrigger asChild>
@@ -544,7 +559,7 @@ export const AppointmentForm = ({
                       header: "Service",
                       cell: ({ row }) => {
                         const service = services.find(
-                          (s) => s._id === row.original.service?._id,
+                          (s) => s._id === row.original.service._id,
                         );
                         return (
                           <div>
@@ -559,7 +574,7 @@ export const AppointmentForm = ({
                       // find the employee by _ref
                       cell: ({ row }) => {
                         const employee = employees.find(
-                          (e) => e.value === row.original.employee?._id,
+                          (e) => e.value === row.original.employee._id,
                         );
                         return (
                           <div>
@@ -629,247 +644,325 @@ export const AppointmentForm = ({
             {tab === "appointment" && (
               <div>
                 <h2 className="text-lg font-semibold">Information</h2>
-                <div className="flex flex-col gap-2">
-                  <FormField
-                    control={form.control}
-                    name="time"
-                    render={() => (
-                      <FormItem className="flex flex-col">
-                        <div className="flex gap-4">
-                          {/* Date Input */}
-                          <div className="flex flex-col gap-1">
-                            <Label htmlFor="date" className="px-1 text-md">
-                              Date
-                            </Label>
-                            <Popover open={open} onOpenChange={setOpen}>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  id="date"
-                                  className={cn(
-                                    "w-32 justify-between font-normal",
-                                    !selectedDate && "text-muted-foreground",
-                                  )}
+                <div className="flex gap-4 w-full">
+                  <div className="flex flex-col gap-2 w-1/2">
+                    <FormField
+                      control={form.control}
+                      name="time"
+                      render={() => (
+                        <FormItem className="flex flex-col">
+                          <div className="flex gap-4">
+                            {/* Date Input */}
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor="date" className="px-1 text-md">
+                                Date
+                              </Label>
+                              <Popover open={open} onOpenChange={setOpen}>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    id="date"
+                                    className={cn(
+                                      "w-32 justify-between font-normal",
+                                      !selectedDate && "text-muted-foreground",
+                                    )}
+                                  >
+                                    {selectedDate
+                                      ? selectedDate.toLocaleDateString()
+                                      : "Select date"}
+                                    <ChevronDownIcon />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-auto overflow-hidden p-0"
+                                  align="start"
                                 >
-                                  {selectedDate
-                                    ? selectedDate.toLocaleDateString()
-                                    : "Select date"}
-                                  <ChevronDownIcon />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                className="w-auto overflow-hidden p-0"
-                                align="start"
-                              >
-                                <Calendar
-                                  mode="single"
-                                  selected={selectedDate}
-                                  captionLayout="dropdown"
-                                  onSelect={(date) => {
-                                    setSelectedDate(date);
+                                  <Calendar
+                                    mode="single"
+                                    selected={selectedDate}
+                                    captionLayout="dropdown"
+                                    onSelect={(date) => {
+                                      setSelectedDate(date);
+                                      updateFormTime(
+                                        date,
+                                        selectedTime,
+                                        selectedAmpm,
+                                      );
+                                      setOpen(false);
+                                    }}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                            {/* Time Input */}
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor="time" className="px-1 text-md">
+                                Time
+                              </Label>
+                              <div className="flex gap-2">
+                                <Input
+                                  type="time"
+                                  id="time"
+                                  step="60"
+                                  value={selectedTime || "08:00"}
+                                  onChange={(e) => {
+                                    const newTime = e.target.value;
+                                    setSelectedTime(newTime);
                                     updateFormTime(
-                                      date,
-                                      selectedTime,
+                                      selectedDate,
+                                      newTime,
                                       selectedAmpm,
                                     );
-                                    setOpen(false);
                                   }}
+                                  className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-datetime-edit-ampm-field]:hidden"
                                 />
-                              </PopoverContent>
-                            </Popover>
-                          </div>
-                          {/* Time Input */}
-                          <div className="flex flex-col gap-1">
-                            <Label htmlFor="time" className="px-1 text-md">
-                              Time
-                            </Label>
-                            <div className="flex gap-2">
-                              <Input
-                                type="time"
-                                id="time"
-                                step="60"
-                                value={selectedTime || "08:00"}
-                                onChange={(e) => {
-                                  const newTime = e.target.value;
-                                  setSelectedTime(newTime);
-                                  updateFormTime(
-                                    selectedDate,
-                                    newTime,
-                                    selectedAmpm,
-                                  );
-                                }}
-                                className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-datetime-edit-ampm-field]:hidden"
-                              />
-                              <Select
-                                value={selectedAmpm}
-                                onValueChange={(value: "AM" | "PM") => {
-                                  setSelectedAmpm(value);
-                                  updateFormTime(
-                                    selectedDate,
-                                    selectedTime,
-                                    value,
-                                  );
-                                }}
-                              >
-                                <SelectTrigger className="w-20">
-                                  <SelectValue placeholder="AM/PM" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="AM">AM</SelectItem>
-                                  <SelectItem value="PM">PM</SelectItem>
-                                </SelectContent>
-                              </Select>
+                                <Select
+                                  value={selectedAmpm}
+                                  onValueChange={(value: "AM" | "PM") => {
+                                    setSelectedAmpm(value);
+                                    updateFormTime(
+                                      selectedDate,
+                                      selectedTime,
+                                      value,
+                                    );
+                                  }}
+                                >
+                                  <SelectTrigger className="w-20">
+                                    <SelectValue placeholder="AM/PM" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="AM">AM</SelectItem>
+                                    <SelectItem value="PM">PM</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="employee._ref"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-start">
-                          <Label
-                            htmlFor="employee"
-                            className="whitespace-nowrap flex items-center pt-1 text-md min-w-[50px] text-right"
-                          >
-                            Staff
-                          </Label>
-                          <div className="flex flex-col gap-1">
-                            <Popover
-                              open={employeeOpen}
-                              onOpenChange={setEmployeeOpen}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="employee._ref"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-start">
+                            <Label
+                              htmlFor="employee"
+                              className="whitespace-nowrap flex items-center pt-1 text-md min-w-[50px] text-right"
                             >
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  aria-expanded={employeeOpen}
-                                  className="w-2xs text-left font-normal ml-4 justify-between"
-                                  id="employee"
-                                  type="button"
-                                >
-                                  {employeeValue
-                                    ? employees.find(
-                                        (employee) =>
-                                          employee.value === employeeValue,
-                                      )?.label
-                                    : "Search staff..."}
-                                  <ChevronsUpDown className="opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-2xs p-0 ">
-                                <Command
-                                  filter={(value, search) => {
-                                    const employee = employees.find(
-                                      (c) => c.value === value,
-                                    );
-                                    return employee?.label
-                                      .toLowerCase()
-                                      .includes(search.toLowerCase())
-                                      ? 1
-                                      : 0;
-                                  }}
-                                >
-                                  <CommandInput
-                                    placeholder="Search staff..."
-                                    className="h-9"
+                              Staff
+                            </Label>
+                            <div className="flex flex-col gap-1">
+                              <Popover
+                                open={employeeOpen}
+                                onOpenChange={setEmployeeOpen}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={employeeOpen}
+                                    className="w-2xs text-left font-normal ml-4 justify-between"
+                                    id="employee"
+                                    type="button"
+                                  >
+                                    {employeeValue
+                                      ? employees.find(
+                                          (employee) =>
+                                            employee.value === employeeValue,
+                                        )?.label
+                                      : "Search staff..."}
+                                    <ChevronsUpDown className="opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-2xs p-0 ">
+                                  <Command
+                                    filter={(value, search) => {
+                                      const employee = employees.find(
+                                        (c) => c.value === value,
+                                      );
+                                      return employee?.label
+                                        .toLowerCase()
+                                        .includes(search.toLowerCase())
+                                        ? 1
+                                        : 0;
+                                    }}
+                                  >
+                                    <CommandInput
+                                      placeholder="Search staff..."
+                                      className="h-9"
+                                    />
+                                    <CommandList>
+                                      <CommandEmpty>
+                                        No staff found.
+                                      </CommandEmpty>
+                                      <CommandGroup>
+                                        {employees.map((employee: any) => (
+                                          <CommandItem
+                                            key={employee.value}
+                                            value={employee.value}
+                                            onSelect={(currentValue) => {
+                                              const newValue =
+                                                currentValue === employeeValue
+                                                  ? ""
+                                                  : currentValue;
+                                              setEmployeeValue(newValue);
+                                              setEmployeeOpen(false);
+                                              field.onChange(newValue); // update employee._ref
+                                              form.setValue(
+                                                "employee._type",
+                                                "reference",
+                                              );
+                                            }}
+                                          >
+                                            {employee.label}
+                                            <Check
+                                              className={cn(
+                                                "ml-auto",
+                                                employeeValue === employee.value
+                                                  ? "opacity-100"
+                                                  : "opacity-0",
+                                              )}
+                                            />
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage className="ml-4" />
+                            </div>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="note"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-start">
+                            <Label
+                              htmlFor="note"
+                              className="whitespace-nowrap text-md flex items-center pt-1"
+                            >
+                              Appointment Note
+                            </Label>
+                            <div className="flex flex-col gap-1">
+                              <FormControl>
+                                <Input
+                                  type="text"
+                                  id="note"
+                                  autoComplete="off"
+                                  className="w-2xs ml-4"
+                                  {...field}
+                                />
+                              </FormControl>
+                            </div>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="reminder"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row gap-2">
+                          <div className="text-sm font-medium mb-1">
+                            SMS Reminder
+                          </div>
+                          <div className="flex flex-row gap-4">
+                            {REMINDER_OPTIONS.map((option) => (
+                              <FormControl key={option.value}>
+                                <label className="flex items-center gap-2">
+                                  <Checkbox
+                                    checked={
+                                      Array.isArray(field.value) &&
+                                      field.value.includes(option.value)
+                                    }
+                                    onCheckedChange={(checked) => {
+                                      const current = Array.isArray(field.value)
+                                        ? field.value
+                                        : [];
+                                      if (checked) {
+                                        field.onChange([
+                                          ...current,
+                                          option.value,
+                                        ]);
+                                      } else {
+                                        field.onChange(
+                                          current.filter(
+                                            (v: string) => v !== option.value,
+                                          ),
+                                        );
+                                      }
+                                    }}
                                   />
-                                  <CommandList>
-                                    <CommandEmpty>No staff found.</CommandEmpty>
-                                    <CommandGroup>
-                                      {employees.map((employee: any) => (
-                                        <CommandItem
-                                          key={employee.value}
-                                          value={employee.value}
-                                          onSelect={(currentValue) => {
-                                            const newValue =
-                                              currentValue === employeeValue
-                                                ? ""
-                                                : currentValue;
-                                            setEmployeeValue(newValue);
-                                            setEmployeeOpen(false);
-                                            field.onChange(newValue); // update employee._ref
-                                            form.setValue(
-                                              "employee._type",
-                                              "reference",
-                                            );
-                                          }}
-                                        >
-                                          {employee.label}
-                                          <Check
-                                            className={cn(
-                                              "ml-auto",
-                                              employeeValue === employee.value
-                                                ? "opacity-100"
-                                                : "opacity-0",
-                                            )}
-                                          />
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                  </CommandList>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage className="ml-4" />
+                                  {option.label}
+                                </label>
+                              </FormControl>
+                            ))}
                           </div>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="note"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-start">
-                          <Label
-                            htmlFor="note"
-                            className="whitespace-nowrap text-md flex items-center pt-1"
-                          >
-                            Appointment Note
-                          </Label>
-                          <div className="flex flex-col gap-1">
-                            <FormControl>
-                              <Input
-                                type="text"
-                                id="note"
-                                autoComplete="off"
-                                className="w-2xs ml-4"
-                                {...field}
-                              />
-                            </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2 w-1/2">
+                    <FormField
+                      control={form.control}
+                      name="smsMessage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Label className="mb-1">SMS Content</Label>
+                          <div className="flex gap-2 mb-1 w-full">
+                            {VARIABLE_LIST.map((v) => (
+                              <Button
+                                key={v}
+                                type="button"
+                                onClick={() => {
+                                  const textarea = document.getElementById(
+                                    "smsMessage",
+                                  ) as HTMLTextAreaElement | null;
+                                  if (!textarea) return;
+                                  const start = textarea.selectionStart;
+                                  const end = textarea.selectionEnd;
+                                  const safeValue = field.value ?? "";
+                                  const newValue =
+                                    safeValue.substring(0, start) +
+                                    `{${v}}` +
+                                    safeValue.substring(end, safeValue.length);
+                                  field.onChange(newValue);
+                                  setTimeout(() => {
+                                    textarea.focus();
+                                    textarea.selectionStart =
+                                      textarea.selectionEnd =
+                                        start + v.length + 2;
+                                  }, 0);
+                                }}
+                              >
+                                {v}
+                              </Button>
+                            ))}
                           </div>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="reminder"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center">
-                        <FormControl>
-                          <Checkbox
-                            id="reminder"
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <label
-                          htmlFor="reminder"
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          SMS Reminder
-                        </label>
-                      </FormItem>
-                    )}
-                  />
+                          <FormControl>
+                            <Textarea
+                              id="smsMessage"
+                              className="w-full min-h-[80px] resize-none"
+                              placeholder="Type your SMS message here. Use {variables} for personalization (e.g., {name}, {date})..."
+                              {...field}
+                              value={field.value ?? ""}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
+
                 {appointments.length > 0 ? (
                   <DataTable
                     columns={[
@@ -1168,7 +1261,7 @@ export const AppointmentForm = ({
                 )}
               </div>
             )}
-            <div className="flex justify-between pt-4">
+            <div className="flex justify-between pt-2">
               {type === "edit" ? (
                 <Button
                   variant="destructive"

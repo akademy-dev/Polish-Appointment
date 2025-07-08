@@ -43,7 +43,6 @@ export default async function RootLayout({
               "violet",
               "pink",
             ]}
-            disableTransitionOnChange
           >
             {children}
           </ThemeProvider>

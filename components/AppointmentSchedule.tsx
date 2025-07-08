@@ -379,7 +379,7 @@ const AppointmentSchedule = ({
         id: appointment._id,
         start: new Date(appointment.startTime),
         end: new Date(appointment.endTime),
-        title: appointment.service?.name || "Unknown Service",
+        title: appointment.service.name,
         resourceId: appointment.employee?._id,
         data: appointment,
         type: "appointment",
@@ -439,7 +439,7 @@ const AppointmentSchedule = ({
       },
       time: "",
       note: "",
-      reminder: true,
+      reminder: [],
       services: [],
       status: "scheduled",
     },
@@ -451,7 +451,11 @@ const AppointmentSchedule = ({
   };
 
   const handleFormSave = () => {
-    setShowConfirm(true); // Show confirm dialog
+    if (type === "create") {
+      handleAppointmentSuccess();
+    } else {
+      setShowConfirm(true); // Show confirm dialog only for edit
+    }
   };
 
   const handleAppointmentSuccess = async () => {
@@ -465,8 +469,8 @@ const AppointmentSchedule = ({
       console.log("Form Values:", formValues);
       formData.append("time", formValues.time);
       formData.append("note", formValues.note || "");
-      formData.append("reminder", formValues.reminder.toString());
       formData.append("status", formValues.status || "scheduled");
+      formData.append("smsMessage", formValues.smsMessage || "");
 
       if (formValues.customer._ref) {
         if (type === "edit") {
@@ -479,6 +483,7 @@ const AppointmentSchedule = ({
               _type: formValues.customer._type,
             },
             formValues.employee,
+            formValues.reminder,
           );
 
           if (result.status === "SUCCESS") {
@@ -504,6 +509,7 @@ const AppointmentSchedule = ({
           },
           formValues.employee,
           formValues.services,
+          formValues.reminder,
         );
 
         if (result.status === "SUCCESS") {
@@ -535,6 +541,7 @@ const AppointmentSchedule = ({
             },
             formValues.employee,
             formValues.services,
+            formValues.reminder,
           );
 
           if (result.status === "SUCCESS") {
@@ -619,11 +626,12 @@ const AppointmentSchedule = ({
       firstName: "",
       lastName: "",
       phone: "",
-      _ref: calendarEvent.data.customer?._id || "",
+      _ref: calendarEvent.data.customer._id,
       _type: "reference",
     });
     appointmentForm.setValue("note", calendarEvent.data.note || "");
-    appointmentForm.setValue("reminder", !!calendarEvent.data.reminder);
+    appointmentForm.setValue("reminder", calendarEvent.data.reminder);
+    appointmentForm.setValue("smsMessage", calendarEvent.data.smsMessage || "");
     const newServices = calendarEvent.data.service
       ? [
           {
@@ -674,7 +682,11 @@ const AppointmentSchedule = ({
         _type: "reference",
       });
       appointmentForm.setValue("note", calendarEvent.data.note || "");
-      appointmentForm.setValue("reminder", !!calendarEvent.data.reminder);
+      appointmentForm.setValue("reminder", calendarEvent.data.reminder);
+      appointmentForm.setValue(
+        "smsMessage",
+        calendarEvent.data.smsMessage || "",
+      );
       const newServices = calendarEvent.data.service
         ? [
             {
@@ -726,6 +738,10 @@ const AppointmentSchedule = ({
       });
       appointmentForm.setValue("note", calendarEvent.data.note || "");
       appointmentForm.setValue("reminder", calendarEvent.data.reminder || true);
+      appointmentForm.setValue(
+        "smsMessage",
+        calendarEvent.data.smsMessage || "",
+      );
       const newServices = calendarEvent.data.service
         ? [
             {
@@ -849,11 +865,32 @@ const AppointmentSchedule = ({
               toolbar: CustomToolbar,
               event: ({ event }: EventProps<object>) => {
                 const calendarEvent = event as CalendarEvent;
-                if (calendarEvent.type === "appointment") {
+                if (
+                  calendarEvent.type === "appointment" &&
+                  calendarEvent.data.status === "scheduled"
+                ) {
                   return (
                     <div className="bg-pink-400 h-full rounded border border-gray-100 cursor-pointer">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
                         <span className="text-md text-black">
+                          {calendarEvent.data?.customer
+                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                            : "No Customer"}
+                        </span>
+                        <span className="text-[14px] text-white">
+                          {calendarEvent.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                } else if (
+                  calendarEvent.type === "appointment" &&
+                  calendarEvent.data.status === "cancelled"
+                ) {
+                  return (
+                    <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-30">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span className="text-md text-white">
                           {calendarEvent.data?.customer
                             ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                             : "No Customer"}
@@ -898,7 +935,9 @@ const AppointmentSchedule = ({
           aria-describedby="form-dialog"
         >
           <DialogHeader>
-            <DialogTitle>Update Appointment</DialogTitle>
+            <DialogTitle>
+              {type === "create" ? "Create Appointment" : "Edit Appointment"}
+            </DialogTitle>
             <DialogDescription className="sr-only">
               Create a new appointment with service, customer and employee.
             </DialogDescription>

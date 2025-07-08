@@ -280,9 +280,10 @@ const FormButton = ({
       },
       time: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
       note: "",
-      reminder: true,
+      reminder: [],
       services: [],
       status: "scheduled",
+      smsMessage: "",
     },
   });
 
@@ -588,9 +589,11 @@ const FormButton = ({
       const formValues = appointmentForm.getValues();
 
       const formData = new FormData();
+      console.log("Appointment formValues", formValues);
       formData.append("time", formValues.time);
       formData.append("note", formValues.note || "");
-      formData.append("reminder", formValues.reminder.toString());
+      formData.append("smsMessage", formValues.smsMessage || "");
+      formData.append("status", formValues.status);
       if (formValues.customer._ref) {
         // Create mode
         const result = await createAppointment(
@@ -601,6 +604,7 @@ const FormButton = ({
           },
           formValues.employee,
           formValues.services,
+          formValues.reminder,
         );
 
         if (result.status == "SUCCESS") {
@@ -633,6 +637,7 @@ const FormButton = ({
             },
             formValues.employee,
             formValues.services,
+            formValues.reminder,
           );
 
           if (result.status === "SUCCESS") {

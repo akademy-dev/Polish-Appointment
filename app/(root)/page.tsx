@@ -18,6 +18,8 @@ const page = async ({ searchParams }: PageProps) => {
     resolvedSearchParams.date || new Date().toISOString().split("T")[0];
   const notWorking = resolvedSearchParams.notWorking === "true";
 
+  console.log("Current date:", date);
+
   const employees = await sanityFetch({
     query: ALL_EMPLOYEES_QUERY,
     params: {

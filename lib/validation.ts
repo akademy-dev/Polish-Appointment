@@ -119,31 +119,45 @@ export const serviceFormSchema = z.object({
 
 export type ServiceFormValues = z.infer<typeof serviceFormSchema>;
 
-export const appointmentFormSchema = z.object({
-  time: z.string().min(1, { message: "Time is required" }),
-  note: z.string().optional(),
-  reminder: z.boolean(),
-  customer: z.object({
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    phone: z.string().min(1, "Phone is required"),
-    _ref: z.string().optional(),
-    _type: z.literal("reference"),
-  }),
-  employee: z.object({
-    _ref: z.string().min(1, "Employee reference is required"),
-    _type: z.literal("reference"),
-  }),
-  services: z
-    .array(
-      z.object({
-        _ref: z.string().min(1, "Service reference is required"),
-        _type: z.string(),
-        duration: z.number().positive("Duration must be a positive number"),
-      }),
-    )
-    .min(1, { message: "Please select at least one service." }),
-  status: z.enum(["scheduled", "cancelled", "completed"], {
-    required_error: "Status is required",
-  }),
-});
+export const appointmentFormSchema = z
+  .object({
+    time: z.string().min(1, { message: "Time is required" }),
+    note: z.string().optional(),
+    reminder: z.array(z.any()),
+    customer: z.object({
+      firstName: z.string().min(1, "First name is required"),
+      lastName: z.string().min(1, "Last name is required"),
+      phone: z.string().min(1, "Phone is required"),
+      _ref: z.string().optional(),
+      _type: z.literal("reference"),
+    }),
+    employee: z.object({
+      _ref: z.string().min(1, "Employee reference is required"),
+      _type: z.literal("reference"),
+    }),
+    services: z
+      .array(
+        z.object({
+          _ref: z.string().min(1, "Service reference is required"),
+          _type: z.string(),
+          duration: z.number().positive("Duration must be a positive number"),
+        }),
+      )
+      .min(1, { message: "Please select at least one service." }),
+    status: z.enum(["scheduled", "cancelled", "completed"], {
+      required_error: "Status is required",
+    }),
+    smsMessage: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      if (Array.isArray(data.reminder) && data.reminder.length > 0) {
+        return !!data.smsMessage && data.smsMessage.length > 0;
+      }
+      return true;
+    },
+    {
+      message: "SMS message is required if reminders are set.",
+      path: ["smsMessage"],
+    },
+  );
