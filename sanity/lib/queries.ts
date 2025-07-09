@@ -220,28 +220,27 @@ export const APPOINTMENTS_BY_CUSTOMER_QUERY = defineQuery(
 );
 
 export const SEND_SMS_QUERY = defineQuery(
-  `*[_type == "appointment" && $dateTime in reminderDateTimes]
-  {
+  `*[_type == "appointment" && count(reminderDateTimes[@ >= $startTime && @ <= $endTime]) > 0] {
+  _id,
+  startTime,
+  endTime,
+  duration,
+  customer -> {
     _id,
-    startTime,
-    endTime,
-    duration,
-    customer -> {
-      _id,
-      firstName,
-      lastName,
-      phone
-    },
-    employee -> {
-      _id,
-      firstName,
-      lastName
-    },
-    service -> {
-      _id,
-      name
-    },
-    smsMessage
-  } | order(startTime asc)
+    firstName,
+    lastName,
+    phone
+  },
+  employee -> {
+    _id,
+    firstName,
+    lastName
+  },
+  service -> {
+    _id,
+    name
+  },
+  smsMessage
+} | order(startTime asc)
   `,
 );

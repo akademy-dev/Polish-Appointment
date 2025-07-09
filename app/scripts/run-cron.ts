@@ -1,12 +1,30 @@
 import twilio from "twilio";
-import type { NextApiRequest, NextApiResponse } from "next";
-import { client } from "@/sanity/lib/client";
 import { SEND_SMS_QUERY } from "@/sanity/lib/queries";
 import { Appointment } from "@/models/appointment";
+
+import * as dotenv from "dotenv";
+import * as path from "path";
+import { createClient } from "next-sanity";
+
+// Load .env.local
+dotenv.config({ path: path.resolve(".env.local") });
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
+const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
+const apiVersion = process.env.NEXT_PUBLIC_SANITY_API_VERSION;
+const token = process.env.SANITY_WRITE_TOKEN;
+
+const client = createClient({
+  projectId,
+  dataset,
+  apiVersion,
+  token, // Use an environment variable for the API token
+  useCdn: false, // Set to false if statically generating pages, using ISR or tag-based revalidation
+});
 
 const twilioClient = twilio(accountSid, authToken);
 
@@ -15,25 +33,20 @@ function isUSPhoneNumber(phone: string): boolean {
   return digits.startsWith("1") && digits.length === 11;
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse,
-) {
-  // Bảo mật Cron Job
-  const cronSecret = req.headers["authorization"];
+async function runCronJob() {
   const VARIABLE_LIST = ["Customer", "Employee", "Service", "Date Time"];
-
-  if (cronSecret !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
   try {
+    // Tính khoảng thời gian: từ 15 phút trước đến hiện tại
+    const now = new Date();
+    const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
+
+    // Cập nhật truy vấn để lấy các cuộc hẹn trong khoảng thời gian
     const appointments: Appointment[] = await client.fetch(SEND_SMS_QUERY, {
-      dateTime: new Date().toISOString(),
+      startTime: fifteenMinutesAgo.toISOString(),
+      endTime: now.toISOString(),
     });
 
     for (const appointment of appointments) {
-      // check smsMessage, if have {variable} then replace with real value
       let messageBody = appointment.smsMessage;
       VARIABLE_LIST.forEach((variable) => {
         const regex = new RegExp(`{${variable}}`, "g");
@@ -62,20 +75,19 @@ export default async function handler(
         }
       });
 
+      // Gửi thông báo qua Twilio
       await twilioClient.messages.create({
         body: messageBody,
         from: twilioPhoneNumber,
         to: isUSPhoneNumber(appointment.customer.phone)
           ? appointment.customer.phone
-          : `+1${appointment.customer.phone.replace(/\D/g, "")}`, // Ensure US format
+          : `+1${appointment.customer.phone.replace(/\D/g, "")}`,
       });
     }
-
-    res.status(200).json({ success: true, message: "Notifications sent" });
   } catch (error) {
     console.error("Cron Job Error:", error);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to send notifications" });
+    // Không thoát process, chỉ ghi log lỗi để cron job tiếp tục chạy
   }
 }
+
+runCronJob();
