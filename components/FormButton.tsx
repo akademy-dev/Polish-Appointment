@@ -876,6 +876,7 @@ const FormButton = ({
       case "schedule":
         return (
           <AppointmentForm
+            type={"create"}
             form={appointmentForm}
             onSuccess={handleFormSuccess}
             hideSubmitButton={isMobile}
