@@ -1,5 +1,8 @@
 import twilio from "twilio";
-import { SEND_SMS_QUERY } from "@/sanity/lib/queries";
+import {
+  SEND_SMS_QUERY,
+  UPDATE_APPOINTMENT_STATUS_QUERY,
+} from "@/sanity/lib/queries";
 import { Appointment } from "@/models/appointment";
 
 import * as dotenv from "dotenv";
@@ -22,29 +25,36 @@ const client = createClient({
   projectId,
   dataset,
   apiVersion,
-  token, // Use an environment variable for the API token
-  useCdn: false, // Set to false if statically generating pages, using ISR or tag-based revalidation
+  token,
+  useCdn: false,
+});
+
+const writeClient = createClient({
+  projectId,
+  dataset,
+  apiVersion,
+  token,
+  useCdn: false, // Set to false for write operations
 });
 
 const twilioClient = twilio(accountSid, authToken);
 
-function isUSPhoneNumber(phone: string): boolean {
-  const digits = phone.replace(/\D/g, "");
-  return digits.startsWith("1") && digits.length === 11;
-}
-
 async function runCronJob() {
   const VARIABLE_LIST = ["Customer", "Employee", "Service", "Date Time"];
   try {
-    // Tính khoảng thời gian: từ 15 phút trước đến hiện tại
+    // Tính khoảng thời gian: từ 5 phút trước đến hiện tại
     const now = new Date();
-    const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
     // Cập nhật truy vấn để lấy các cuộc hẹn trong khoảng thời gian
     const appointments: Appointment[] = await client.fetch(SEND_SMS_QUERY, {
-      startTime: fifteenMinutesAgo.toISOString(),
+      startTime: fiveMinutesAgo.toISOString(),
       endTime: now.toISOString(),
     });
+
+    console.log("Start Time:", fiveMinutesAgo.toISOString());
+    console.log("End Time:", now.toISOString());
+    console.log("Appointments to process:", appointments);
 
     for (const appointment of appointments) {
       let messageBody = appointment.smsMessage;
@@ -79,14 +89,28 @@ async function runCronJob() {
       await twilioClient.messages.create({
         body: messageBody,
         from: twilioPhoneNumber,
-        to: isUSPhoneNumber(appointment.customer.phone)
-          ? appointment.customer.phone
-          : `+1${appointment.customer.phone.replace(/\D/g, "")}`,
+        to: appointment.customer.phone,
       });
     }
+
+    const appointmentScheduled: {
+      _id: string;
+      status: string;
+    }[] = await client.fetch(UPDATE_APPOINTMENT_STATUS_QUERY, {
+      date: now.toISOString(),
+    });
+
+    console.log("Appointments to update:", appointmentScheduled);
+
+    for (const appointment of appointmentScheduled) {
+      await writeClient
+        .patch(appointment._id)
+        .set({ status: "completed" })
+        .commit();
+    }
+    // Cập nhật trạng thái của các cuộc hẹn đã endTime
   } catch (error) {
     console.error("Cron Job Error:", error);
-    // Không thoát process, chỉ ghi log lỗi để cron job tiếp tục chạy
   }
 }
 

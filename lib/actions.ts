@@ -245,17 +245,20 @@ export const updateAppointment = async (
         .map((reminderTime) => {
           const reminderDate = new Date(time as string);
           switch (reminderTime) {
-            case "15 minutes":
-              reminderDate.setMinutes(reminderDate.getMinutes() - 15);
-              break;
-            case "30 minutes":
-              reminderDate.setMinutes(reminderDate.getMinutes() - 30);
-              break;
-            case "1 hour":
+            case "1h":
               reminderDate.setHours(reminderDate.getHours() - 1);
               break;
-            case "1 day":
+            case "2h":
+              reminderDate.setHours(reminderDate.getHours() - 2);
+              break;
+            case "12h":
+              reminderDate.setHours(reminderDate.getHours() - 12);
+              break;
+            case "24h":
               reminderDate.setDate(reminderDate.getDate() - 1);
+              break;
+            case "2d":
+              reminderDate.setDate(reminderDate.getDate() - 2);
               break;
             default:
               return null; // Skip invalid reminders

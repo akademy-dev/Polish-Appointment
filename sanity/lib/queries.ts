@@ -145,12 +145,14 @@ export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
   customer -> {
     _id,
     firstName,
-    lastName
+    lastName,
+    "fullName": firstName + " " + lastName,
   },
   employee -> {
     _id,
     firstName,
     lastName,
+    "fullName": firstName + " " + lastName
   },
   note,
   reminder,
@@ -220,27 +222,36 @@ export const APPOINTMENTS_BY_CUSTOMER_QUERY = defineQuery(
 );
 
 export const SEND_SMS_QUERY = defineQuery(
-  `*[_type == "appointment" && count(reminderDateTimes[@ >= $startTime && @ <= $endTime]) > 0] {
-  _id,
-  startTime,
-  endTime,
-  duration,
-  customer -> {
+  `*[_type == "appointment" && status == "scheduled" && count(reminderDateTimes[@ >= $startTime && @ <= $endTime]) > 0] {
     _id,
-    firstName,
-    lastName,
-    phone
-  },
-  employee -> {
-    _id,
-    firstName,
-    lastName
-  },
-  service -> {
-    _id,
-    name
-  },
-  smsMessage
-} | order(startTime asc)
+    startTime,
+    endTime,
+    duration,
+    customer -> {
+      _id,
+      firstName,
+      lastName,
+      phone
+    },
+    employee -> {
+      _id,
+      firstName,
+      lastName
+    },
+    service -> {
+      _id,
+      name
+    },
+    smsMessage,
+    "isFirst": startTime == *[_type == "appointment" && status == "scheduled" && customer._ref == ^.customer._ref && array::join(string::split(startTime, "")[0..9], "") == array::join(string::split(^.startTime, "")[0..9], "")] | order(startTime asc)[0].startTime
+  }[isFirst == true] | order(startTime asc)
   `,
+);
+
+export const UPDATE_APPOINTMENT_STATUS_QUERY = defineQuery(
+  `*[_type == "appointment" && status == "scheduled" && endTime < $date] 
+  {     
+  _id,     
+  status   
+  }`,
 );

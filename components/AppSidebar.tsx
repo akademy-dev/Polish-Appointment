@@ -16,11 +16,20 @@ export function AppSidebar() {
   const [, startTransition] = useTransition();
   const numOfWeeklyJump = [1, 2, 3, 4];
   const [notWorking, setNotWorking] = React.useState(false);
+  const [cancelled, setCancelled] = React.useState(false);
 
   const handleNotWorkingChange = (checked: boolean) => {
     setNotWorking(checked);
     const currentParams = new URLSearchParams(window.location.search);
     currentParams.set("notWorking", checked ? "true" : "false");
+    const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+    router.push(newUrl);
+  };
+
+  const handleCancelledChange = (checked: boolean) => {
+    setCancelled(checked);
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.set("cancelled", checked ? "true" : "false");
     const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
     router.push(newUrl);
   };
@@ -131,6 +140,20 @@ export function AppSidebar() {
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               Not working
+            </label>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4 mt-2">
+          <div
+            className="flex items-center space-x-2"
+            onClick={() => handleCancelledChange(!cancelled)}
+          >
+            <Checkbox id="cancelled" checked={cancelled} />
+            <label
+              htmlFor="cancelled"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Cancelled
             </label>
           </div>
         </div>

@@ -48,7 +48,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { addDays, addMinutes, format, isWithinInterval, parse } from "date-fns";
+import { addMinutes, format, isWithinInterval, parse } from "date-fns";
 
 const localizer = momentLocalizer(moment);
 const DragAndDropCalendar = withDragAndDrop(Calendar);
@@ -73,6 +73,7 @@ interface AppointmentScheduleProps {
   initialAppointments: Appointment[];
   currentDate: string;
   notWorking?: boolean;
+  cancelled?: boolean;
 }
 
 const generateNotWorkingEvents = (
@@ -308,6 +309,7 @@ const AppointmentSchedule = ({
   initialAppointments,
   currentDate,
   notWorking = false,
+  cancelled = false,
 }: AppointmentScheduleProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -831,12 +833,19 @@ const AppointmentSchedule = ({
     );
   }, []);
 
+  const NoEventsOverlay = () => (
+    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+      <span className="text-2xl font-bold text-gray-400">Business Closed</span>
+    </div>
+  );
+
   return (
     <div className="relative h-full w-full">
       <DndProvider backend={HTML5Backend}>
         <div
           className={`h-full w-full ${processing || isLoading ? "loading" : null}`}
         >
+          {resources.length === 0 && <NoEventsOverlay />}
           <DragAndDropCalendar
             selectable
             defaultDate={date}
@@ -885,10 +894,29 @@ const AppointmentSchedule = ({
                   );
                 } else if (
                   calendarEvent.type === "appointment" &&
-                  calendarEvent.data.status === "cancelled"
+                  calendarEvent.data.status === "cancelled" &&
+                  cancelled === true
                 ) {
                   return (
                     <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-30">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span className="text-md text-white">
+                          {calendarEvent.data?.customer
+                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                            : "No Customer"}
+                        </span>
+                        <span className="text-[14px] text-white">
+                          {calendarEvent.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                } else if (
+                  calendarEvent.type === "appointment" &&
+                  calendarEvent.data.status === "completed"
+                ) {
+                  return (
+                    <div className="bg-green-700 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
                         <span className="text-md text-white">
                           {calendarEvent.data?.customer

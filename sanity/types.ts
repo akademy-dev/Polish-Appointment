@@ -147,6 +147,7 @@ export type Appointment = {
     _ref: string;
     firstName: string;
     lastName: string;
+    fullName?: string;
     _type: "reference";
     _weak?: boolean;
     [internalGroqTypeReferenceTo]?: "employee";
@@ -156,6 +157,7 @@ export type Appointment = {
     _ref: string;
     firstName: string;
     lastName: string;
+    fullName?: string;
     phone: string;
     _type: "reference";
     _weak?: boolean;
@@ -238,7 +240,7 @@ export type Service = {
   };
   name?: string;
   price?: number;
-  duration?: number;
+  duration: number;
   showOnline?: boolean;
 };
 
