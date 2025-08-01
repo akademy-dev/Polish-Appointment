@@ -778,7 +778,7 @@ const AppointmentScheduleTimezone = ({
             localizer={localizer}
             min={moment
               .tz(getIanaTimezone(timezone))
-              .set({ hour: 2, minute: 0, second: 0, millisecond: 0 })
+              .set({ hour: 8, minute: 0, second: 0, millisecond: 0 })
               .toDate()}
             max={moment
               .tz(getIanaTimezone(timezone))
