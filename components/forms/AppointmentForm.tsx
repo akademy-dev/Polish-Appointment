@@ -275,6 +275,7 @@ export const AppointmentForm = ({
                 customerValue={customerValue}
                 customerHistory={customerHistory}
                 setCustomerValue={setCustomerValue}
+                isSubmitting={isSubmitting}
               />
             )}
             {tab === "appointment" && (
@@ -284,6 +285,7 @@ export const AppointmentForm = ({
                 employees={employees}
                 appointments={appointments}
                 type={type}
+                isSubmitting={isSubmitting}
               />
             )}
             <div className="flex justify-between pt-2">

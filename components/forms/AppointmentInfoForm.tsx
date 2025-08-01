@@ -64,12 +64,14 @@ const AppointmentInfoForm = ({
   services = [],
   employees = [],
   appointments = [],
+  isSubmitting,
 }: {
   form: UseFormReturn<z.infer<typeof appointmentFormSchema>>;
   services: Service[];
   employees: { value: string; label: string }[];
   appointments: Appointment[];
   type: "create" | "edit";
+  isSubmitting: boolean;
 }) => {
   const { timezone } = useContext(CalendarContext);
 
@@ -228,6 +230,7 @@ const AppointmentInfoForm = ({
                             "w-32 justify-between font-normal",
                             !selectedDate && "text-muted-foreground",
                           )}
+                          disabled={isSubmitting}
                         >
                           {selectedDate
                             ? selectedDate.toLocaleDateString()
@@ -278,6 +281,7 @@ const AppointmentInfoForm = ({
                             timezone,
                           );
                         }}
+                        disabled={isSubmitting}
                         className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-datetime-edit-ampm-field]:hidden"
                       />
                       <Select
@@ -291,6 +295,7 @@ const AppointmentInfoForm = ({
                             timezone,
                           );
                         }}
+                        disabled={isSubmitting}
                       >
                         <SelectTrigger className="w-20">
                           <SelectValue placeholder="AM/PM" />
@@ -329,6 +334,7 @@ const AppointmentInfoForm = ({
                           className="w-2xs text-left font-normal ml-4 justify-between"
                           id="employee"
                           type="button"
+                          disabled={isSubmitting}
                         >
                           {employeeValue
                             ? employees.find(
@@ -418,6 +424,7 @@ const AppointmentInfoForm = ({
                         autoComplete="off"
                         className="w-2xs ml-4"
                         {...field}
+                        disabled={isSubmitting}
                       />
                     </FormControl>
                   </div>
@@ -436,6 +443,7 @@ const AppointmentInfoForm = ({
                     <FormControl key={option.value}>
                       <label className="flex items-center gap-2">
                         <Checkbox
+                          disabled={isSubmitting}
                           checked={
                             Array.isArray(field.value) &&
                             field.value.includes(option.value)
@@ -474,6 +482,7 @@ const AppointmentInfoForm = ({
                 <div className="flex gap-2 mb-1 w-full">
                   {VARIABLE_LIST.map((v) => (
                     <Button
+                      disabled={isSubmitting}
                       key={v}
                       type="button"
                       onClick={() => {
@@ -507,6 +516,7 @@ const AppointmentInfoForm = ({
                     placeholder="Type your SMS message here. Use {variables} for personalization (e.g., {name}, {date})..."
                     {...field}
                     value={field.value ?? ""}
+                    disabled={isSubmitting}
                   />
                 </FormControl>
                 <FormMessage />

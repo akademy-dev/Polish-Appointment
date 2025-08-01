@@ -38,6 +38,7 @@ const AppointmentClientForm = ({
   customerValue,
   customerHistory,
   setCustomerValue,
+  isSubmitting,
 }: {
   form: UseFormReturn<z.infer<typeof appointmentFormSchema>>;
   customers: {
@@ -51,6 +52,7 @@ const AppointmentClientForm = ({
   customerValue: string;
   setCustomerValue: (value: string) => void;
   customerHistory: Appointment[];
+  isSubmitting: boolean;
 }) => {
   const { timezone } = useContext(CalendarContext);
   const hasClientError = !!form.formState.errors.customer;
@@ -68,6 +70,7 @@ const AppointmentClientForm = ({
               role="combobox"
               aria-expanded={customerOpen}
               className="w-[250px] justify-between"
+              disabled={isSubmitting}
             >
               {customerValue
                 ? customers.find((customer) => customer.value === customerValue)

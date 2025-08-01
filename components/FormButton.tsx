@@ -71,7 +71,6 @@ import * as React from "react";
 import { formatMinuteDuration, parseOffset } from "@/lib/utils";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { formatToISO8601 } from "@/components/AppointmentScheduleTimezone";
 
 type FormMode = "create" | "edit" | "history" | "delete";
 type FormType = "employees" | "customers" | "services" | "schedule";
@@ -607,6 +606,7 @@ const FormButton = ({
       formData.append("note", formValues.note || "");
       formData.append("smsMessage", formValues.smsMessage || "");
       formData.append("status", formValues.status);
+
       if (formValues.customer._ref) {
         // Create mode
         const result = await createAppointment(
@@ -774,6 +774,7 @@ const FormButton = ({
           isShowPagination={false}
           titleEmpty={"No history found"}
           searchColumn={"customerFullName"}
+          searchName={"Search customer..."}
         />
       );
     } else if (mode === "history" && type === "customers") {
@@ -847,6 +848,8 @@ const FormButton = ({
           title={""}
           isShowPagination={false}
           searchColumn={"employeeFullName"}
+          searchName={"Search employee..."}
+          titleEmpty={"No history found"}
         />
       );
     }

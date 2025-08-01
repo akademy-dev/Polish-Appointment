@@ -35,6 +35,11 @@ import {
 import { Appointment } from "@/models/appointment";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
+import { Trash2 } from "lucide-react";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { useState } from "react";
+import { toast } from "sonner";
+import { deleteAppointment } from "@/lib/actions";
 
 // Define a custom meta interface to include className
 interface CustomColumnMeta<TData, TValue> extends ColumnMeta<TData, TValue> {
@@ -155,6 +160,35 @@ export function AppointmentDataTable({
     }
   }, [debouncedSearch, searchParams]);
 
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [id, setId] = useState<string>("");
+  const handleConfirm = async () => {
+    setShowConfirm(false);
+    await handleAppointmentSuccess(); // your update logic
+  };
+
+  const handleAppointmentSuccess = async () => {
+    // try catch delete service
+    try {
+      const result = await deleteAppointment(id);
+
+      if (result.status == "SUCCESS") {
+        toast.success("Success", {
+          description: "Appointment deleted successfully.",
+        });
+      } else {
+        toast.error("Error", {
+          description: result.error,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to delete appointment:", error);
+      toast.error("Error", {
+        description: "Failed to delete appointment. Please try again.",
+      });
+    }
+  };
+
   const table = useReactTable({
     data: data,
     columns: [
@@ -235,6 +269,30 @@ export function AppointmentDataTable({
           </div>
         ),
       },
+      {
+        accessorKey: "action",
+        header: "",
+        meta: {
+          className: "w-20 text-center",
+        } as CustomColumnMeta<Appointment, unknown>, // Type assertion
+        cell: ({ row }) => {
+          return (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={() => {
+                  // Open confirmation dialog
+                  setShowConfirm(true);
+                  setId(row.original._id);
+                }}
+              >
+                <Trash2 className="size-5" aria-hidden="true" />
+              </Button>
+            </div>
+          );
+        },
+      },
     ] as ColumnDef<Appointment, unknown>[], // Explicitly type columns
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -264,7 +322,7 @@ export function AppointmentDataTable({
       <div className="w-full">
         <div className="flex items-center justify-between py-4 gap-2 w-full">
           <Input
-            placeholder="Search..."
+            placeholder="Search "
             value={search}
             onChange={(event) => {
               const newSearch = event.target.value;
@@ -426,6 +484,13 @@ export function AppointmentDataTable({
           </Button>
         </div>
       </div>
+      <ConfirmDialog
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        title="Delete Appointment"
+        description="Are you sure you want to delete this appointment? This action cannot be undone."
+        onConfirm={handleConfirm}
+      />
     </>
   );
 }

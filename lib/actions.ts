@@ -289,6 +289,23 @@ export const updateAppointment = async (
   }
 };
 
+export const deleteAppointment = async (_id: string) => {
+  try {
+    const result = await writeClient.delete(_id);
+
+    return parseServerActionResponse({
+      ...result,
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    return parseServerActionResponse({
+      error: JSON.stringify(error),
+      status: "ERROR",
+    });
+  }
+};
+
 export const updateCustomer = async (_id: string, form: FormData) => {
   const { firstName, lastName, phone, email } = Object.fromEntries(
     Array.from(form),
@@ -374,6 +391,7 @@ export const updateService = async (_id: string, form: FormData) => {
       price: parseFloat(price as string),
       duration: parseInt(duration as string, 10),
       category,
+      showOnline: form.get("showOnline") === "true",
     };
 
     const result = await writeClient

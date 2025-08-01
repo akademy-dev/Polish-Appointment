@@ -29,7 +29,7 @@ import { z } from "zod";
 import { appointmentFormSchema } from "@/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Employee, getProfileName } from "@/models/profile";
+import { Employee, getProfileName, TimeOffSchedule } from "@/models/profile";
 import { Appointment } from "@/models/appointment";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
 import {
@@ -180,6 +180,111 @@ const generateNotWorkingEvents = (
   return notWorkingEvents;
 };
 
+const isValidTimeString = (timeStr: string): boolean => {
+  const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i;
+  return timeRegex.test(timeStr.trim());
+};
+
+const setTimeToDate = (
+  date: Date,
+  timeStr: string,
+  timezone: string,
+): Date | null => {
+  timeStr = timeStr.trim();
+  if (!isValidTimeString(timeStr)) {
+    console.error(
+      `Invalid time format: ${timeStr}. Expected HH:mm AM/PM (e.g., "10:00 AM").`,
+    );
+    return null;
+  }
+
+  const isoTime = formatToISO8601(date, timeStr, timezone);
+  const momentTime = moment.tz(isoTime, getIanaTimezone(timezone));
+  if (!momentTime.isValid()) {
+    console.error(`Invalid Date created from: ${date}, ${timeStr}`);
+    return null;
+  }
+  return momentTime.toDate();
+};
+
+const generateTimeOffEvents = (
+  employees: Employee[],
+  date: Date,
+  timezone: string,
+): CalendarEvent[] => {
+  const events: any[] = [];
+  employees.forEach((employee) => {
+    if (!employee.timeOffSchedules || employee.timeOffSchedules.length === 0) {
+      return;
+    }
+
+    employee.timeOffSchedules.forEach((schedule: TimeOffSchedule) => {
+      const {
+        period,
+        date: scheduleDate,
+        from,
+        to,
+        reason,
+        dayOfWeek,
+        dayOfMonth,
+      } = schedule;
+      let isMatchingDate = false;
+      const momentDate = moment.tz(date, getIanaTimezone(timezone));
+
+      switch (period) {
+        case "Exact":
+          if (scheduleDate) {
+            const exactDate = moment.tz(
+              scheduleDate,
+              getIanaTimezone(timezone),
+            );
+            isMatchingDate =
+              exactDate.isSame(momentDate, "year") &&
+              exactDate.isSame(momentDate, "month") &&
+              exactDate.isSame(momentDate, "date");
+          }
+          break;
+        case "Daily":
+          isMatchingDate = true;
+          break;
+        case "Weekly":
+          if (dayOfWeek) {
+            const currentDayOfWeek = momentDate.day();
+            const adjustedDayOfWeek =
+              currentDayOfWeek === 0 ? 7 : currentDayOfWeek;
+            isMatchingDate = dayOfWeek.includes(adjustedDayOfWeek);
+          }
+          break;
+        case "Monthly":
+          if (dayOfMonth) {
+            const currentDayOfMonth = momentDate.date();
+            isMatchingDate = dayOfMonth.includes(currentDayOfMonth);
+          }
+          break;
+        default:
+          break;
+      }
+
+      if (isMatchingDate && from && to) {
+        const startTime = setTimeToDate(date, from, timezone);
+        const endTime = setTimeToDate(date, to, timezone);
+        if (startTime && endTime) {
+          events.push({
+            id: `time_off_${employee._id}_${scheduleDate || momentDate.toISOString()}`,
+            start: startTime,
+            end: endTime,
+            title: `Time Off`,
+            resourceId: employee._id,
+            type: "timeOff",
+          });
+        }
+      }
+    });
+  });
+
+  return events;
+};
+
 const AppointmentScheduleTimezone = ({
   initialEmployees,
   initialAppointments,
@@ -276,6 +381,20 @@ const AppointmentScheduleTimezone = ({
     );
   }, [initialEmployees, currentDate, timezone]);
 
+  const timeOffEvents = useMemo(() => {
+    const dateAtStartOfDay = currentDate
+      ? moment
+          .tz(currentDate, getIanaTimezone(timezone))
+          .startOf("day")
+          .toDate()
+      : moment
+          .tz(new Date(), getIanaTimezone(timezone))
+          .startOf("day")
+          .toDate();
+
+    return generateTimeOffEvents(initialEmployees, dateAtStartOfDay, timezone);
+  }, [initialEmployees, currentDate, timezone]);
+
   // Ánh xạ initialAppointments thành sự kiện lịch
   const appointmentEvents = useMemo(() => {
     return (initialAppointments || []).map((appt: Appointment) => {
@@ -303,15 +422,16 @@ const AppointmentScheduleTimezone = ({
     setProcessing(true);
     const filteredEvents = [
       ...notWorkingEvents,
+      ...timeOffEvents,
       ...(cancelled
         ? appointmentEvents
         : appointmentEvents.filter(
-            (event) => event.data.status !== "cancelled",
+            (event) => event.data?.status !== "cancelled",
           )),
     ];
     setEvents(filteredEvents);
     setProcessing(false);
-  }, [notWorkingEvents, appointmentEvents, cancelled]);
+  }, [notWorkingEvents, timeOffEvents, appointmentEvents, cancelled]);
 
   // Reset isLoading when initialAppointments change (indicating fetch complete)
   useEffect(() => {
@@ -827,7 +947,7 @@ const AppointmentScheduleTimezone = ({
                   cancelled === true
                 ) {
                   return (
-                    <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-30">
+                    <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
                         <span className="text-md text-white">
                           {calendarEvent.data?.customer
