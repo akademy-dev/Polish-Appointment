@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -11,20 +11,52 @@ import SearchForm from "@/components/forms/SearchForm";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { LogOutIcon } from "lucide-react";
+import { parseOffset } from "@/lib/utils";
+import { TIMEZONE_QUERY } from "@/sanity/lib/queries";
+import { client } from "@/sanity/lib/client";
+import RootLoading from "@/app/(root)/Loading";
 
 export default function Layout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const value = pathname.split("/")[1] || "schedule";
-
   const isRoot = pathname === "/";
+  const [timezone, setTimezone] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTimezone = async () => {
+      try {
+        setLoading(true);
+        const data = await client.fetch(TIMEZONE_QUERY);
+        setTimezone(parseOffset(data.timezone));
+      } catch (err) {
+        console.error("Error fetching timezone:", err);
+        setError("Failed to fetch timezone. Please try again later.");
+        setTimezone("UTC"); // Set a default timezone in case of error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTimezone();
+  }, []); // Dependency array rỗng để chỉ chạy một lần
+
+  if (loading) {
+    return <RootLoading />; // Hiển thị loading khi đang fetch
+  }
+
+  if (error) {
+    console.warn(error); // Log lỗi để debug
+  }
 
   return (
     <>
       {isRoot ? (
         <SidebarProvider>
-          <CalendarProvider>
+          <CalendarProvider timezone={timezone}>
             <AppSidebar />
             <SidebarTrigger />
             <main className="font-lexend p-4 w-full h-screen overflow-hidden">
@@ -35,7 +67,6 @@ export default function Layout({
                     <CreateInfoButton type={value} />
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
                   <CreateInfoButton type={value} />
                 </div>
@@ -66,7 +97,6 @@ export default function Layout({
                 </Button>
               ) : null}
             </div>
-
             {value !== "settings" && value !== "appointments" && (
               <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
                 {value !== "services" && (

@@ -62,12 +62,16 @@ import { client } from "@/sanity/lib/client";
 import {
   APPOINTMENTS_BY_CUSTOMER_QUERY,
   APPOINTMENTS_BY_EMPLOYEE_QUERY,
+  TIMEZONE_QUERY,
 } from "@/sanity/lib/queries";
 import { ColumnDef } from "@tanstack/react-table";
 import ProfileTableLoading from "./ProfileTableLoading";
 import { ArrowUpDown } from "lucide-react";
 import * as React from "react";
-import { formatMinuteDuration } from "@/lib/utils";
+import { formatMinuteDuration, parseOffset } from "@/lib/utils";
+import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { formatToISO8601 } from "@/components/AppointmentScheduleTimezone";
 
 type FormMode = "create" | "edit" | "history" | "delete";
 type FormType = "employees" | "customers" | "services" | "schedule";
@@ -119,6 +123,7 @@ const FormButton = ({
   const [employeeHistory, setEmployeeHistory] = useState([]);
   const [customerHistory, setCustomerHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [timezone, setTimezone] = useState<string>("");
 
   const fetchEmployeeHistory = async () => {
     if (profile) {
@@ -151,6 +156,16 @@ const FormButton = ({
       }
     }
   };
+
+  useEffect(() => {
+    // Fetch timezone on mount
+    const fetchTimezone = async () => {
+      const result = await client.fetch(TIMEZONE_QUERY);
+      setTimezone(parseOffset(result.timezone));
+    };
+
+    fetchTimezone();
+  }, []);
 
   // Aggressively fix aria-hidden conflicts using MutationObserver
   useEffect(() => {
@@ -278,7 +293,7 @@ const FormButton = ({
         _ref: "",
         _type: "reference",
       },
-      time: new Date(new Date().setHours(9, 0, 0, 0)).toISOString(),
+      time: new Date().toISOString(),
       note: "",
       reminder: [],
       services: [],
@@ -398,7 +413,6 @@ const FormButton = ({
 
     try {
       const formValues = employeeForm.getValues();
-      console.log("Employee formValues", formValues);
 
       const formData = new FormData();
       formData.append("firstName", formValues.firstName);
@@ -477,7 +491,6 @@ const FormButton = ({
       if (mode === "edit" && profile) {
         // Update mode - include _id
         const profileId = getProfileId(profile);
-        console.log("Updating customer with ID:", profileId);
 
         const result = await updateCustomer(profileId, formData);
 
@@ -710,12 +723,14 @@ const FormButton = ({
           },
           accessorKey: "startTime",
           cell: (info) => {
-            const date = new Date(info.getValue() as string);
-            return date.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-            });
+            return (
+              <div>
+                {format(
+                  toZonedTime(new Date(info.getValue() as string), timezone),
+                  "MM/dd/yyyy",
+                )}
+              </div>
+            );
           },
         },
         {
@@ -782,12 +797,14 @@ const FormButton = ({
           },
           accessorKey: "startTime",
           cell: (info) => {
-            const date = new Date(info.getValue() as string);
-            return date.toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "2-digit",
-              day: "2-digit",
-            });
+            return (
+              <div>
+                {format(
+                  toZonedTime(new Date(info.getValue() as string), timezone),
+                  "MM/dd/yyyy",
+                )}
+              </div>
+            );
           },
         },
         {

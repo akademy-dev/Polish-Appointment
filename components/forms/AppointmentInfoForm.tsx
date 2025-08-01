@@ -45,10 +45,12 @@ import { Textarea } from "@/components/ui/textarea";
 import DataTable from "@/components/DataTable";
 import { format } from "date-fns";
 import * as React from "react";
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Customer, Employee } from "@/models/profile";
 import { Appointment } from "@/models/appointment";
 import { Service } from "@/models/service";
+import { CalendarContext } from "@/hooks/context";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
 const intervals: number[] = [];
 for (let min = 15; min <= 240; min += 15) {
@@ -69,6 +71,8 @@ const AppointmentInfoForm = ({
   appointments: Appointment[];
   type: "create" | "edit";
 }) => {
+  const { timezone } = useContext(CalendarContext);
+
   const [open, setOpen] = useState(false);
   const REMINDER_OPTIONS = [
     { label: "1hr", value: "1h" },
@@ -77,16 +81,16 @@ const AppointmentInfoForm = ({
     { label: "24hr", value: "24h" },
     { label: "2d", value: "2d" },
   ];
-  const parseTimeString = (timeString: string) => {
+  const parseTimeString = (timeString: string, timezone: string) => {
     if (!timeString) return { date: undefined, time: "", ampm: "AM" };
-    const date = new Date(timeString);
+    const date = toZonedTime(timeString, timezone);
     if (isNaN(date.getTime())) return { date: undefined, time: "", ampm: "AM" };
     const hours = date.getHours();
     const minutes = date.getMinutes().toString().padStart(2, "0");
     const seconds = date.getSeconds().toString().padStart(2, "0");
     const ampmValue = hours >= 12 ? "PM" : "AM";
     const displayHours = hours % 12 || 12;
-    const time = `${displayHours.toString().padStart(2, "0")}:${minutes}:${seconds}`;
+    const time = `${displayHours.toString().padStart(2, "0")}:${minutes}`;
     return { date, time, ampm: ampmValue };
   };
 
@@ -94,14 +98,7 @@ const AppointmentInfoForm = ({
     date: initialDate,
     time: initialTime,
     ampm: initialAmpm,
-  } = parseTimeString(
-    form.getValues("time") ||
-      (() => {
-        const now = new Date();
-        now.setHours(9, 0, 0, 0);
-        return now.toISOString();
-      })(),
-  );
+  } = parseTimeString(form.getValues("time"), timezone);
 
   // Local state
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -113,22 +110,56 @@ const AppointmentInfoForm = ({
   );
   const hasClientError = !!form.formState.errors.customer;
 
-  // Update form's time field
   const updateFormTime = (
     date: Date | undefined,
     time: string,
     ampm: "AM" | "PM",
+    timezone: string, // e.g., "America/Los_Angeles"
   ) => {
-    if (date && time) {
-      let [hours, minutes, seconds] = time.split(":").map(Number);
+    if (!date || !time) {
+      console.warn("Invalid date or time provided to updateFormTime");
+      form.setValue("time", "", { shouldValidate: true });
+      return;
+    }
+
+    try {
+      // Parse the time string (e.g., "09:30")
+      const [hoursStr, minutesStr] = time.split(":").map(Number);
+      let hours = hoursStr || 0;
+      const minutes = minutesStr || 0;
+
       // Adjust hours for AM/PM
       if (ampm === "PM" && hours < 12) hours += 12;
       if (ampm === "AM" && hours === 12) hours = 0;
-      const combinedDate = new Date(date);
-      combinedDate.setHours(hours, minutes, seconds || 0);
-      form.setValue("time", combinedDate.toISOString());
-    } else {
-      form.setValue("time", "");
+
+      // Create a new Date object with the selected date and time
+      const localDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        hours,
+        minutes,
+        0, // Seconds set to 0
+      );
+
+      // Convert the local date/time in the specified timezone to UTC
+      const utcDate = fromZonedTime(localDate, timezone);
+
+      // Validate the resulting date
+      if (isNaN(utcDate.getTime())) {
+        console.warn("Invalid UTC date calculated");
+        form.setValue("time", "", { shouldValidate: true });
+        return;
+      }
+
+      // Log for debugging
+      console.log("UTC Date:", utcDate.toUTCString()); // e.g., Fri, 01 Aug 2025 16:30:00 GMT
+
+      // Set the form value to the UTC ISO string
+      form.setValue("time", utcDate.toISOString(), { shouldValidate: true }); // e.g., 2025-08-01T16:30:00.000Z
+    } catch (error) {
+      console.error("Error in updateFormTime:", error);
+      form.setValue("time", "", { shouldValidate: true });
     }
   };
 
@@ -214,7 +245,12 @@ const AppointmentInfoForm = ({
                           captionLayout="dropdown"
                           onSelect={(date) => {
                             setSelectedDate(date);
-                            updateFormTime(date, selectedTime, selectedAmpm);
+                            updateFormTime(
+                              date,
+                              selectedTime,
+                              selectedAmpm,
+                              timezone,
+                            );
                             setOpen(false);
                           }}
                         />
@@ -235,7 +271,12 @@ const AppointmentInfoForm = ({
                         onChange={(e) => {
                           const newTime = e.target.value;
                           setSelectedTime(newTime);
-                          updateFormTime(selectedDate, newTime, selectedAmpm);
+                          updateFormTime(
+                            selectedDate,
+                            newTime,
+                            selectedAmpm,
+                            timezone,
+                          );
                         }}
                         className="bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-datetime-edit-ampm-field]:hidden"
                       />
@@ -243,7 +284,12 @@ const AppointmentInfoForm = ({
                         value={selectedAmpm}
                         onValueChange={(value: "AM" | "PM") => {
                           setSelectedAmpm(value);
-                          updateFormTime(selectedDate, selectedTime, value);
+                          updateFormTime(
+                            selectedDate,
+                            selectedTime,
+                            value,
+                            timezone,
+                          );
                         }}
                       >
                         <SelectTrigger className="w-20">
@@ -520,7 +566,10 @@ const AppointmentInfoForm = ({
               ),
               cell: ({ row }: { row: any }) => (
                 <div>
-                  {format(new Date(row.original.startTime), "dd/MM/yyyy HH:mm")}
+                  {format(
+                    toZonedTime(new Date(row.original.startTime), timezone),
+                    "dd/MM/yyyy HH:mm",
+                  )}
                 </div>
               ),
             },
@@ -540,7 +589,10 @@ const AppointmentInfoForm = ({
               ),
               cell: ({ row }: { row: any }) => (
                 <div>
-                  {format(new Date(row.original.endTime), "dd/MM/yyyy HH:mm")}
+                  {format(
+                    toZonedTime(new Date(row.original.endTime), timezone),
+                    "dd/MM/yyyy HH:mm",
+                  )}
                 </div>
               ),
             },

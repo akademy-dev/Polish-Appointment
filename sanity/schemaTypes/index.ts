@@ -13,6 +13,7 @@ import verificationToken from "./verificationToken";
 import passwordResetToken from "./passwordResetToken";
 import twoFactorToken from "./twoFactorToken";
 import twoFactorConfirmation from "./twoFactorConfirmation";
+import { setting } from "@/sanity/schemaTypes/setting";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -30,5 +31,6 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     passwordResetToken,
     twoFactorToken,
     twoFactorConfirmation,
+    setting,
   ],
 };

@@ -255,3 +255,10 @@ export const UPDATE_APPOINTMENT_STATUS_QUERY = defineQuery(
   status   
   }`,
 );
+
+export const TIMEZONE_QUERY = defineQuery(
+  `*[_type == "setting"][0]{
+  _id,
+  timezone
+}`,
+);

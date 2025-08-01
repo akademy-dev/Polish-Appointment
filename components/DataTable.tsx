@@ -43,6 +43,7 @@ interface DataTableProps<TData, TValue> {
   searchColumn?: string; // Optional search column
   isShowPagination?: boolean; // Optional prop to show pagination
   getRowId?: (row: TData, index: number) => string; // <-- Add this line
+  searchName?: string; // Optional search name
 }
 
 export const columns: ColumnDef<HistoryData>[] = [
@@ -97,6 +98,7 @@ const DataTable = <TData, TValue>({
   height,
   titleEmpty,
   searchColumn = "customer",
+  searchName = "Search",
   isShowPagination = true,
   getRowId,
 }: DataTableProps<TData, TValue>) => {
@@ -142,7 +144,7 @@ const DataTable = <TData, TValue>({
           </span>
           <Input
             id="history-search"
-            placeholder="Search"
+            placeholder={searchName}
             value={
               (table.getColumn(searchColumn)?.getFilterValue() as string) ?? ""
             }

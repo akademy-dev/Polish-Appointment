@@ -1,9 +1,12 @@
-import AppointmentSchedule from "@/components/AppointmentSchedule";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import {
   ALL_EMPLOYEES_QUERY,
   APPOINTMENTS_BY_DATE_QUERY,
+  TIMEZONE_QUERY,
 } from "@/sanity/lib/queries";
+import AppointmentScheduleTimezone from "@/components/AppointmentScheduleTimezone";
+import moment from "moment-timezone";
+import { getIanaTimezone, parseOffset } from "@/lib/utils";
 
 interface PageProps {
   searchParams: Promise<{
@@ -15,8 +18,19 @@ interface PageProps {
 
 const page = async ({ searchParams }: PageProps) => {
   const resolvedSearchParams = await searchParams;
-  const date =
-    resolvedSearchParams.date || new Date().toISOString().split("T")[0];
+
+  const timezone = await sanityFetch({
+    query: TIMEZONE_QUERY,
+    params: {},
+  });
+
+  moment.tz.setDefault(getIanaTimezone(parseOffset(timezone.data.timezone)));
+  const date = resolvedSearchParams.date
+    ? resolvedSearchParams.date
+    : moment
+        .tz(new Date(), getIanaTimezone(parseOffset(timezone.data.timezone)))
+        .format("YYYY-MM-DD");
+
   const notWorking = resolvedSearchParams.notWorking === "true";
   const cancelled = resolvedSearchParams.cancelled === "true";
 
@@ -36,7 +50,7 @@ const page = async ({ searchParams }: PageProps) => {
 
   return (
     <>
-      <AppointmentSchedule
+      <AppointmentScheduleTimezone
         initialEmployees={employees.data}
         initialAppointments={appointments.data}
         currentDate={date}

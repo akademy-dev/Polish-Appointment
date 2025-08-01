@@ -1,7 +1,8 @@
 import React from "react";
 import { AppointmentDataTable } from "@/components/AppointmentDataTable";
-import { APPOINTMENTS_QUERY } from "@/sanity/lib/queries";
+import { APPOINTMENTS_QUERY, TIMEZONE_QUERY } from "@/sanity/lib/queries";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
+import { parseOffset } from "@/lib/utils";
 
 interface PageProps {
   searchParams: Promise<{
@@ -30,6 +31,10 @@ const page = async ({ searchParams }: PageProps) => {
     },
   });
 
+  const timezone = await sanityFetch({
+    query: TIMEZONE_QUERY,
+  });
+
   return (
     <>
       <h2 className="heading">Appointments</h2>
@@ -41,6 +46,7 @@ const page = async ({ searchParams }: PageProps) => {
           status,
           searchTerm,
           limit,
+          timezone: parseOffset(timezone.data.timezone),
         }}
       />
       <SanityLive />

@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Appointment } from "@/models/appointment";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 
 // Define a custom meta interface to include className
 interface CustomColumnMeta<TData, TValue> extends ColumnMeta<TData, TValue> {
@@ -63,6 +64,7 @@ interface AppointmentDataTableProps {
     status: string;
     searchTerm: string;
     limit: number;
+    timezone: string;
   };
 }
 
@@ -173,7 +175,13 @@ export function AppointmentDataTable({
         header: "Start Time",
         cell: ({ row }: { row: { original: Appointment } }) => (
           <div>
-            {format(new Date(row.original.startTime), "dd/MM/yyyy HH:mm")}
+            {format(
+              toZonedTime(
+                new Date(row.original.startTime),
+                initialParams.timezone,
+              ),
+              "dd/MM/yyyy HH:mm",
+            )}
           </div>
         ),
       },
@@ -182,7 +190,13 @@ export function AppointmentDataTable({
         header: "End Time",
         cell: ({ row }: { row: { original: Appointment } }) => (
           <div>
-            {format(new Date(row.original.endTime), "dd/MM/yyyy HH:mm")}
+            {format(
+              toZonedTime(
+                new Date(row.original.endTime),
+                initialParams.timezone,
+              ),
+              "dd/MM/yyyy HH:mm",
+            )}
           </div>
         ),
       },

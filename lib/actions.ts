@@ -474,3 +474,26 @@ export const deleteService = async (_id: string) => {
     });
   }
 };
+
+export const updateTimezone = async (_id: string, timezone: string) => {
+  try {
+    const result = await writeClient
+      .patch(_id)
+      .set({
+        timezone,
+      })
+      .commit();
+
+    return parseServerActionResponse({
+      ...result,
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    console.log(error);
+    return parseServerActionResponse({
+      error: JSON.stringify(error),
+      status: "ERROR",
+    });
+  }
+};

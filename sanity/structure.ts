@@ -21,4 +21,5 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem("twoFactorConfirmation").title(
         "Two Factor Confirmations",
       ),
+      S.documentTypeListItem("setting").title("Setting"),
     ]);

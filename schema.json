@@ -730,6 +730,16 @@
         },
         "optional": true
       },
+      "reminderDateTimes": {
+        "type": "objectAttribute",
+        "value": {
+          "type": "array",
+          "of": {
+            "type": "string"
+          }
+        },
+        "optional": true
+      },
       "smsMessage": {
         "type": "objectAttribute",
         "value": {

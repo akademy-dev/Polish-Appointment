@@ -16,7 +16,7 @@ import {
   momentLocalizer,
   Views,
 } from "react-big-calendar";
-import moment from "moment";
+import moment from "moment-timezone";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -48,9 +48,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { addMinutes, format, isWithinInterval, parse } from "date-fns";
+import { getIanaTimezone } from "@/lib/utils";
 
-const localizer = momentLocalizer(moment);
 const DragAndDropCalendar = withDragAndDrop(Calendar);
 
 interface CalendarEvent {
@@ -76,95 +75,100 @@ interface AppointmentScheduleProps {
   cancelled?: boolean;
 }
 
+export const formatToISO8601 = (
+  date: Date,
+  time: string,
+  timezone: string,
+): string => {
+  const dateMoment = moment.tz(date, getIanaTimezone(timezone));
+  const [hours, minutes] =
+    time.includes("AM") || time.includes("PM")
+      ? moment(time, "h:mm A").format("HH:mm").split(":")
+      : time.split(":");
+  return dateMoment
+    .set({
+      hour: parseInt(hours, 10),
+      minute: parseInt(minutes, 10),
+      second: 0,
+      millisecond: 0,
+    })
+    .toISOString();
+};
+
 const generateNotWorkingEvents = (
   employees: Employee[],
   standardStart: string,
   standardEnd: string,
-  startDate: Date,
-) => {
+  currentDate: Date,
+  timezone: string,
+): CalendarEvent[] => {
   const notWorkingEvents: any[] = [];
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const dayIndex = startDate.getDay();
+  // Chuyển currentDate sang múi giờ cụ thể và lấy thông tin ngày
+  const momentDate = moment.tz(currentDate, getIanaTimezone(timezone));
+  const dayIndex = momentDate.day(); // Lấy chỉ số ngày trong tuần (0 = Sun, 1 = Mon, ...)
   const dayOfWeek = daysOfWeek[dayIndex];
-  const currentDate = new Date(startDate.setHours(0, 0, 0, 0));
+
+  // Convert standard times to ISO 8601
+  const standardStartTime = formatToISO8601(
+    currentDate,
+    standardStart,
+    timezone,
+  );
+  const standardEndTime = formatToISO8601(currentDate, standardEnd, timezone);
 
   employees.forEach((employee) => {
     const workingTimes = employee.workingTimes || [];
     const workSchedule = workingTimes.find((wt) => wt.day === dayOfWeek);
 
-    const standardStartTime = parse(
-      `${format(currentDate, "yyyy-MM-dd")} ${standardStart}`,
-      "yyyy-MM-dd h:mm a",
-      new Date(),
-    );
-    const standardEndTime = parse(
-      `${format(currentDate, "yyyy-MM-dd")} ${standardEnd}`,
-      "yyyy-MM-dd h:mm a",
-      new Date(),
-    );
-
     if (!workSchedule) {
+      // No work schedule: employee is not working for the entire standard period
       notWorkingEvents.push({
         id: `not_working_${employee._id}_${dayOfWeek}`,
-        start: standardStartTime,
-        end: standardEndTime,
+        start: moment.tz(standardStartTime, getIanaTimezone(timezone)).toDate(),
+        end: moment.tz(standardEndTime, getIanaTimezone(timezone)).toDate(),
         title: "Not Working",
         resourceId: employee._id,
         type: "not_working",
       });
     } else {
-      const workStart = parse(
-        `${format(currentDate, "yyyy-MM-dd")} ${workSchedule.from}`,
-        "yyyy-MM-dd h:mm a",
-        new Date(),
+      const workStart = formatToISO8601(
+        currentDate,
+        workSchedule.from,
+        timezone,
       );
-      const workEnd = parse(
-        `${format(currentDate, "yyyy-MM-dd")} ${workSchedule.to}`,
-        "yyyy-MM-dd h:mm a",
-        new Date(),
+      const workEnd = formatToISO8601(currentDate, workSchedule.to, timezone);
+
+      const workStartMoment = moment.tz(workStart, getIanaTimezone(timezone));
+      const workEndMoment = moment.tz(workEnd, getIanaTimezone(timezone));
+      const standardStartMoment = moment.tz(
+        standardStartTime,
+        getIanaTimezone(timezone),
+      );
+      const standardEndMoment = moment.tz(
+        standardEndTime,
+        getIanaTimezone(timezone),
       );
 
-      if (workStart > standardStartTime) {
+      if (workStartMoment.isAfter(standardStartMoment)) {
+        // Employee starts later than standard start time
         notWorkingEvents.push({
-          id: `not_working_${employee._id}_${dayOfWeek}_before`,
-          start: standardStartTime,
-          end: workStart,
+          id: `not_working_${employee._id}_${dayOfWeek}_start`,
+          start: standardStartMoment.toDate(),
+          end: workStartMoment.toDate(),
           title: "Not Working",
           resourceId: employee._id,
           type: "not_working",
         });
       }
 
-      if (workEnd < standardEndTime) {
+      if (workEndMoment.isAfter(standardEndMoment)) {
+        // Employee ends later than standard end time
         notWorkingEvents.push({
-          id: `not_working_${employee._id}_${dayOfWeek}_after`,
-          start: workEnd,
-          end: standardEndTime,
-          title: "Not Working",
-          resourceId: employee._id,
-          type: "not_working",
-        });
-      }
-
-      const notWorkingStart = parse(
-        `${format(currentDate, "yyyy-MM-dd")} 8:00 AM`,
-        "yyyy-MM-dd h:mm a",
-        new Date(),
-      );
-      const notWorkingEnd = addMinutes(notWorkingStart, 30);
-
-      if (
-        isWithinInterval(notWorkingStart, {
-          start: workStart,
-          end: workEnd,
-        }) &&
-        isWithinInterval(notWorkingEnd, { start: workStart, end: workEnd })
-      ) {
-        notWorkingEvents.push({
-          id: `not_working_${employee._id}_${dayOfWeek}_specific`,
-          start: notWorkingStart,
-          end: notWorkingEnd,
+          id: `not_working_${employee._id}_${dayOfWeek}_end`,
+          start: workEndMoment.toDate(),
+          end: standardEndMoment.toDate(),
           title: "Not Working",
           resourceId: employee._id,
           type: "not_working",
@@ -176,135 +180,7 @@ const generateNotWorkingEvents = (
   return notWorkingEvents;
 };
 
-const isValidTimeString = (timeStr: string): boolean => {
-  const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i;
-  return timeRegex.test(timeStr.trim());
-};
-
-const setTimeToDate = (date: Date, timeStr: string): Date | null => {
-  timeStr = timeStr.trim();
-  if (!isValidTimeString(timeStr)) {
-    console.error(
-      `Invalid time format: ${timeStr}. Expected HH:mm AM/PM (e.g., "10:00 AM").`,
-    );
-    return null;
-  }
-
-  // Tách giờ, phút, và AM/PM
-  const [time, period] = timeStr.split(" ");
-  const [hoursStr, minutesStr] = time.split(":");
-  let hours = parseInt(hoursStr, 10);
-  const minutes = parseInt(minutesStr, 10);
-
-  // Chuyển đổi giờ 12h sang 24h
-  if (period.toUpperCase() === "PM" && hours !== 12) {
-    hours += 12;
-  } else if (period.toUpperCase() === "AM" && hours === 12) {
-    hours = 0;
-  }
-
-  const newDate = new Date(date);
-  newDate.setHours(hours, minutes, 0, 0);
-
-  // Kiểm tra Date hợp lệ
-  if (isNaN(newDate.getTime())) {
-    console.error(`Invalid Date created from: ${date}, ${timeStr}`);
-    return null;
-  }
-
-  return newDate;
-};
-const generateTimeOffEvents = (
-  employees: Employee[],
-  date: Date,
-): CalendarEvent[] => {
-  const events: any[] = [];
-
-  // Duyệt qua từng nhân viên
-  employees.forEach((employee) => {
-    if (!employee.timeOffSchedules || employee.timeOffSchedules.length === 0) {
-      return;
-    }
-    employee.timeOffSchedules.forEach((schedule) => {
-      const {
-        period,
-        date: scheduleDate,
-        from,
-        to,
-        reason,
-        dayOfWeek,
-        dayOfMonth,
-      } = schedule;
-
-      // Kiểm tra xem schedule có khớp với ngày hiện tại không
-      let isMatchingDate = false;
-
-      switch (period) {
-        case "Exact":
-          // So sánh ngày cụ thể
-          if (scheduleDate) {
-            const exactDate = new Date(scheduleDate);
-            isMatchingDate =
-              exactDate.getFullYear() === date.getFullYear() &&
-              exactDate.getMonth() === date.getMonth() &&
-              exactDate.getDate() === date.getDate();
-          }
-          break;
-
-        case "Daily":
-          // Daily luôn khớp vì là hàng ngày
-          isMatchingDate = true;
-          break;
-
-        case "Weekly":
-          // Kiểm tra ngày trong tuần (0 = Chủ nhật, 1 = Thứ hai, ..., 6 = Thứ bảy)
-          if (dayOfWeek) {
-            const currentDayOfWeek = date.getDay();
-            // Chuyển đổi getDay() sang hệ thống dayOfWeek (giả sử 1 = Thứ hai, 7 = Chủ nhật)
-            const adjustedDayOfWeek =
-              currentDayOfWeek === 0 ? 7 : currentDayOfWeek;
-            isMatchingDate = dayOfWeek.includes(adjustedDayOfWeek);
-          }
-          break;
-
-        case "Monthly":
-          // Kiểm tra ngày trong tháng
-          if (dayOfMonth) {
-            const currentDayOfMonth = date.getDate();
-            isMatchingDate = dayOfMonth.includes(currentDayOfMonth);
-          }
-          break;
-
-        default:
-          break;
-      }
-
-      // Nếu ngày khớp, tạo sự kiện
-      if (isMatchingDate) {
-        // Chuyển đổi giờ từ chuỗi sang Date
-        if (!from || !to) {
-          return;
-        }
-        const startTime = setTimeToDate(date, from);
-        const endTime = setTimeToDate(date, to);
-
-        const event = {
-          id: `time_off_${employee._id}_${scheduleDate || date.toISOString()}`,
-          start: startTime,
-          end: endTime,
-          title: `Time Off`,
-          resourceId: employee._id,
-          type: "timeOff",
-        };
-
-        events.push(event);
-      }
-    });
-  });
-  return events;
-};
-
-const AppointmentSchedule = ({
+const AppointmentScheduleTimezone = ({
   initialEmployees,
   initialAppointments,
   currentDate,
@@ -313,8 +189,12 @@ const AppointmentSchedule = ({
 }: AppointmentScheduleProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { date, setDate, isLoading, setIsLoading } =
+  const { date, setDate, isLoading, setIsLoading, timezone } =
     useContext(CalendarContext);
+
+  moment.tz.setDefault(getIanaTimezone(timezone));
+  const localizer = momentLocalizer(moment);
+
   const isMobile = useIsMobile();
   const [isPending, startTransition] = useTransition();
   const [processing, setProcessing] = useState(false);
@@ -326,13 +206,29 @@ const AppointmentSchedule = ({
   const [showConfirm, setShowConfirm] = useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
 
+  // Chuẩn hóa ngày khi múi giờ thay đổi
+  useEffect(() => {
+    const momentDate = moment.tz(date, getIanaTimezone(timezone));
+    const normalizedDate = momentDate.startOf("day").toDate(); // Chuẩn hóa về đầu ngày
+    const currentTimestamp = date.getTime();
+    const normalizedTimestamp = normalizedDate.getTime();
+
+    // Chỉ cập nhật nếu timestamp khác
+    if (currentTimestamp !== normalizedTimestamp) {
+      setDate(normalizedDate);
+    }
+  }, [timezone, date, setDate]);
+
+  // Kiểm tra nhân viên không làm việc cả ngày theo múi giờ ứng dụng
   const isEmployeeNotWorkingAllDay = (employee: Employee, date: Date) => {
     const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const dayOfWeek = daysOfWeek[date.getDay()];
+    const momentDate = moment.tz(date, getIanaTimezone(timezone));
+    const dayOfWeek = daysOfWeek[momentDate.day()];
     const workingTimes = employee.workingTimes || [];
     return !workingTimes.some((wt) => wt.day === dayOfWeek);
   };
 
+  // Lọc nhân viên dựa trên trạng thái làm việc
   const filteredEmployees = useMemo(() => {
     if (notWorking) {
       return initialEmployees || [];
@@ -341,10 +237,12 @@ const AppointmentSchedule = ({
       (employee) =>
         !isEmployeeNotWorkingAllDay(
           employee,
-          currentDate ? new Date(currentDate) : new Date(),
+          currentDate
+            ? moment.tz(currentDate, getIanaTimezone(timezone)).toDate()
+            : moment.tz(new Date(), getIanaTimezone(timezone)).toDate(),
         ),
     );
-  }, [initialEmployees, currentDate, notWorking]);
+  }, [initialEmployees, currentDate, notWorking, timezone]);
 
   // Memoize resources
   const resources = useMemo(
@@ -358,70 +256,90 @@ const AppointmentSchedule = ({
 
   // Memoize not working events
   const notWorkingEvents = useMemo(() => {
+    // Đảm bảo currentDate ở đầu ngày với múi giờ cụ thể
+    const dateAtStartOfDay = currentDate
+      ? moment
+          .tz(currentDate, getIanaTimezone(timezone))
+          .startOf("day")
+          .toDate()
+      : moment
+          .tz(new Date(), getIanaTimezone(timezone))
+          .startOf("day")
+          .toDate();
+
     return generateNotWorkingEvents(
       initialEmployees,
       "8:00 AM",
       "6:00 PM",
-      currentDate ? new Date(currentDate) : new Date(),
+      dateAtStartOfDay,
+      timezone,
     );
-  }, [initialEmployees, currentDate]);
+  }, [initialEmployees, currentDate, timezone]);
 
-  // Memoize time off events
-  const timeOffEvents = useMemo(() => {
-    return generateTimeOffEvents(
-      initialEmployees,
-      currentDate ? new Date(currentDate) : new Date(),
-    );
-  }, [initialEmployees, currentDate]);
-
-  // Memoize appointment events
-  const appointmentEvents = useMemo(
-    () =>
-      (initialAppointments || []).map((appointment: Appointment) => ({
-        id: appointment._id,
-        start: new Date(appointment.startTime),
-        end: new Date(appointment.endTime),
-        title: appointment.service.name,
-        resourceId: appointment.employee?._id,
-        data: appointment,
+  // Ánh xạ initialAppointments thành sự kiện lịch
+  const appointmentEvents = useMemo(() => {
+    return (initialAppointments || []).map((appt: Appointment) => {
+      const startMoment = moment.tz(appt.startTime, getIanaTimezone(timezone));
+      const endMoment = appt.endTime
+        ? moment.tz(appt.endTime, getIanaTimezone(timezone))
+        : startMoment.clone().add(appt.duration || 30, "minutes");
+      return {
+        id: appt._id,
+        start: startMoment.toDate(),
+        end: endMoment.toDate(),
+        title: appt.service?.name || "Appointment",
+        resourceId: appt.employee?._id,
+        data: appt,
         type: "appointment",
-      })),
-    [initialAppointments],
-  );
+      };
+    });
+  }, [initialAppointments, timezone]);
 
-  // State for events
+  // State cho sự kiện
   const [myEvents, setEvents] = useState<CalendarEvent[]>([]);
 
-  // Update events when appointmentEvents or notWorkingEvents change or timeOffEvents change
+  // Cập nhật sự kiện khi appointmentEvents hoặc notWorkingEvents thay đổi
   useEffect(() => {
     setProcessing(true);
-    setEvents([...appointmentEvents, ...notWorkingEvents, ...timeOffEvents]);
+    const filteredEvents = [
+      ...notWorkingEvents,
+      ...(cancelled
+        ? appointmentEvents
+        : appointmentEvents.filter(
+            (event) => event.data.status !== "cancelled",
+          )),
+    ];
+    setEvents(filteredEvents);
     setProcessing(false);
-  }, [appointmentEvents, notWorkingEvents, timeOffEvents]);
-
-  // Update date when currentDate changes
-  useEffect(() => {
-    if (currentDate) {
-      const parsedDate = new Date(currentDate);
-      setDate(parsedDate);
-    }
-  }, [currentDate, setDate]);
+  }, [notWorkingEvents, appointmentEvents, cancelled]);
 
   // Reset isLoading when initialAppointments change (indicating fetch complete)
   useEffect(() => {
     setIsLoading(false);
   }, [initialAppointments, setIsLoading]);
 
+  const updateUrlParams = (updates: Record<string, string | boolean>) => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      currentParams.set(key, value.toString());
+    });
+    const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
+    router.push(newUrl);
+  };
+
   // Handle date change with transition
   const handleDateChange = (newDate: Date) => {
-    setIsLoading(true); // Set loading immediately
+    setIsLoading(true);
     startTransition(() => {
-      setDate(newDate);
-      const currentParams = new URLSearchParams(window.location.search);
-      const formattedDate = format(newDate, "yyyy-MM-dd");
-      currentParams.set("date", formattedDate);
-      const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
-      router.push(newUrl);
+      const normalizedDate = moment
+        .tz(newDate, getIanaTimezone(timezone))
+        .startOf("day")
+        .toDate();
+      setDate(normalizedDate);
+      updateUrlParams({
+        date: moment(normalizedDate).format("YYYY-MM-DD"),
+      });
+      setIsLoading(false);
     });
   };
 
@@ -595,6 +513,7 @@ const AppointmentSchedule = ({
       };
 
       setType("create");
+      console.log("Selected Slot Start:", start.toISOString());
       appointmentForm.setValue("time", start.toISOString());
       appointmentForm.setValue("employee", {
         _ref: resourceId,
@@ -618,7 +537,6 @@ const AppointmentSchedule = ({
 
     setType("edit");
     setAppointmentId(calendarEvent.data._id);
-    console.log("Selected Event:", calendarEvent);
     appointmentForm.setValue("time", calendarEvent.data.startTime.toString());
     appointmentForm.setValue("employee", {
       _ref: calendarEvent.resourceId.toString(),
@@ -769,23 +687,28 @@ const AppointmentSchedule = ({
 
   const CustomToolbar = (toolbar: any) => {
     const goToBack = () => {
-      const newDate = new Date(toolbar.date);
-      newDate.setDate(newDate.getDate() - 1);
+      const currentDate = moment.tz(toolbar.date, getIanaTimezone(timezone));
+      const newDate = currentDate.subtract(1, "day").startOf("day");
+      console.log("Previous Date:", newDate.format("YYYY-MM-DD HH:mm:ss z"));
       toolbar.onNavigate("PREV");
-      handleDateChange(newDate);
+      handleDateChange(newDate.toDate());
     };
 
     const goToNext = () => {
-      const newDate = new Date(toolbar.date);
-      newDate.setDate(newDate.getDate() + 1);
+      const currentDate = moment.tz(toolbar.date, getIanaTimezone(timezone));
+      const newDate = currentDate.add(1, "day").startOf("day");
+      console.log("Next Date:", newDate.format("YYYY-MM-DD HH:mm:ss z"));
       toolbar.onNavigate("NEXT");
-      handleDateChange(newDate);
+      handleDateChange(newDate.toDate());
     };
 
     const goToToday = () => {
-      const today = new Date();
+      const today = moment
+        .tz(new Date(), getIanaTimezone(timezone))
+        .startOf("day");
+      console.log("Today:", today.format("YYYY-MM-DD HH:mm:ss z"));
       toolbar.onNavigate("TODAY");
-      handleDateChange(today);
+      handleDateChange(today.toDate());
     };
 
     return (
@@ -853,6 +776,14 @@ const AppointmentSchedule = ({
             defaultView={Views.DAY}
             events={myEvents}
             localizer={localizer}
+            min={moment
+              .tz(getIanaTimezone(timezone))
+              .set({ hour: 2, minute: 0, second: 0, millisecond: 0 })
+              .toDate()}
+            max={moment
+              .tz(getIanaTimezone(timezone))
+              .set({ hour: 18, minute: 0, second: 0, millisecond: 0 })
+              .toDate()}
             // dayLayoutAlgorithm={"no-overlap"}
             resources={resources}
             resourceIdAccessor={(resource) => (resource as Resource).resourceId}
@@ -865,8 +796,6 @@ const AppointmentSchedule = ({
             onSelectEvent={handleSelectEvent}
             onEventDrop={moveEvent}
             onEventResize={resizeEvent}
-            min={new Date(1970, 1, 1, 8, 0, 0)}
-            max={new Date(1970, 1, 1, 18, 0, 0)}
             step={15}
             timeslots={1}
             views={[Views.DAY]}
@@ -991,4 +920,4 @@ const AppointmentSchedule = ({
   );
 };
 
-export default AppointmentSchedule;
+export default AppointmentScheduleTimezone;

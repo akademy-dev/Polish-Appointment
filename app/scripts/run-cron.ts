@@ -1,13 +1,16 @@
 import twilio from "twilio";
 import {
   SEND_SMS_QUERY,
+  TIMEZONE_QUERY,
   UPDATE_APPOINTMENT_STATUS_QUERY,
 } from "@/sanity/lib/queries";
 import { Appointment } from "@/models/appointment";
+import { formatInTimeZone } from "date-fns-tz";
 
 import * as dotenv from "dotenv";
 import * as path from "path";
 import { createClient } from "next-sanity";
+import { parseOffset } from "@/lib/utils";
 
 // Load .env.local
 dotenv.config({ path: path.resolve(".env.local") });
@@ -42,7 +45,7 @@ const twilioClient = twilio(accountSid, authToken);
 async function runCronJob() {
   const VARIABLE_LIST = ["Customer", "Employee", "Service", "Date Time"];
   try {
-    // Tính khoảng thời gian: từ 5 phút trước đến hiện tại
+    // Tính khoảng thời gian: từ 5 phút trước đến hiện tại (sử dụng UTC để tránh lệ thuộc timezone cục bộ)
     const now = new Date();
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
@@ -52,9 +55,12 @@ async function runCronJob() {
       endTime: now.toISOString(),
     });
 
+    const timezone = await client.fetch(TIMEZONE_QUERY);
+
     console.log("Start Time:", fiveMinutesAgo.toISOString());
     console.log("End Time:", now.toISOString());
     console.log("Appointments to process:", appointments);
+    console.log("Timezone:", timezone);
 
     for (const appointment of appointments) {
       let messageBody = appointment.smsMessage;
@@ -77,15 +83,20 @@ async function runCronJob() {
             messageBody = messageBody.replace(regex, appointment.service.name);
             break;
           case "Date Time":
-            messageBody = messageBody.replace(
-              regex,
-              new Date(appointment.startTime).toLocaleString(),
+            // Sử dụng Intl.DateTimeFormat để format theo timezone cụ thể, tránh lệ thuộc timezone cục bộ của server
+            const formattedDate = formatInTimeZone(
+              new Date(appointment.startTime),
+              parseOffset(timezone.timezone),
+              "yyyy-MM-dd hh:mm a",
             );
+            messageBody = messageBody.replace(regex, formattedDate);
+
             break;
         }
       });
 
-      // Gửi thông báo qua Twilio
+      console.log(messageBody);
+
       await twilioClient.messages.create({
         body: messageBody,
         from: twilioPhoneNumber,

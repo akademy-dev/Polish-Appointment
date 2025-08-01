@@ -143,33 +143,33 @@ export type Appointment = {
   reminder: Array<"1h" | "2h" | "12h" | "24h" | "2d">;
   smsMessage: string;
   employee: {
-    _id: string;
     _ref: string;
-    firstName: string;
-    lastName: string;
-    fullName?: string;
     _type: "reference";
     _weak?: boolean;
+    _id: string;
+    fullName: string;
+    firstName?: string;
+    lastName?: string;
     [internalGroqTypeReferenceTo]?: "employee";
   };
   customer: {
-    _id: string;
     _ref: string;
-    firstName: string;
-    lastName: string;
-    fullName?: string;
-    phone: string;
     _type: "reference";
     _weak?: boolean;
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    phone: string;
+
     [internalGroqTypeReferenceTo]?: "customer";
   };
   service: {
-    _id: string;
     _ref: string;
-    name: string;
-    duration: number;
     _type: "reference";
     _weak?: boolean;
+    _id: string;
+    name: string;
+    duration: number;
     [internalGroqTypeReferenceTo]?: "service";
   };
   status: "scheduled" | "completed" | "cancelled";
@@ -177,9 +177,9 @@ export type Appointment = {
 
 export type WorkingTime = {
   _type: "workingTime";
-  from?: string;
-  to?: string;
-  day?: string;
+  from: string;
+  to: string;
+  day: string;
 };
 
 export type TimeOffSchedule = {
@@ -240,7 +240,7 @@ export type Service = {
   };
   name?: string;
   price?: number;
-  duration: number;
+  duration?: number;
   showOnline?: boolean;
 };
 

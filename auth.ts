@@ -51,7 +51,7 @@ export const {
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 604800 },
   adapter: SanityAdapter(client),
   callbacks: {
     async signIn({ user, account }) {

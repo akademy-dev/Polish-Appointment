@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import { Input } from "../ui/input";
 import { UseFormReturn } from "react-hook-form";
 import { appointmentFormSchema } from "@/lib/validation";
@@ -29,6 +29,8 @@ import { Label } from "@/components/ui/label";
 import DataTable from "@/components/DataTable";
 import { format } from "date-fns";
 import { Appointment } from "@/models/appointment";
+import { CalendarContext } from "@/hooks/context";
+import { toZonedTime } from "date-fns-tz";
 
 const AppointmentClientForm = ({
   form,
@@ -50,8 +52,8 @@ const AppointmentClientForm = ({
   setCustomerValue: (value: string) => void;
   customerHistory: Appointment[];
 }) => {
+  const { timezone } = useContext(CalendarContext);
   const hasClientError = !!form.formState.errors.customer;
-
   const [customerOpen, setCustomerOpen] = React.useState(false);
 
   return (
@@ -280,7 +282,10 @@ const AppointmentClientForm = ({
             cell: ({ row }) => {
               return (
                 <div>
-                  {format(new Date(row.original.startTime), "MM/dd/yyyy")}
+                  {format(
+                    toZonedTime(new Date(row.original.startTime), timezone),
+                    "MM/dd/yyyy",
+                  )}
                 </div>
               );
             },
@@ -292,6 +297,7 @@ const AppointmentClientForm = ({
         searchColumn="serviceName"
         isShowPagination={false}
         title={"Customer History"}
+        searchName={"Search Service"}
       />
     </div>
   );
