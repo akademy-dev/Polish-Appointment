@@ -775,6 +775,8 @@ const FormButton = ({
           titleEmpty={"No history found"}
           searchColumn={"customerFullName"}
           searchName={"Search customer..."}
+          isShowExport={true}
+          timezone={timezone}
         />
       );
     } else if (mode === "history" && type === "customers") {
@@ -850,6 +852,8 @@ const FormButton = ({
           searchColumn={"employeeFullName"}
           searchName={"Search employee..."}
           titleEmpty={"No history found"}
+          isShowExport={true}
+          timezone={timezone}
         />
       );
     }

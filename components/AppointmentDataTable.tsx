@@ -35,7 +35,7 @@ import {
 import { Appointment } from "@/models/appointment";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { Trash2 } from "lucide-react";
+import { ArrowUpFromLine, Trash2 } from "lucide-react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -317,6 +317,67 @@ export function AppointmentDataTable({
     table.setPageSize(limit);
   }, [limit, table]);
 
+  const exportData = () => {
+    const csvContent = [
+      table
+        .getHeaderGroups()
+        .map((header) =>
+          header.headers.map((h) => h.column.columnDef.header).join(","),
+        )
+        .join("\n"),
+      ...table.getRowModel().rows.map((row) =>
+        row
+          .getVisibleCells()
+          .map((cell) => cell.getValue())
+          .join(","),
+      ),
+    ].join("\n");
+
+    // delete last column (action)
+    const csvRows = csvContent.split("\n").map((row) => row.split(","));
+    const filteredRows = csvRows.map((row) => row.slice(0, -1));
+    const csvContentFiltered = filteredRows
+      .map((row) => row.join(","))
+      .join("\n");
+
+    // format the CSV content in start and end time in correct timezone
+    const formattedCsvContent = csvContentFiltered
+      .split("\n")
+      .map((row) => {
+        const columns = row.split(",");
+        if (columns.length < 5) return row; // Ensure there are enough columns
+
+        // Only format if valid date
+        const startTime = new Date(columns[3]);
+        const endTime = new Date(columns[4]);
+        columns[3] = !isNaN(startTime.getTime())
+          ? format(
+              toZonedTime(startTime, initialParams.timezone),
+              "dd/MM/yyyy HH:mm",
+            )
+          : columns[3];
+        columns[4] = !isNaN(endTime.getTime())
+          ? format(
+              toZonedTime(endTime, initialParams.timezone),
+              "dd/MM/yyyy HH:mm",
+            )
+          : columns[4];
+        return columns.join(",");
+      })
+      .join("\n");
+
+    const blob = new Blob([formattedCsvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "appointments.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <>
       <div className="w-full">
@@ -378,6 +439,11 @@ export function AppointmentDataTable({
                 </SelectContent>
               </Select>
             </div>
+
+            <Button onClick={() => exportData()}>
+              <ArrowUpFromLine />
+              Export
+            </Button>
           </div>
         </div>
         <div

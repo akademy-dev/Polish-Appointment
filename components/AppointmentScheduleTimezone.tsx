@@ -19,10 +19,10 @@ import {
 import moment from "moment-timezone";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CalendarContext } from "@/hooks/context";
-import { DndProvider } from "react-dnd";
+import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -349,15 +349,38 @@ const AppointmentScheduleTimezone = ({
     );
   }, [initialEmployees, currentDate, notWorking, timezone]);
 
-  // Memoize resources
-  const resources = useMemo(
-    () =>
-      filteredEmployees.map((employee: any) => ({
+  const [resources, setResources] = useState<Resource[]>(() => {
+    const savedOrder = localStorage.getItem("resourceOrder");
+    let orderedEmployees = filteredEmployees;
+    if (savedOrder) {
+      const order: string[] = JSON.parse(savedOrder);
+      orderedEmployees = [...filteredEmployees].sort(
+        (a, b) => order.indexOf(a._id) - order.indexOf(b._id),
+      );
+    }
+    return orderedEmployees.map((employee: any) => ({
+      resourceId: employee._id,
+      resourceTitle: getProfileName(employee),
+    }));
+  });
+
+  useEffect(() => {
+    const savedOrder = localStorage.getItem("resourceOrder");
+    let orderedEmployees = filteredEmployees;
+    if (savedOrder) {
+      const order: string[] = JSON.parse(savedOrder);
+      orderedEmployees = [...filteredEmployees].sort(
+        (a, b) => order.indexOf(a._id) - order.indexOf(b._id),
+      );
+    }
+    setResources(
+      orderedEmployees.map((employee: any) => ({
         resourceId: employee._id,
         resourceTitle: getProfileName(employee),
       })),
-    [filteredEmployees],
-  );
+    );
+    setIsLoading(false);
+  }, [filteredEmployees]);
 
   // Memoize not working events
   const notWorkingEvents = useMemo(() => {
@@ -882,6 +905,55 @@ const AppointmentScheduleTimezone = ({
     </div>
   );
 
+  const moveResource = (dragIndex: number, hoverIndex: number) => {
+    setResources((prevResources = []) => {
+      const updated = [...prevResources];
+      const [removed] = updated.splice(dragIndex, 1);
+      updated.splice(hoverIndex, 0, removed);
+      return updated;
+    });
+  };
+
+  useEffect(() => {
+    localStorage.setItem(
+      "resourceOrder",
+      JSON.stringify(resources.map((r) => r.resourceId)),
+    );
+  }, [resources]);
+
+  const ResourceHeader = ({
+    resource,
+    index,
+  }: {
+    resource: Resource;
+    index: number;
+  }) => {
+    const ref = React.useRef<HTMLDivElement>(null);
+    const [, drop] = useDrop({
+      accept: "RESOURCE",
+      hover(item: { index: number }) {
+        if (item.index !== index) {
+          moveResource(item.index, index);
+          item.index = index;
+        }
+      },
+    });
+    const [{ isDragging }, drag] = useDrag({
+      type: "RESOURCE",
+      item: { index },
+      collect: (monitor) => ({
+        isDragging: monitor.isDragging(),
+      }),
+    });
+    drag(drop(ref));
+    return (
+      <div ref={ref} style={{ opacity: isDragging ? 0.5 : 1, cursor: "move" }}>
+        <GripVertical size={16} style={{ marginRight: 4 }} />
+        {resource.resourceTitle}
+      </div>
+    );
+  };
+
   return (
     <div className="relative h-full w-full">
       <DndProvider backend={HTML5Backend}>
@@ -999,6 +1071,14 @@ const AppointmentScheduleTimezone = ({
                     </div>
                   );
                 }
+              },
+              resourceHeader: (props: any) => {
+                const index = resources.findIndex(
+                  (r) => r.resourceId === props.resource.resourceId,
+                );
+                return (
+                  <ResourceHeader resource={props.resource} index={index} />
+                );
               },
             }}
           />
