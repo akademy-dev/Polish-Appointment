@@ -120,8 +120,10 @@ async function runCronJob() {
         .commit();
     }
     // Cập nhật trạng thái của các cuộc hẹn đã endTime
+    process.exit(0); // Exit with code 0 for success
   } catch (error) {
     console.error("Cron Job Error:", error);
+    process.exit(1); // Exit with code 1 for error
   }
 }
 
