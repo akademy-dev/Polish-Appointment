@@ -3,11 +3,13 @@
 import { writeClient } from "@/sanity/lib/write-client";
 import { parseServerActionResponse } from "./utils";
 import { TimeOffSchedule, WorkingTime } from "@/models/profile";
+import { AssignedService } from "@/models/assignedService";
 
 export const createEmployee = async (
   form: FormData,
   workingTimes: WorkingTime[],
   timeOffSchedules: TimeOffSchedule[],
+  assignedServices: AssignedService[],
 ) => {
   const { firstName, lastName, phone, position } = Object.fromEntries(
     Array.from(form),
@@ -21,6 +23,7 @@ export const createEmployee = async (
       position,
       workingTimes,
       timeOffSchedules,
+      assignedServices,
     };
 
     //add _key for each item in workingTimes and timeOffSchedules
@@ -57,6 +60,7 @@ export const updateEmployee = async (
   form: FormData,
   workingTimes: WorkingTime[],
   timeOffSchedules: TimeOffSchedule[],
+  assignedServices: AssignedService[],
 ) => {
   const { firstName, lastName, phone, position } = Object.fromEntries(
     Array.from(form),
@@ -70,6 +74,7 @@ export const updateEmployee = async (
       position,
       workingTimes,
       timeOffSchedules,
+      assignedServices,
     };
 
     const result = await writeClient

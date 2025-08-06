@@ -71,6 +71,7 @@ import * as React from "react";
 import { formatMinuteDuration, parseOffset } from "@/lib/utils";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
+import { AssignedService } from "@/models/assignedService";
 
 type FormMode = "create" | "edit" | "history" | "delete";
 type FormType = "employees" | "customers" | "services" | "schedule";
@@ -252,6 +253,7 @@ const FormButton = ({
       position: "backRoom",
       workingTimes: [],
       timeOffSchedules: [],
+      assignedServices: [],
     },
   });
 
@@ -423,12 +425,14 @@ const FormButton = ({
         // Update mode - include _id
         const profileId = getProfileId(profile);
         console.log("Updating employee with ID:", profileId);
+        console.log("Form Values:", formValues);
 
         const result = await updateEmployee(
           profileId,
           formData,
           formValues.workingTimes as unknown as WorkingTime[],
           formValues.timeOffSchedules as unknown as TimeOffSchedule[],
+          formValues.assignedServices as unknown as AssignedService[],
         );
 
         if (result.status == "SUCCESS") {
@@ -450,6 +454,7 @@ const FormButton = ({
         formData,
         formValues.workingTimes as unknown as WorkingTime[],
         formValues.timeOffSchedules as unknown as TimeOffSchedule[],
+        formValues.assignedServices as unknown as AssignedService[],
       );
 
       if (result.status == "SUCCESS") {
@@ -959,6 +964,14 @@ const FormButton = ({
               dayOfWeek: to.dayOfWeek || [],
               dayOfMonth: to.dayOfMonth || [],
             })) || [],
+          assignedServices:
+            profile.assignedServices?.map((as) => ({
+              serviceId: as.serviceId || "",
+              price: as.price || 0,
+              duration: as.duration || 15,
+              processTime: as.processTime || 0,
+              showOnline: as.showOnline || true,
+            })) || [],
         };
         employeeForm.reset(formData);
       } else if (mode === "edit" && profile && type === "customers") {
@@ -1146,7 +1159,7 @@ const FormButton = ({
           </Button>
         </DialogTrigger>
         <DialogContent
-          className={`sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl`}
+          className={`sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl max-h-[95vh] h-[95vh] flex flex-col items-start justify-start`}
           aria-describedby="form-dialog"
         >
           <DialogHeader>

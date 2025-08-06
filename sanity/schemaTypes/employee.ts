@@ -54,5 +54,11 @@ export const employeeType = defineType({
       type: "array",
       of: [defineArrayMember({ type: "timeOffSchedule" })],
     }),
+    defineField({
+      name: "assignedServices",
+      title: "Assigned Services",
+      type: "array",
+      of: [defineArrayMember({ type: "assignedService" })],
+    }),
   ],
 });

@@ -958,7 +958,7 @@ const AppointmentScheduleTimezone = ({
     <div className="relative h-full w-full">
       <DndProvider backend={HTML5Backend}>
         <div
-          className={`h-full w-full ${processing || isLoading ? "loading" : null}`}
+          className={`h-full w-full  ${processing || isLoading ? "loading" : null}`}
         >
           {resources.length === 0 && <NoEventsOverlay />}
           <DragAndDropCalendar

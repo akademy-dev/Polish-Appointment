@@ -13,6 +13,15 @@
  */
 
 // Source: schema.json
+export type Setting = {
+  _id: string;
+  _type: "setting";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  timezone?: string;
+};
+
 export type TwoFactorToken = {
   _id: string;
   _type: "twoFactorToken";
@@ -136,50 +145,48 @@ export type Appointment = {
   _createdAt: string;
   _updatedAt: string;
   _rev: string;
-  startTime: string;
-  endTime: string;
-  duration: number;
-  note: string;
-  reminder: Array<"1h" | "2h" | "12h" | "24h" | "2d">;
-  smsMessage: string;
-  employee: {
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
+  note?: string;
+  reminder?: Array<"1h" | "2h" | "12h" | "24h" | "2d">;
+  reminderDateTimes?: Array<string>;
+  smsMessage?: string;
+  employee?: {
     _ref: string;
     _type: "reference";
     _weak?: boolean;
-    _id: string;
-    fullName: string;
-    firstName?: string;
-    lastName?: string;
     [internalGroqTypeReferenceTo]?: "employee";
   };
-  customer: {
+  customer?: {
     _ref: string;
     _type: "reference";
     _weak?: boolean;
-    _id: string;
-    firstName?: string;
-    lastName?: string;
-    phone: string;
-
     [internalGroqTypeReferenceTo]?: "customer";
   };
-  service: {
+  service?: {
     _ref: string;
     _type: "reference";
     _weak?: boolean;
-    _id: string;
-    name: string;
-    duration: number;
     [internalGroqTypeReferenceTo]?: "service";
   };
-  status: "scheduled" | "completed" | "cancelled";
+  status?: "scheduled" | "completed" | "cancelled";
+};
+
+export type AssignedService = {
+  _type: "assignedService";
+  serviceId: string;
+  price: number;
+  duration: number;
+  processTime: number;
+  showOnline: boolean;
 };
 
 export type WorkingTime = {
   _type: "workingTime";
-  from: string;
-  to: string;
-  day: string;
+  from?: string;
+  to?: string;
+  day?: string;
 };
 
 export type TimeOffSchedule = {
@@ -223,6 +230,11 @@ export type Employee = {
     {
       _key: string;
     } & TimeOffSchedule
+  >;
+  assignedServices?: Array<
+    {
+      _key: string;
+    } & AssignedService
   >;
 };
 
@@ -372,6 +384,7 @@ export type SanityAssetSourceData = {
 };
 
 export type AllSanitySchemaTypes =
+  | Setting
   | TwoFactorToken
   | PasswordResetToken
   | VerificationToken
@@ -380,6 +393,7 @@ export type AllSanitySchemaTypes =
   | TwoFactorConfirmation
   | Account
   | Appointment
+  | AssignedService
   | WorkingTime
   | TimeOffSchedule
   | Customer

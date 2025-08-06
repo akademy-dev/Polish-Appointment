@@ -12,6 +12,7 @@ import EmployeeInfoForm from "./EmployeeInfoForm";
 import EmployeeWorkingForm from "./EmployeeWorkingForm";
 import EmployeeTimeOffForm from "./EmployeeTimeOffForm";
 import { Button } from "../ui/button";
+import EmployeeAssignedServiceForm from "./EmployeeAssignedServiceForm";
 
 const EmployeeForm = ({
   className,
@@ -37,6 +38,7 @@ const EmployeeForm = ({
       position: "backRoom",
       workingTimes: [],
       timeOffSchedules: [],
+      assignedServices: [],
     },
   });
 
@@ -106,7 +108,19 @@ const EmployeeForm = ({
             )}
           </div>
         </TabsTrigger>
+        <TabsTrigger
+          value="services"
+          className={cn(
+            "relative",
+            timeoffTabErrors &&
+              "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200",
+          )}
+          disabled={isSubmitting}
+        >
+          <div className="flex items-center gap-2">Services</div>
+        </TabsTrigger>
       </TabsList>
+
       <Form {...form}>
         <form
           ref={formRef}
@@ -121,6 +135,9 @@ const EmployeeForm = ({
           </TabsContent>
           <TabsContent value="timeoff">
             <EmployeeTimeOffForm form={form} />
+          </TabsContent>
+          <TabsContent value="services">
+            <EmployeeAssignedServiceForm form={form} />
           </TabsContent>
           {!hideSubmitButton && (
             <div className="flex justify-end pt-4">

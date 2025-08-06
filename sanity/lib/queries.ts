@@ -19,20 +19,18 @@ export const SERVICES_QUERY = defineQuery(`
 }
 `);
 
-export const All_SERVICES_QUERY = defineQuery(`
-*[_type == "service" && showOnline == true]{
+export const ALL_SERVICES_QUERY = defineQuery(`
+*[_type == "service"]{
   _id,
   name,
   price,
   duration,
   showOnline,
   category -> {
-    _ref,
-    _type,
+    _id,
     name
   }
-}
-`);
+}`);
 
 export const CATEGORIES_QUERY = `*[_type == "category"]{_id, name} | order(name asc)`;
 
@@ -48,6 +46,7 @@ export const EMPLOYEES_QUERY = defineQuery(
       position,
       workingTimes,
       timeOffSchedules,
+      assignedServices,
     } | order(_createdAt desc) [($page - 1) * $limit ... $page * $limit],
     "total": count(*[_type == "employee" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || position match $search || phone match $search)])
   }`,

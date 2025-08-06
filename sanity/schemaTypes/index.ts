@@ -14,6 +14,7 @@ import passwordResetToken from "./passwordResetToken";
 import twoFactorToken from "./twoFactorToken";
 import twoFactorConfirmation from "./twoFactorConfirmation";
 import { setting } from "@/sanity/schemaTypes/setting";
+import { assignedServiceType } from "@/sanity/schemaTypes/assignedService";
 
 export const schema: { types: SchemaTypeDefinition[] } = {
   types: [
@@ -23,6 +24,7 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     customerType,
     timeOffScheduleType,
     workingType,
+    assignedServiceType,
     appointmentType,
     user,
     session,

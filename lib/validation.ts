@@ -24,6 +24,15 @@ export const workingTimeSchema = z
   .min(1, "You have to select at least one day.")
   .max(7);
 
+export const assignedServicesSchema = z.array(
+  z.object({
+    serviceId: z.string().min(1, "Service ID is required"),
+    price: z.number().min(0, "Price must be at least 0"),
+    duration: z.number().positive("Duration must be a positive number"),
+    processTime: z.number().min(0, "Process time must be at least 0 minutes"),
+    showOnline: z.boolean(),
+  }),
+);
 export const timeOffScheduleFormSchema = z.array(
   z
     .object({
@@ -92,6 +101,7 @@ export const employeeFormSchema = z.object({
   }),
   workingTimes: workingTimeSchema,
   timeOffSchedules: timeOffScheduleFormSchema,
+  assignedServices: assignedServicesSchema,
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;

@@ -11,7 +11,7 @@ import { Form } from "@/components/ui/form";
 import {
   ALL_CUSTOMERS_QUERY,
   ALL_EMPLOYEES_QUERY,
-  All_SERVICES_QUERY,
+  ALL_SERVICES_QUERY,
   APPOINTMENTS_BY_DATE_QUERY,
 } from "@/sanity/lib/queries";
 import { client } from "@/sanity/lib/client";
@@ -174,7 +174,7 @@ export const AppointmentForm = ({
       );
 
       // Fetch services
-      const servicesRes = await client.fetch(All_SERVICES_QUERY);
+      const servicesRes = await client.fetch(ALL_SERVICES_QUERY);
       setServices(servicesRes);
       const serviceRefs = form
         .getValues("services")
