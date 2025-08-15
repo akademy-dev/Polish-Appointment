@@ -54,8 +54,6 @@ export const appointmentType = defineType({
         ),
       ],
     }),
-    // array of reminder date times
-    // e.g. ["2023-10-01T10:00:00Z", "2023-10-01T11:00:00Z"]
     defineField({
       name: "reminderDateTimes",
       title: "Reminder Date Times",
@@ -67,21 +65,6 @@ export const appointmentType = defineType({
           type: "string",
         }),
       ],
-    }),
-    defineField({
-      name: "smsMessage",
-      title: "SMS Message",
-      type: "string",
-      description: "Message to be sent via SMS reminder",
-      // required if reminder not empty
-      validation: (Rule) =>
-        Rule.custom((value, context) => {
-          const reminder = context.document?.reminder;
-          if (Array.isArray(reminder) && reminder.length > 0 && !value) {
-            return "SMS message is required if reminders are set.";
-          }
-          return true;
-        }),
     }),
     defineField({
       name: "employee",
@@ -124,6 +107,23 @@ export const appointmentType = defineType({
           { title: "Cancelled", value: "cancelled" },
         ],
       },
+    }),
+    defineField({
+      name: "type",
+      title: "Type",
+      type: "string",
+      options: {
+        list: [
+          { title: "Walk In", value: "walk-in" },
+          { title: "Request", value: "request" },
+        ],
+      },
+    }),
+    defineField({
+      name: "recurringGroupId",
+      title: "Recurring Group ID",
+      type: "string",
+      description: "Unique identifier to group recurring appointments together",
     }),
   ],
 });

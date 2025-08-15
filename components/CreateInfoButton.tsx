@@ -1,6 +1,12 @@
 import FormButton from "./FormButton";
 
-const CreateInfoButton = ({ type }: { type: string }) => {
+const CreateInfoButton = ({ 
+  type, 
+  onSuccess 
+}: { 
+  type: string;
+  onSuccess?: () => void;
+}) => {
   const getTitle = (type: string) => {
     switch (type) {
       case "employees":
@@ -20,6 +26,7 @@ const CreateInfoButton = ({ type }: { type: string }) => {
     <FormButton
       mode="create"
       type={type as "employees" | "customers" | "services" | "schedule"}
+      onSuccess={onSuccess}
     >
       {getTitle(type)}
     </FormButton>

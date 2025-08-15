@@ -73,14 +73,15 @@ export const APPOINTMENTS_QUERY = defineQuery(
         lastName,
         "fullName": firstName + " " + lastName
       },
-      note,
       reminder,
+      type,
       service -> {
         _id,
         name,
         duration
       },
-      status
+      status,
+      recurringGroupId
     } | order(startTime asc) [($page - 1) * $limit ... $page * $limit],
     "total": count(*[_type == "appointment" 
      && ($status == "" || status == $status)
@@ -98,7 +99,8 @@ export const ALL_EMPLOYEES_QUERY = defineQuery(
       phone,
       position,
       workingTimes,
-      timeOffSchedules
+      timeOffSchedules,
+      assignedServices
   }`,
 );
 
@@ -138,6 +140,7 @@ export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
   )) 
   && (!defined($customerId) || customer._ref == $customerId)] {
   _id,
+  _createdAt,
   startTime,
   endTime,
   duration,
@@ -153,15 +156,16 @@ export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
     lastName,
     "fullName": firstName + " " + lastName
   },
-  note,
   reminder,
+  type,
   smsMessage,
   service -> {
     _id,
     name,
     duration
   },
-  status
+  status,
+  recurringGroupId
 }
 `,
 );
@@ -216,7 +220,9 @@ export const APPOINTMENTS_BY_CUSTOMER_QUERY = defineQuery(
     _id,
     name,
     duration
-  }
+  },
+  status,
+  recurringGroupId
 } | order(startTime asc)`,
 );
 

@@ -66,11 +66,13 @@ const EmployeeAssignedServiceForm = ({
     [key: string]: boolean;
   }>({});
 
-  const assignedServices = form.getValues("assignedServices") || [];
   const timeOptions = generateTimeOptions();
 
+  // Watch for changes in assignedServices to trigger re-render
+  const watchedAssignedServices = form.watch("assignedServices");
+
   const getAssignedServiceIds = () => {
-    return assignedServices
+    return watchedAssignedServices
       .map((item: AssignedService) => item.serviceId)
       .filter(Boolean);
   };
@@ -174,45 +176,41 @@ const EmployeeAssignedServiceForm = ({
     value: string | number | boolean,
     section: "assigned" | "available",
   ) => {
-    const isSelected =
-      section === "assigned"
-        ? assignedServices.some(
-            (assigned: AssignedService) => assigned.serviceId === serviceId,
-          )
-        : !!pendingChanges[serviceId];
+    if (section === "assigned") {
+      // For assigned services, always update the form directly
+      const currentAssigned = form.getValues("assignedServices") || [];
+      const serviceIndex = currentAssigned.findIndex(
+        (item: AssignedService) => item.serviceId === serviceId,
+      );
 
-    if (isSelected) {
-      // Update actual data if service is selected
-      if (section === "assigned") {
-        const currentAssigned = form.getValues("assignedServices") || [];
-        const serviceIndex = currentAssigned.findIndex(
-          (item: AssignedService) => item.serviceId === serviceId,
+      if (serviceIndex >= 0) {
+        form.setValue(`assignedServices.${serviceIndex}.${field}`, value);
+        console.log(
+          `Updated assignedServices.${serviceIndex}.${field} to:`,
+          value,
         );
-
-        if (serviceIndex >= 0) {
-          form.setValue(`assignedServices.${serviceIndex}.${field}`, value);
-        }
-      } else {
-        // Update pending changes for available services
-        if (pendingChanges[serviceId]) {
-          setPendingChanges({
-            ...pendingChanges,
-            [serviceId]: {
-              ...pendingChanges[serviceId],
-              [field]: value,
-            },
-          });
-        }
       }
     } else {
-      // Update draft values for unselected services
-      setDraftValues({
-        ...draftValues,
-        [serviceId]: {
-          ...draftValues[serviceId],
-          [field]: value,
-        },
-      });
+      // For available services
+      if (pendingChanges[serviceId]) {
+        // Update pending changes for services that are in pending state
+        setPendingChanges({
+          ...pendingChanges,
+          [serviceId]: {
+            ...pendingChanges[serviceId],
+            [field]: value,
+          },
+        });
+      } else {
+        // Update draft values for services that aren't in pending state
+        setDraftValues({
+          ...draftValues,
+          [serviceId]: {
+            ...draftValues[serviceId],
+            [field]: value,
+          },
+        });
+      }
     }
   };
 
@@ -228,7 +226,6 @@ const EmployeeAssignedServiceForm = ({
     );
 
     form.setValue("assignedServices", filteredServices);
-    console.log("Assigned services saved", form.getValues("assignedServices"));
 
     // Clear all selections sau khi save
     setSelectedForAction({});
@@ -237,7 +234,6 @@ const EmployeeAssignedServiceForm = ({
   const handleCancelAssigned = () => {
     // Clear all selections
     setSelectedForAction({});
-    console.log("Assigned services cancelled");
   };
 
   const handleSaveAvailable = () => {
@@ -252,7 +248,6 @@ const EmployeeAssignedServiceForm = ({
       .filter(Boolean);
 
     form.setValue("assignedServices", [...currentAssigned, ...newServices]);
-    console.log("Available services saved", form.getValues("assignedServices"));
 
     // Clear pending changes và selections sau khi save
     setPendingChanges({});
@@ -304,15 +299,25 @@ const EmployeeAssignedServiceForm = ({
         <TableBody>
           {categoryServices.map((service) => {
             const isSelected = getServiceSelection(service);
-            const assignedData = assignedServices.find(
+            const assignedData = watchedAssignedServices.find(
               (assigned: AssignedService) => assigned.serviceId === service._id,
             );
+
+            // Debug: Log assigned data for this service
+            if (isAssignedSection && service._id) {
+              console.log(`Service ${service.name} (${service._id}):`, {
+                assignedData,
+                showOnline: assignedData?.showOnline,
+                allAssignedServices: watchedAssignedServices,
+              });
+            }
             const pendingData = pendingChanges[service._id];
             const draftData = draftValues[service._id];
 
             // Determine which data to show
             let serviceData;
             if (isAssignedSection) {
+              // For assigned services, always use assignedData if available
               serviceData = assignedData || draftData;
             } else {
               serviceData = pendingData || draftData;
@@ -338,7 +343,12 @@ const EmployeeAssignedServiceForm = ({
                 <TableCell>
                   <Input
                     type="number"
-                    value={serviceData?.price ?? service.price}
+                    value={(() => {
+                      if (isAssignedSection && assignedData) {
+                        return assignedData.price;
+                      }
+                      return serviceData?.price ?? service.price;
+                    })()}
                     onChange={(e) =>
                       updateServiceField(
                         service._id,
@@ -352,9 +362,14 @@ const EmployeeAssignedServiceForm = ({
                 </TableCell>
                 <TableCell>
                   <Select
-                    value={(
-                      serviceData?.duration ?? service.duration
-                    ).toString()}
+                    value={(() => {
+                      if (isAssignedSection && assignedData) {
+                        return assignedData.duration.toString();
+                      }
+                      return (
+                        serviceData?.duration ?? service.duration
+                      ).toString();
+                    })()}
                     onValueChange={(value) =>
                       updateServiceField(
                         service._id,
@@ -381,9 +396,14 @@ const EmployeeAssignedServiceForm = ({
                 </TableCell>
                 <TableCell>
                   <Select
-                    value={(
-                      serviceData?.processTime ?? service.duration
-                    ).toString()}
+                    value={(() => {
+                      if (isAssignedSection && assignedData) {
+                        return assignedData.processTime.toString();
+                      }
+                      return (
+                        serviceData?.processTime ?? service.duration
+                      ).toString();
+                    })()}
                     onValueChange={(value) =>
                       updateServiceField(
                         service._id,
@@ -410,17 +430,40 @@ const EmployeeAssignedServiceForm = ({
                 </TableCell>
                 <TableCell>
                   <Select
-                    value={(
-                      serviceData?.showOnline ?? service.showOnline
-                    ).toString()}
-                    onValueChange={(value) =>
+                    value={(() => {
+                      if (isAssignedSection && assignedData) {
+                        // For assigned services, always use the employee's assigned value
+                        const value = assignedData.showOnline.toString();
+                        console.log(
+                          `ShowOnline value for ${service.name}:`,
+                          value,
+                          "from assignedData:",
+                          assignedData.showOnline,
+                        );
+                        return value;
+                      }
+                      // For available services or fallback
+                      const value = (
+                        serviceData?.showOnline ?? service.showOnline
+                      ).toString();
+                      console.log(
+                        `ShowOnline value for ${service.name}:`,
+                        value,
+                        "from fallback",
+                      );
+                      return value;
+                    })()}
+                    onValueChange={(value) => {
+                      console.log(
+                        `Changing showOnline for ${service._id} from ${serviceData?.showOnline} to ${value === "true"}`,
+                      );
                       updateServiceField(
                         service._id,
                         "showOnline",
                         value === "true",
                         section,
-                      )
-                    }
+                      );
+                    }}
                   >
                     <SelectTrigger className="h-8">
                       <SelectValue />
@@ -454,7 +497,7 @@ const EmployeeAssignedServiceForm = ({
 
   return (
     <div className="space-y-6">
-      <Accordion type="multiple" className="w-full">
+      <Accordion type="single" className="w-full">
         <AccordionItem value="assigned">
           <AccordionTrigger className="text-lg font-semibold">
             Assigned Services ({Object.values(assignedByCategory).flat().length}
@@ -478,7 +521,7 @@ const EmployeeAssignedServiceForm = ({
                           <Button
                             onClick={() => {
                               const allSelected = categoryServices.every(
-                                (service) => !!selectedForAction[service._id],
+                                (service) => selectedForAction[service._id],
                               );
                               handleSelectAllCategory(
                                 categoryServices,

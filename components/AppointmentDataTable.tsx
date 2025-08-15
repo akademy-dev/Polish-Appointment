@@ -182,7 +182,7 @@ export function AppointmentDataTable({
         });
       }
     } catch (error) {
-      console.error("Failed to delete appointment:", error);
+      console.error("Error deleting appointment:", error);
       toast.error("Error", {
         description: "Failed to delete appointment. Please try again.",
       });

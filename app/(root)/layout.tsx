@@ -48,10 +48,6 @@ export default function Layout({
     return <RootLoading />; // Hiển thị loading khi đang fetch
   }
 
-  if (error) {
-    console.warn(error); // Log lỗi để debug
-  }
-
   return (
     <>
       {isRoot ? (
@@ -63,9 +59,6 @@ export default function Layout({
               <header className="mb-5 w-full space-y-4 lg:space-y-0">
                 <div className="flex items-center justify-between">
                   <Navbar value={value} />
-                  <div className="hidden lg:flex items-center gap-4">
-                    <CreateInfoButton type={value} />
-                  </div>
                 </div>
                 <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
                   <CreateInfoButton type={value} />

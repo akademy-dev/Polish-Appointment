@@ -72,6 +72,7 @@ import { formatMinuteDuration, parseOffset } from "@/lib/utils";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { AssignedService } from "@/models/assignedService";
+import { Appointment } from "@/models/appointment";
 
 type FormMode = "create" | "edit" | "history" | "delete";
 type FormType = "employees" | "customers" | "services" | "schedule";
@@ -94,6 +95,7 @@ interface FormButtonProps {
   type: FormType;
   profile?: Profile; // For edit mode
   service?: Service;
+  onSuccess?: () => void;
   variant?:
     | "default"
     | "outline"
@@ -111,6 +113,7 @@ const FormButton = ({
   type,
   profile,
   service,
+  onSuccess,
   variant = "default",
   size = "default",
   className = "",
@@ -148,7 +151,11 @@ const FormButton = ({
         const result = await client.fetch(APPOINTMENTS_BY_CUSTOMER_QUERY, {
           customerId: getProfileId(profile),
         });
-        setCustomerHistory(result || []);
+        // Filter out cancelled appointments
+        const filteredResult = (result || []).filter(
+          (appointment: Appointment) => appointment.status !== "cancelled",
+        );
+        setCustomerHistory(filteredResult);
       } catch {
         setCustomerHistory([]);
       } finally {
@@ -299,7 +306,16 @@ const FormButton = ({
       reminder: [],
       services: [],
       status: "scheduled",
-      smsMessage: "",
+      type: "walk-in",
+      isRecurring: false,
+      recurringDuration: {
+        value: 1,
+        unit: "months",
+      },
+      recurringFrequency: {
+        value: 1,
+        unit: "weeks",
+      },
     },
   });
 
@@ -515,14 +531,16 @@ const FormButton = ({
       // Create mode
       const result = await createCustomer(formData);
 
-      console.log("Customer creation result:", result);
-
       if (result.status == "SUCCESS") {
         setOpen(false);
         customerForm.reset();
         toast.success("Success", {
           description: getToastDescription(),
         });
+        // Call onSuccess callback to refresh customer list
+        if (onSuccess) {
+          onSuccess();
+        }
       } else {
         toast.error("Error", {
           description: result.error,
@@ -609,7 +627,7 @@ const FormButton = ({
       console.log("Appointment formValues", formValues);
       formData.append("time", formValues.time);
       formData.append("note", formValues.note || "");
-      formData.append("smsMessage", formValues.smsMessage || "");
+      formData.append("type", formValues.type || "walk-in");
       formData.append("status", formValues.status);
 
       if (formValues.customer._ref) {
@@ -623,6 +641,21 @@ const FormButton = ({
           formValues.employee,
           formValues.services,
           formValues.reminder,
+          formValues.isRecurring,
+          formValues.recurringDuration?.value &&
+            formValues.recurringDuration?.unit
+            ? {
+                value: formValues.recurringDuration.value,
+                unit: formValues.recurringDuration.unit,
+              }
+            : undefined,
+          formValues.recurringFrequency?.value &&
+            formValues.recurringFrequency?.unit
+            ? {
+                value: formValues.recurringFrequency.value,
+                unit: formValues.recurringFrequency.unit,
+              }
+            : undefined,
         );
 
         if (result.status == "SUCCESS") {
@@ -656,6 +689,21 @@ const FormButton = ({
             formValues.employee,
             formValues.services,
             formValues.reminder,
+            formValues.isRecurring,
+            formValues.recurringDuration?.value &&
+              formValues.recurringDuration?.unit
+              ? {
+                  value: formValues.recurringDuration.value,
+                  unit: formValues.recurringDuration.unit,
+                }
+              : undefined,
+            formValues.recurringFrequency?.value &&
+              formValues.recurringFrequency?.unit
+              ? {
+                  value: formValues.recurringFrequency.value,
+                  unit: formValues.recurringFrequency.unit,
+                }
+              : undefined,
           );
 
           if (result.status === "SUCCESS") {
@@ -970,7 +1018,7 @@ const FormButton = ({
               price: as.price || 0,
               duration: as.duration || 15,
               processTime: as.processTime || 0,
-              showOnline: as.showOnline || true,
+              showOnline: as.showOnline !== undefined ? as.showOnline : true,
             })) || [],
         };
         employeeForm.reset(formData);

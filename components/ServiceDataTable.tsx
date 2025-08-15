@@ -177,7 +177,6 @@ export function ServiceDataTable({
         });
       }
     } catch (error) {
-      console.error("Failed to delete service:", error);
       toast.error("Error", {
         description: "Failed to delete service. Please try again.",
       });

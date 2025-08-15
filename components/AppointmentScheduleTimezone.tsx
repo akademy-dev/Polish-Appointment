@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarContext } from "@/hooks/context";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { appointmentFormSchema } from "@/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -505,8 +505,73 @@ const AppointmentScheduleTimezone = ({
       reminder: [],
       services: [],
       status: "scheduled",
+      type: "walk-in",
+      isRecurring: false,
+      recurringDuration: {
+        value: 1,
+        unit: "months",
+      },
+      recurringFrequency: {
+        value: 1,
+        unit: "weeks",
+      },
+      recurringGroupId: "",
     },
   });
+
+  // Watch form values for dynamic title
+  const watchedEmployeeRef = useWatch({
+    control: appointmentForm.control,
+    name: "employee._ref",
+  });
+
+  const watchedTime = useWatch({
+    control: appointmentForm.control,
+    name: "time",
+  });
+
+  // Generate dynamic title
+  const generateDialogTitle = () => {
+    if (type === "edit") {
+      return "Edit Appointment";
+    }
+
+    if (!watchedEmployeeRef || !watchedTime) {
+      return "Create Appointment";
+    }
+
+    const selectedEmployee = filteredEmployees.find(
+      (emp) => emp._id === watchedEmployeeRef,
+    );
+
+    if (!selectedEmployee) {
+      return "Create Appointment";
+    }
+
+    try {
+      const appointmentDate = new Date(watchedTime);
+      const dayOfWeek = appointmentDate.toLocaleDateString("en-US", {
+        weekday: "long",
+        timeZone: getIanaTimezone(timezone),
+      });
+      const dateString = appointmentDate.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: getIanaTimezone(timezone),
+      });
+      const timeString = appointmentDate.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: getIanaTimezone(timezone),
+      });
+
+      return `Scheduling with ${selectedEmployee.firstName} on ${dayOfWeek}, ${dateString} at ${timeString}`;
+    } catch (error) {
+      return "Create Appointment";
+    }
+  };
 
   const handleConfirm = async () => {
     setShowConfirm(false);
@@ -532,8 +597,8 @@ const AppointmentScheduleTimezone = ({
       console.log("Form Values:", formValues);
       formData.append("time", formValues.time);
       formData.append("note", formValues.note || "");
+      formData.append("type", formValues.type || "walk-in");
       formData.append("status", formValues.status || "scheduled");
-      formData.append("smsMessage", formValues.smsMessage || "");
 
       if (formValues.customer._ref) {
         if (type === "edit") {
@@ -573,6 +638,21 @@ const AppointmentScheduleTimezone = ({
           formValues.employee,
           formValues.services,
           formValues.reminder,
+          formValues.isRecurring,
+          formValues.recurringDuration?.value &&
+            formValues.recurringDuration?.unit
+            ? {
+                value: formValues.recurringDuration.value,
+                unit: formValues.recurringDuration.unit,
+              }
+            : undefined,
+          formValues.recurringFrequency?.value &&
+            formValues.recurringFrequency?.unit
+            ? {
+                value: formValues.recurringFrequency.value,
+                unit: formValues.recurringFrequency.unit,
+              }
+            : undefined,
         );
 
         if (result.status === "SUCCESS") {
@@ -605,6 +685,21 @@ const AppointmentScheduleTimezone = ({
             formValues.employee,
             formValues.services,
             formValues.reminder,
+            formValues.isRecurring,
+            formValues.recurringDuration?.value &&
+              formValues.recurringDuration?.unit
+              ? {
+                  value: formValues.recurringDuration.value,
+                  unit: formValues.recurringDuration.unit,
+                }
+              : undefined,
+            formValues.recurringFrequency?.value &&
+              formValues.recurringFrequency?.unit
+              ? {
+                  value: formValues.recurringFrequency.value,
+                  unit: formValues.recurringFrequency.unit,
+                }
+              : undefined,
           );
 
           if (result.status === "SUCCESS") {
@@ -678,6 +773,7 @@ const AppointmentScheduleTimezone = ({
       return;
     }
 
+    console.log("Calendar Event:", calendarEvent.data);
     setType("edit");
     setAppointmentId(calendarEvent.data._id);
     appointmentForm.setValue("time", calendarEvent.data.startTime.toString());
@@ -692,15 +788,15 @@ const AppointmentScheduleTimezone = ({
       _ref: calendarEvent.data.customer._id,
       _type: "reference",
     });
-    appointmentForm.setValue("note", calendarEvent.data.note || "");
     appointmentForm.setValue("reminder", calendarEvent.data.reminder);
-    appointmentForm.setValue("smsMessage", calendarEvent.data.smsMessage || "");
+    appointmentForm.setValue("type", calendarEvent.data.type || "walk-in");
     const newServices = calendarEvent.data.service
       ? [
           {
             _ref: calendarEvent.data.service._id,
             _type: "reference",
             duration: calendarEvent.data.service.duration,
+            quantity: 1,
           },
         ]
       : [];
@@ -709,6 +805,10 @@ const AppointmentScheduleTimezone = ({
       "status",
       calendarEvent.data.status || "scheduled",
     );
+    // Set recurringGroupId for Cancel Standing functionality
+    if (calendarEvent.data.recurringGroupId) {
+      appointmentForm.setValue("recurringGroupId", calendarEvent.data.recurringGroupId);
+    }
     setDuration(calendarEvent.data.duration || 0);
     setOpen(true);
   }, []);
@@ -746,16 +846,14 @@ const AppointmentScheduleTimezone = ({
       });
       appointmentForm.setValue("note", calendarEvent.data.note || "");
       appointmentForm.setValue("reminder", calendarEvent.data.reminder);
-      appointmentForm.setValue(
-        "smsMessage",
-        calendarEvent.data.smsMessage || "",
-      );
+
       const newServices = calendarEvent.data.service
         ? [
             {
               _ref: calendarEvent.data.service._id,
               _type: "reference",
               duration: calendarEvent.data.service.duration,
+              quantity: 1,
             },
           ]
         : [];
@@ -801,16 +899,13 @@ const AppointmentScheduleTimezone = ({
       });
       appointmentForm.setValue("note", calendarEvent.data.note || "");
       appointmentForm.setValue("reminder", calendarEvent.data.reminder || true);
-      appointmentForm.setValue(
-        "smsMessage",
-        calendarEvent.data.smsMessage || "",
-      );
       const newServices = calendarEvent.data.service
         ? [
             {
               _ref: calendarEvent.data.service._id,
               _type: "reference",
               duration: calendarEvent.data.service.duration,
+              quantity: 1,
             },
           ]
         : [];
@@ -832,7 +927,6 @@ const AppointmentScheduleTimezone = ({
     const goToBack = () => {
       const currentDate = moment.tz(toolbar.date, getIanaTimezone(timezone));
       const newDate = currentDate.subtract(1, "day").startOf("day");
-      console.log("Previous Date:", newDate.format("YYYY-MM-DD HH:mm:ss z"));
       toolbar.onNavigate("PREV");
       handleDateChange(newDate.toDate());
     };
@@ -840,7 +934,6 @@ const AppointmentScheduleTimezone = ({
     const goToNext = () => {
       const currentDate = moment.tz(toolbar.date, getIanaTimezone(timezone));
       const newDate = currentDate.add(1, "day").startOf("day");
-      console.log("Next Date:", newDate.format("YYYY-MM-DD HH:mm:ss z"));
       toolbar.onNavigate("NEXT");
       handleDateChange(newDate.toDate());
     };
@@ -849,7 +942,6 @@ const AppointmentScheduleTimezone = ({
       const today = moment
         .tz(new Date(), getIanaTimezone(timezone))
         .startOf("day");
-      console.log("Today:", today.format("YYYY-MM-DD HH:mm:ss z"));
       toolbar.onNavigate("TODAY");
       handleDateChange(today.toDate());
     };
@@ -999,10 +1091,18 @@ const AppointmentScheduleTimezone = ({
                   calendarEvent.type === "appointment" &&
                   calendarEvent.data.status === "scheduled"
                 ) {
+                  // Determine background color based on appointment type
+                  const bgColor =
+                    calendarEvent.data.type === "request"
+                      ? "bg-pink-400"
+                      : "bg-cyan-600";
+
                   return (
-                    <div className="bg-pink-400 h-full rounded border border-gray-100 cursor-pointer">
+                    <div
+                      className={`${bgColor} h-full rounded border border-gray-100 cursor-pointer`}
+                    >
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className="text-md text-black">
+                        <span className="text-md text-black ≈">
                           {calendarEvent.data?.customer
                             ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                             : "No Customer"}
@@ -1088,13 +1188,11 @@ const AppointmentScheduleTimezone = ({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild></DialogTrigger>
         <DialogContent
-          className="sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl"
+          className={`sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl max-h-[95vh] h-[95vh] flex flex-col items-start justify-start`}
           aria-describedby="form-dialog"
         >
           <DialogHeader>
-            <DialogTitle>
-              {type === "create" ? "Create Appointment" : "Edit Appointment"}
-            </DialogTitle>
+            <DialogTitle>{generateDialogTitle()}</DialogTitle>
             <DialogDescription className="sr-only">
               Create a new appointment with service, customer and employee.
             </DialogDescription>

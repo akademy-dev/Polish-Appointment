@@ -201,7 +201,7 @@ const DataTable = <TData, TValue>({
   };
 
   return (
-    <>
+    <div className="flex flex-col w-full h-full min-h-0">
       <div className="flex-between py-4 gap-4">
         <Label htmlFor="history-search" className="text-right text-lg">
           {title}
@@ -225,9 +225,9 @@ const DataTable = <TData, TValue>({
         </div>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border w-full flex-1 min-h-0">
         <div
-          className="relative overflow-auto [&::-webkit-scrollbar]:hidden scrollbar-hide"
+          className="relative h-full overflow-auto [&::-webkit-scrollbar]:hidden scrollbar-hide"
           {...(height ? { style: { height } } : {})}
         >
           <Table>
@@ -310,7 +310,7 @@ const DataTable = <TData, TValue>({
           Export
         </Button>
       </div>
-    </>
+    </div>
   );
 };
 

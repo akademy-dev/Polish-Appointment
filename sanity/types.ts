@@ -171,6 +171,7 @@ export type Appointment = {
     [internalGroqTypeReferenceTo]?: "service";
   };
   status?: "scheduled" | "completed" | "cancelled";
+  recurringGroupId?: string;
 };
 
 export type AssignedService = {
@@ -184,16 +185,16 @@ export type AssignedService = {
 
 export type WorkingTime = {
   _type: "workingTime";
-  from?: string;
-  to?: string;
+  from: string;
+  to: string;
   day?: string;
 };
 
 export type TimeOffSchedule = {
   _type: "timeOffSchedule";
   date?: string;
-  from?: string;
-  to?: string;
+  from: string;
+  to: string;
   reason?: string;
   dayOfWeek?: Array<number>;
   dayOfMonth?: Array<number>;
@@ -219,6 +220,7 @@ export type Employee = {
   _rev: string;
   firstName?: string;
   lastName?: string;
+  fullName?: string;
   phone?: string;
   position?: "owner" | "serviceProvider" | "backRoom";
   workingTimes?: Array<

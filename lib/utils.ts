@@ -33,7 +33,6 @@ export function convertTimeStringToMinutes(time: string) {
 }
 
 export function parseServerActionResponse<T>(response: T) {
-  console.log(response);
   return JSON.parse(JSON.stringify(response));
 }
 

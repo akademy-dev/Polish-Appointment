@@ -32,10 +32,6 @@ export const CalendarProvider = ({
     moment.tz(new Date(), getIanaTimezone(timezone)).toDate(),
   );
 
-  // Định dạng ngày giờ
-  // const formattedDate = moment(date).format("YYYY-MM-DD HH:mm:ss");
-  // console.log(formattedDate);
-
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   return (
