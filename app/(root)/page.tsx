@@ -2,6 +2,7 @@ import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import {
   ALL_EMPLOYEES_QUERY,
   APPOINTMENTS_BY_DATE_QUERY,
+  APPOINTMENT_TIME_OFF_QUERY,
   TIMEZONE_QUERY,
 } from "@/sanity/lib/queries";
 import AppointmentScheduleTimezone from "@/components/AppointmentScheduleTimezone";
@@ -48,14 +49,22 @@ const page = async ({ searchParams }: PageProps) => {
     },
   });
 
+  const appointmentTimeOffs = await sanityFetch({
+    query: APPOINTMENT_TIME_OFF_QUERY,
+    params: {},
+  });
+
   return (
     <>
       <AppointmentScheduleTimezone
         initialEmployees={employees.data}
         initialAppointments={appointments.data}
+        initialAppointmentTimeOffs={appointmentTimeOffs.data}
         currentDate={date}
         notWorking={notWorking}
         cancelled={cancelled}
+        minTime={timezone.data.minTime || "8:00 AM"}
+        maxTime={timezone.data.maxTime || "6:00 PM"}
       />
       <SanityLive />
     </>

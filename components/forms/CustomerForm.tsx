@@ -12,6 +12,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Customer } from "@/models/profile";
 import { cn } from "@/lib/utils";
 import { customerFormSchema } from "@/lib/validation";
@@ -41,6 +42,7 @@ const CustomerForm = ({
       firstName: "",
       lastName: "",
       phone: "",
+      note: "",
     },
   });
 
@@ -108,6 +110,24 @@ const CustomerForm = ({
                   placeholder="Phone number"
                   disabled={isSubmitting}
                   {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="note"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Note</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Additional notes about this customer..."
+                  disabled={isSubmitting}
+                  {...field}
+                  value={field.value || ""}
                 />
               </FormControl>
               <FormMessage />

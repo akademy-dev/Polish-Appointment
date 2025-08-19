@@ -61,9 +61,10 @@ async function runCronJob() {
     console.log("End Time:", now.toISOString());
     console.log("Appointments to process:", appointments);
     console.log("Timezone:", timezone);
+    console.log("SMS Message Template:", timezone.smsMessage || "Default message");
 
     for (const appointment of appointments) {
-      let messageBody = appointment.smsMessage;
+      let messageBody = timezone.smsMessage || "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.";
       VARIABLE_LIST.forEach((variable) => {
         const regex = new RegExp(`{${variable}}`, "g");
         switch (variable) {
@@ -86,7 +87,7 @@ async function runCronJob() {
             // Sử dụng Intl.DateTimeFormat để format theo timezone cụ thể, tránh lệ thuộc timezone cục bộ của server
             const formattedDate = formatInTimeZone(
               new Date(appointment.startTime),
-              parseOffset(timezone.timezone),
+              parseOffset(timezone.timezone || "UTC-7:00"),
               "yyyy-MM-dd hh:mm a",
             );
             messageBody = messageBody.replace(regex, formattedDate);

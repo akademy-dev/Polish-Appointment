@@ -10,6 +10,8 @@ interface CalendarContextType {
   isLoading: boolean;
   setIsLoading: (isLoading: boolean) => void;
   timezone: string;
+  minTime: string;
+  maxTime: string;
 }
 
 export const CalendarContext = createContext<CalendarContextType>({
@@ -18,14 +20,20 @@ export const CalendarContext = createContext<CalendarContextType>({
   isLoading: false,
   setIsLoading: () => {},
   timezone: "",
+  minTime: "8:00 AM",
+  maxTime: "6:00 PM",
 });
 
 export const CalendarProvider = ({
   children,
   timezone,
+  minTime = "8:00 AM",
+  maxTime = "6:00 PM",
 }: {
   children: ReactNode;
   timezone: string;
+  minTime?: string;
+  maxTime?: string;
 }) => {
   moment.tz.setDefault(getIanaTimezone(timezone));
   const [date, setDate] = useState<Date>(
@@ -36,7 +44,7 @@ export const CalendarProvider = ({
 
   return (
     <CalendarContext.Provider
-      value={{ date, setDate, isLoading, setIsLoading, timezone }}
+      value={{ date, setDate, isLoading, setIsLoading, timezone, minTime, maxTime }}
     >
       {children}
     </CalendarContext.Provider>

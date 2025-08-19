@@ -25,5 +25,11 @@ export const customerType = defineType({
       type: "string",
       validation: (Rule) => Rule.required().error("Phone number is required"),
     }),
+    defineField({
+      name: "note",
+      title: "Note",
+      type: "text",
+      description: "Additional notes about this customer",
+    }),
   ],
 });

@@ -34,6 +34,11 @@ const Navbar = ({ value = "schedule" }) => {
               Appointments
             </Link>
           </TabsTrigger>
+          <TabsTrigger asChild value="time-tracking">
+            <Link href="/time-tracking" prefetch={true}>
+              Time Tracking
+            </Link>
+          </TabsTrigger>
           <TabsTrigger asChild value="settings">
             <Link href="/settings" prefetch={true}>
               Settings

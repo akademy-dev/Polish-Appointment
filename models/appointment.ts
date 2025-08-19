@@ -4,6 +4,7 @@ import { Service } from "@/models/service";
 // Re-export Sanity types for easier usage
 export type Appointment = {
   _id: string;
+  _createdAt: string;
   startTime: string;
   endTime: string;
   duration: number;

@@ -70,6 +70,8 @@ interface AppointmentDataTableProps {
     searchTerm: string;
     limit: number;
     timezone: string;
+    minTime?: string;
+    maxTime?: string;
   };
 }
 
@@ -477,7 +479,7 @@ export function AppointmentDataTable({
               ))}
             </TableHeader>
           </Table>
-          <div className="max-h-[400px] overflow-y-auto">
+          <div className="h-[calc(100vh-300px)] overflow-y-auto">
             <Table className="table-fixed w-full">
               <TableBody>
                 {table.getRowModel().rows?.length ? (

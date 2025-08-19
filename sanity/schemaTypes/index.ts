@@ -3,6 +3,8 @@ import { serviceType } from "@/sanity/schemaTypes/service";
 import { categoryType } from "@/sanity/schemaTypes/category";
 import { employeeType } from "@/sanity/schemaTypes/employee";
 import { timeOffScheduleType } from "@/sanity/schemaTypes/timeOffSchedule";
+import { timeTrackingType } from "@/sanity/schemaTypes/timeTracking";
+import { appointmentTimeOffType } from "@/sanity/schemaTypes/appointmentTimeOff";
 import { workingType } from "@/sanity/schemaTypes/workingTime";
 import { customerType } from "@/sanity/schemaTypes/customer";
 import { appointmentType } from "@/sanity/schemaTypes/appointment";
@@ -23,6 +25,8 @@ export const schema: { types: SchemaTypeDefinition[] } = {
     employeeType,
     customerType,
     timeOffScheduleType,
+    timeTrackingType,
+    appointmentTimeOffType,
     workingType,
     assignedServiceType,
     appointmentType,

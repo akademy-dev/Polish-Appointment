@@ -46,6 +46,7 @@ import {
   deleteEmployee,
   deleteCustomer,
   deleteService,
+  checkRecurringConflicts,
 } from "@/lib/actions";
 import {
   TimeOffSchedule,
@@ -58,6 +59,7 @@ import {
 } from "@/models/profile";
 import { getServiceId, Service } from "@/models/service";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
+import { ConflictDialog } from "@/components/ConflictDialog";
 import { client } from "@/sanity/lib/client";
 import {
   APPOINTMENTS_BY_CUSTOMER_QUERY,
@@ -127,6 +129,9 @@ const FormButton = ({
   const [customerHistory, setCustomerHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [timezone, setTimezone] = useState<string>("");
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflicts, setConflicts] = useState<any[]>([]);
+  const [pendingAppointmentData, setPendingAppointmentData] = useState<any>(null);
 
   const fetchEmployeeHistory = async () => {
     if (profile) {
@@ -258,6 +263,7 @@ const FormButton = ({
       lastName: "",
       phone: "",
       position: "backRoom",
+      note: "",
       workingTimes: [],
       timeOffSchedules: [],
       assignedServices: [],
@@ -270,6 +276,7 @@ const FormButton = ({
       firstName: "",
       lastName: "",
       phone: "",
+      note: "",
     },
   });
 
@@ -436,6 +443,7 @@ const FormButton = ({
       formData.append("lastName", formValues.lastName);
       formData.append("phone", formValues.phone || "");
       formData.append("position", formValues.position);
+      formData.append("note", formValues.note || "");
 
       if (mode === "edit" && profile) {
         // Update mode - include _id
@@ -507,6 +515,7 @@ const FormButton = ({
       formData.append("firstName", formValues.firstName);
       formData.append("lastName", formValues.lastName);
       formData.append("phone", formValues.phone || "");
+      formData.append("note", formValues.note || "");
 
       if (mode === "edit" && profile) {
         // Update mode - include _id
@@ -631,6 +640,62 @@ const FormButton = ({
       formData.append("status", formValues.status);
 
       if (formValues.customer._ref) {
+        // Check for conflicts if it's a recurring appointment
+        if (formValues.isRecurring) {
+          const startTime = new Date(formValues.time);
+          const totalDuration = formValues.services.reduce((total, service) => total + (service.duration * service.quantity), 0);
+          const endTime = new Date(startTime.getTime() + totalDuration * 60000);
+
+          const conflictResult = await checkRecurringConflicts(
+            formValues.employee._ref,
+            startTime.toISOString(),
+            endTime.toISOString(),
+            formValues.isRecurring,
+            formValues.recurringDuration?.value && formValues.recurringDuration?.unit
+              ? {
+                  value: formValues.recurringDuration.value,
+                  unit: formValues.recurringDuration.unit,
+                }
+              : undefined,
+            formValues.recurringFrequency?.value && formValues.recurringFrequency?.unit
+              ? {
+                  value: formValues.recurringFrequency.value,
+                  unit: formValues.recurringFrequency.unit,
+                }
+              : undefined,
+          );
+
+          if (conflictResult.status === "SUCCESS" && conflictResult.conflicts.length > 0) {
+            setPendingAppointmentData({
+              formData,
+              customer: {
+                _ref: formValues.customer._ref,
+                _type: formValues.customer._type,
+              },
+              employee: formValues.employee,
+              services: formValues.services,
+              reminder: formValues.reminder,
+              isRecurring: formValues.isRecurring,
+              recurringDuration: formValues.recurringDuration?.value && formValues.recurringDuration?.unit
+                ? {
+                    value: formValues.recurringDuration.value,
+                    unit: formValues.recurringDuration.unit,
+                  }
+                : undefined,
+              recurringFrequency: formValues.recurringFrequency?.value && formValues.recurringFrequency?.unit
+                ? {
+                    value: formValues.recurringFrequency.value,
+                    unit: formValues.recurringFrequency.unit,
+                  }
+                : undefined,
+            });
+            setConflicts(conflictResult.conflicts);
+            setShowConflictDialog(true);
+            setIsSubmitting(false);
+            return;
+          }
+        }
+
         // Create mode
         const result = await createAppointment(
           formData,
@@ -675,11 +740,69 @@ const FormButton = ({
         customerFormData.append("firstName", formValues.customer.firstName);
         customerFormData.append("lastName", formValues.customer.lastName);
         customerFormData.append("phone", formValues.customer.phone || "");
+        customerFormData.append("note", formValues.customer.note || "");
 
         const customerResult = await createCustomer(customerFormData);
         if (customerResult.status === "SUCCESS") {
           // Now create appointment with new customer
           const customerId = customerResult._id; // Assuming data contains the new customer object
+          
+          // Check for conflicts if it's a recurring appointment
+          if (formValues.isRecurring) {
+            const startTime = new Date(formValues.time);
+            const totalDuration = formValues.services.reduce((total, service) => total + (service.duration * service.quantity), 0);
+            const endTime = new Date(startTime.getTime() + totalDuration * 60000);
+
+            const conflictResult = await checkRecurringConflicts(
+              formValues.employee._ref,
+              startTime.toISOString(),
+              endTime.toISOString(),
+              formValues.isRecurring,
+              formValues.recurringDuration?.value && formValues.recurringDuration?.unit
+                ? {
+                    value: formValues.recurringDuration.value,
+                    unit: formValues.recurringDuration.unit,
+                  }
+                : undefined,
+              formValues.recurringFrequency?.value && formValues.recurringFrequency?.unit
+                ? {
+                    value: formValues.recurringFrequency.value,
+                    unit: formValues.recurringFrequency.unit,
+                  }
+                : undefined,
+            );
+
+            if (conflictResult.status === "SUCCESS" && conflictResult.conflicts.length > 0) {
+              setPendingAppointmentData({
+                formData,
+                customer: {
+                  _ref: customerId,
+                  _type: "reference",
+                },
+                employee: formValues.employee,
+                services: formValues.services,
+                reminder: formValues.reminder,
+                isRecurring: formValues.isRecurring,
+                recurringDuration: formValues.recurringDuration?.value && formValues.recurringDuration?.unit
+                  ? {
+                      value: formValues.recurringDuration.value,
+                      unit: formValues.recurringDuration.unit,
+                    }
+                  : undefined,
+                recurringFrequency: formValues.recurringFrequency?.value && formValues.recurringFrequency?.unit
+                  ? {
+                      value: formValues.recurringFrequency.value,
+                      unit: formValues.recurringFrequency.unit,
+                    }
+                  : undefined,
+              });
+              setConflicts(conflictResult.conflicts);
+              setShowConflictDialog(true);
+              setIsSubmitting(false);
+              return;
+            }
+          }
+
           const result = await createAppointment(
             formData,
             {
@@ -731,6 +854,55 @@ const FormButton = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleConflictConfirm = async () => {
+    if (!pendingAppointmentData) return;
+    
+    setIsSubmitting(true);
+    setShowConflictDialog(false);
+
+    try {
+      const result = await createAppointment(
+        pendingAppointmentData.formData,
+        pendingAppointmentData.customer,
+        pendingAppointmentData.employee,
+        pendingAppointmentData.services,
+        pendingAppointmentData.reminder,
+        pendingAppointmentData.isRecurring,
+        pendingAppointmentData.recurringDuration,
+        pendingAppointmentData.recurringFrequency,
+      );
+
+      if (result.status === "SUCCESS") {
+        setOpen(false);
+        appointmentForm?.reset();
+        toast.success("Success", {
+          description: "Recurring appointments created successfully (with conflicts)",
+        });
+        if (onSuccess) onSuccess();
+      } else {
+        toast.error("Error", {
+          description: result.error,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error", {
+        description: "An unexpected error occurred",
+      });
+    } finally {
+      setIsSubmitting(false);
+      setPendingAppointmentData(null);
+      setConflicts([]);
+    }
+  };
+
+  const handleConflictCancel = () => {
+    setShowConflictDialog(false);
+    setPendingAppointmentData(null);
+    setConflicts([]);
+    setIsSubmitting(false);
   };
 
   // Main form success handler
@@ -994,6 +1166,7 @@ const FormButton = ({
           lastName: profile.lastName || "",
           phone: profile.phone || "",
           position: profile.position || "serviceProvider",
+          note: profile.note || "",
           workingTimes:
             profile.workingTimes?.map((wt) => ({
               from: wt.from || "",
@@ -1024,7 +1197,7 @@ const FormButton = ({
         employeeForm.reset(formData);
       } else if (mode === "edit" && profile && type === "customers") {
         // Load existing customer data via CustomerForm's initialData prop
-        // CustomerForm will handle the reset internally
+        // CustomerForm will handle the reset internally with note field
       } else if (mode === "history" && type === "employees" && profile) {
         fetchEmployeeHistory();
       } else if (mode === "history" && type === "customers" && profile) {
@@ -1194,6 +1367,16 @@ const FormButton = ({
             {renderDeleteConfirmation()}
           </DialogContent>
         </Dialog>
+
+        {/* Conflict Dialog for Mobile */}
+        <ConflictDialog
+          open={showConflictDialog}
+          onOpenChange={setShowConflictDialog}
+          conflicts={conflicts}
+          timezone={timezone}
+          onConfirm={handleConflictConfirm}
+          onCancel={handleConflictCancel}
+        />
       </>
     );
   }
@@ -1231,6 +1414,16 @@ const FormButton = ({
           {renderDeleteConfirmation()}
         </DialogContent>
       </Dialog>
+
+      {/* Conflict Dialog */}
+      <ConflictDialog
+        open={showConflictDialog}
+        onOpenChange={setShowConflictDialog}
+        conflicts={conflicts}
+        timezone={timezone}
+        onConfirm={handleConflictConfirm}
+        onCancel={handleConflictCancel}
+      />
     </>
   );
 };

@@ -2,9 +2,15 @@
 "use client";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useForm, UseFormReturn, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { appointmentFormSchema } from "@/lib/validation";
+import { appointmentFormSchema, appointmentTimeOffSchema } from "@/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import {
@@ -22,6 +28,7 @@ import { Customer, getProfileName } from "@/models/profile";
 import { Appointment } from "@/models/appointment";
 import { AlertCircle, XCircle } from "lucide-react";
 import { cancelRecurringAppointments } from "@/lib/actions";
+import { createTimeOff } from "@/actions/time-off";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
@@ -38,6 +45,7 @@ export const AppointmentForm = ({
   isSubmitting = false,
   type,
   appointmentId,
+  onTimeOffCreated,
 }: {
   onSuccess?: () => void;
   hideSubmitButton?: boolean;
@@ -46,6 +54,7 @@ export const AppointmentForm = ({
   isSubmitting?: boolean;
   type: "create" | "edit";
   appointmentId?: string;
+  onTimeOffCreated?: () => void;
 }) => {
   const [showAppointmentInfo, setShowAppointmentInfo] = React.useState(
     type === "edit",
@@ -85,6 +94,29 @@ export const AppointmentForm = ({
   });
   const form = externalForm || internalForm;
 
+  // Time Off Form
+  const timeOffForm = useForm<z.infer<typeof appointmentTimeOffSchema>>({
+    resolver: zodResolver(appointmentTimeOffSchema),
+    defaultValues: {
+      employee: {
+        _ref: "",
+        _type: "reference",
+      },
+      startTime: "",
+      duration: 30 as number,
+      reason: "",
+      isRecurring: false,
+      recurringDuration: {
+        value: 1,
+        unit: "months",
+      },
+      recurringFrequency: {
+        value: 1,
+        unit: "weeks",
+      },
+    },
+  });
+
   const clientErrors = form.formState.errors.customer;
 
   const [services, setServices] = React.useState<Service[]>([]);
@@ -120,6 +152,14 @@ export const AppointmentForm = ({
   const [loading, setLoading] = React.useState(true);
   const [showCancelStandingConfirm, setShowCancelStandingConfirm] =
     React.useState(false);
+  const [showUpcomingAppointmentsConfirm, setShowUpcomingAppointmentsConfirm] =
+    React.useState(false);
+  const [upcomingAppointments, setUpcomingAppointments] = React.useState<Appointment[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = React.useState<{
+    _id: string;
+    firstName: string;
+    lastName: string;
+  } | undefined>(undefined);
 
   // Watch form state for debugging
   React.useEffect(() => {
@@ -141,6 +181,8 @@ export const AppointmentForm = ({
     console.log("Services changed:", watchedServices);
   }, [watchedServices]);
 
+
+
   const customerRef = useWatch({
     control: form.control,
     name: "customer._ref",
@@ -155,6 +197,42 @@ export const AppointmentForm = ({
     control: form.control,
     name: "customer.lastName",
   });
+
+  const employeeRef = useWatch({
+    control: form.control,
+    name: "employee._ref",
+  });
+
+  // Update selectedEmployee when employeeRef changes
+  React.useEffect(() => {
+    if (employeeRef && employees.length > 0) {
+      const employee = employees.find(emp => emp.value === employeeRef);
+      if (employee) {
+        setSelectedEmployee({
+          _id: employee.value,
+          firstName: employee.label.split(' ')[0] || '',
+          lastName: employee.label.split(' ').slice(1).join(' ') || '',
+        });
+        // Auto-set employee in timeOffForm
+        timeOffForm.setValue("employee", {
+          _ref: employee.value,
+          _type: "reference",
+        });
+        // Auto-set startTime from appointment form
+        const appointmentTime = form.getValues("time");
+        if (appointmentTime) {
+          timeOffForm.setValue("startTime", appointmentTime);
+        }
+      }
+    } else {
+      setSelectedEmployee(undefined);
+      // Clear employee in timeOffForm
+      timeOffForm.setValue("employee", {
+        _ref: "",
+        _type: "reference",
+      });
+    }
+  }, [employeeRef, employees, timeOffForm, form]);
 
   const customerPhone = useWatch({
     control: form.control,
@@ -326,6 +404,7 @@ export const AppointmentForm = ({
           date: startDate,
           customerId,
         });
+        console.log("Appointments fetched:", appointmentsRes);
         setAppointments([...appointmentsRes]);
       }
 
@@ -335,12 +414,125 @@ export const AppointmentForm = ({
     fetchData();
   }, []);
 
+  // Check for upcoming appointments in the next 2 weeks
+  const checkUpcomingAppointments = async (customerId: string) => {
+    try {
+      const today = new Date();
+      const twoWeeksFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+      
+      // Fetch appointments for the next 2 weeks
+      const upcomingAppointmentsRes = await client.fetch(`
+        *[_type == "appointment" && 
+          customer._ref == $customerId && 
+          startTime >= $startDate && 
+          startTime <= $endDate &&
+          status != "cancelled"
+        ] | order(startTime asc) {
+          _id,
+          startTime,
+          endTime,
+          status,
+          type,
+          note,
+          customer->{
+            _id,
+            firstName,
+            lastName,
+            phone
+          },
+          employee->{
+            _id,
+            firstName,
+            lastName
+          },
+          service->{
+            _id,
+            name,
+            duration,
+            price
+          }
+        }
+      `, {
+        customerId,
+        startDate: today.toISOString(),
+        endDate: twoWeeksFromNow.toISOString()
+      });
+
+      return upcomingAppointmentsRes;
+    } catch (error) {
+      console.error("Error checking upcoming appointments:", error);
+      return [];
+    }
+  };
+
   // define a submit handler
-  function onSubmit() {
+  async function onSubmit() {
     console.log("Form submitted with values:", form.getValues());
     console.log("Form errors:", form.formState.errors);
     console.log("Form is valid:", form.formState.isValid);
+    
+    // Check for upcoming appointments before submitting
+    const customerId = form.getValues("customer._ref");
+    if (customerId && type === "create") {
+      const upcoming = await checkUpcomingAppointments(customerId);
+      if (upcoming.length > 0) {
+        setUpcomingAppointments(upcoming);
+        setShowUpcomingAppointmentsConfirm(true);
+        return; // Don't submit yet, wait for user confirmation
+      }
+    }
+    
     onSuccess?.();
+  }
+
+  // Time off submit handler
+  async function onTimeOffSubmit() {
+    if (!selectedEmployee) {
+      toast.error("Please select an employee from the calendar first");
+      return;
+    }
+
+    const timeOffData = timeOffForm.getValues();
+    if (timeOffData.duration && (typeof timeOffData.duration === 'number' || timeOffData.duration === 'to_close')) {
+      console.log("Time Off Data:", timeOffData);
+      try {
+        const result = await createTimeOff(timeOffData);
+        if (result.status === "SUCCESS") {
+          toast.success("Time off scheduled successfully");
+          // Reset form after successful submission
+          timeOffForm.reset({
+            employee: {
+              _ref: selectedEmployee._id,
+              _type: "reference",
+            },
+            startTime: "",
+            duration: 30 as number,
+            reason: "",
+            isRecurring: false,
+            recurringDuration: {
+              value: 1,
+              unit: "months",
+            },
+            recurringFrequency: {
+              value: 1,
+              unit: "weeks",
+            },
+          });
+          // Refresh time off data and close dialog
+          onTimeOffCreated?.();
+        } else {
+          toast.error("Failed to schedule time off", {
+            description: result.error,
+          });
+        }
+      } catch (error) {
+        toast.error("Error scheduling time off", {
+          description: "An unexpected error occurred",
+        });
+      }
+    } else {
+      toast.error("Please select duration");
+    }
   }
 
   // Handle cancel standing appointments
@@ -375,6 +567,18 @@ export const AppointmentForm = ({
     }
   };
 
+  // Handle upcoming appointments confirmation
+  const handleUpcomingAppointmentsConfirm = () => {
+    setShowUpcomingAppointmentsConfirm(false);
+    setUpcomingAppointments([]);
+    onSuccess?.(); // Proceed with appointment creation
+  };
+
+  const handleUpcomingAppointmentsCancel = () => {
+    setShowUpcomingAppointmentsConfirm(false);
+    setUpcomingAppointments([]);
+  };
+
   if (loading) {
     return <AppointmentFormLoading />;
   }
@@ -396,6 +600,9 @@ export const AppointmentForm = ({
                 setCustomerValue={setCustomerValue}
                 isSubmitting={isSubmitting}
                 onCustomerCreated={refreshCustomers}
+                timeOffForm={timeOffForm}
+                onTimeOffSubmit={onTimeOffSubmit}
+                selectedEmployee={selectedEmployee}
               />
             </div>
           )}
@@ -460,6 +667,52 @@ export const AppointmentForm = ({
         description="Are you sure you want to cancel all recurring appointments in this series? This action cannot be undone."
         onConfirm={handleCancelStanding}
       />
+      
+      {/* Upcoming Appointments Details Modal */}
+      <Dialog open={showUpcomingAppointmentsConfirm} onOpenChange={setShowUpcomingAppointmentsConfirm}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customer Has Upcoming Appointments</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>
+              This customer has {upcomingAppointments.length} upcoming appointment(s) in the next 2 weeks:
+            </p>
+            <div className="space-y-2">
+              {upcomingAppointments.map((appointment) => (
+                <div key={appointment._id} className="p-3 bg-gray-50 rounded text-sm">
+                  <div className="font-medium">
+                    {new Date(appointment.startTime).toLocaleDateString()} at{" "}
+                    {new Date(appointment.startTime).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  <div className="text-gray-600">
+                    {appointment.employee?.firstName} {appointment.employee?.lastName} - {appointment.service?.name}
+                  </div>
+                  {appointment.note && (
+                    <div className="text-gray-500 italic">"{appointment.note}"</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={handleUpcomingAppointmentsCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpcomingAppointmentsConfirm}
+              >
+                Create Anyway
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

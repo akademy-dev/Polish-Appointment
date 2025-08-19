@@ -10,7 +10,6 @@ import { AlertCircle } from "lucide-react";
 
 import EmployeeInfoForm from "./EmployeeInfoForm";
 import EmployeeWorkingForm from "./EmployeeWorkingForm";
-import EmployeeTimeOffForm from "./EmployeeTimeOffForm";
 import { Button } from "../ui/button";
 import EmployeeAssignedServiceForm from "./EmployeeAssignedServiceForm";
 
@@ -36,8 +35,8 @@ const EmployeeForm = ({
       lastName: "",
       phone: "",
       position: "backRoom",
+      note: "",
       workingTimes: [],
-      timeOffSchedules: [],
       assignedServices: [],
     },
   });
@@ -53,7 +52,7 @@ const EmployeeForm = ({
 
   const workingTabErrors = form.formState.errors.workingTimes;
 
-  const timeoffTabErrors = form.formState.errors.timeOffSchedules;
+
 
   function onSubmit() {
     onSuccess?.();
@@ -92,29 +91,10 @@ const EmployeeForm = ({
             )}
           </div>
         </TabsTrigger>
-        <TabsTrigger
-          value="timeoff"
-          className={cn(
-            "relative",
-            timeoffTabErrors &&
-              "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200",
-          )}
-          disabled={isSubmitting}
-        >
-          <div className="flex items-center gap-2">
-            Time-off Schedule
-            {timeoffTabErrors && (
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            )}
-          </div>
-        </TabsTrigger>
+
         <TabsTrigger
           value="services"
-          className={cn(
-            "relative",
-            timeoffTabErrors &&
-              "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200",
-          )}
+          className={cn("relative")}
           disabled={isSubmitting}
         >
           <div className="flex items-center gap-2">Services</div>
@@ -133,9 +113,7 @@ const EmployeeForm = ({
           <TabsContent value="working">
             <EmployeeWorkingForm form={form} />
           </TabsContent>
-          <TabsContent value="timeoff">
-            <EmployeeTimeOffForm form={form} />
-          </TabsContent>
+
           <TabsContent value="services">
             <EmployeeAssignedServiceForm form={form} />
           </TabsContent>

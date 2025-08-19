@@ -92,6 +92,26 @@ export const timeOffScheduleFormSchema = z.array(
     ),
 );
 
+// New simplified time off schema for appointment form
+export const appointmentTimeOffSchema = z.object({
+  employee: z.object({
+    _ref: z.string().min(1, "Employee is required"),
+    _type: z.literal("reference"),
+  }),
+  startTime: z.string().min(1, "Start time is required"),
+  duration: z.union([z.number().min(1), z.literal("to_close")]),
+  reason: z.string().optional(),
+  isRecurring: z.boolean(),
+  recurringDuration: z.object({
+    value: z.number().min(1).max(26).optional(),
+    unit: z.enum(["days", "weeks", "months"]).optional(),
+  }).optional(),
+  recurringFrequency: z.object({
+    value: z.number().min(1).max(26).optional(),
+    unit: z.enum(["days", "weeks"]).optional(),
+  }).optional(),
+});
+
 export const employeeFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
@@ -99,6 +119,7 @@ export const employeeFormSchema = z.object({
   position: z.string({
     required_error: "Please select a position",
   }),
+  note: z.string().optional(),
   workingTimes: workingTimeSchema,
   timeOffSchedules: timeOffScheduleFormSchema,
   assignedServices: assignedServicesSchema,
@@ -110,6 +131,7 @@ export const customerFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phone: z.string().optional(),
+  note: z.string().optional(),
 });
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>;

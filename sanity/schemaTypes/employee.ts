@@ -60,5 +60,11 @@ export const employeeType = defineType({
       type: "array",
       of: [defineArrayMember({ type: "assignedService" })],
     }),
+    defineField({
+      name: "note",
+      title: "Note",
+      type: "text",
+      description: "Additional notes about this employee",
+    }),
   ],
 });

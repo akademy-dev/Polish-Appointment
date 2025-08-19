@@ -29,16 +29,19 @@ import { z } from "zod";
 import { appointmentFormSchema } from "@/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Employee, getProfileName, TimeOffSchedule } from "@/models/profile";
+import { Employee, getProfileName } from "@/models/profile";
 import { Appointment } from "@/models/appointment";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
 import {
   createAppointment,
   createCustomer,
   updateAppointment,
+  checkRecurringConflicts,
 } from "@/lib/actions";
+import { APPOINTMENT_TIME_OFF_QUERY } from "@/sanity/lib/queries";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { client } from "@/sanity/lib/client";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +51,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { ConflictDialog } from "@/components/ConflictDialog";
 import { getIanaTimezone } from "@/lib/utils";
+import { deleteTimeOff, updateTimeOff } from "@/actions/time-off";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 const DragAndDropCalendar = withDragAndDrop(Calendar);
 
@@ -70,9 +77,12 @@ interface Resource {
 interface AppointmentScheduleProps {
   initialEmployees: Employee[];
   initialAppointments: Appointment[];
+  initialAppointmentTimeOffs?: any[];
   currentDate: string;
   notWorking?: boolean;
   cancelled?: boolean;
+  minTime?: string;
+  maxTime?: string;
 }
 
 export const formatToISO8601 = (
@@ -207,79 +217,92 @@ const setTimeToDate = (
   return momentTime.toDate();
 };
 
-const generateTimeOffEvents = (
-  employees: Employee[],
+const generateAppointmentTimeOffEvents = (
+  appointmentTimeOffs: any[],
   date: Date,
   timezone: string,
+  maxTime: string,
 ): CalendarEvent[] => {
   const events: any[] = [];
-  employees.forEach((employee) => {
-    if (!employee.timeOffSchedules || employee.timeOffSchedules.length === 0) {
+
+  appointmentTimeOffs.forEach((timeOff) => {
+    if (!timeOff.employee || !timeOff.startTime || !timeOff.duration) {
       return;
     }
 
-    employee.timeOffSchedules.forEach((schedule: TimeOffSchedule) => {
-      const {
-        period,
-        date: scheduleDate,
-        from,
-        to,
-        reason,
-        dayOfWeek,
-        dayOfMonth,
-      } = schedule;
-      let isMatchingDate = false;
-      const momentDate = moment.tz(date, getIanaTimezone(timezone));
+    const momentDate = moment.tz(date, getIanaTimezone(timezone));
+    let isMatchingDate = false;
 
-      switch (period) {
-        case "Exact":
-          if (scheduleDate) {
-            const exactDate = moment.tz(
-              scheduleDate,
-              getIanaTimezone(timezone),
-            );
-            isMatchingDate =
-              exactDate.isSame(momentDate, "year") &&
-              exactDate.isSame(momentDate, "month") &&
-              exactDate.isSame(momentDate, "date");
-          }
-          break;
-        case "Daily":
-          isMatchingDate = true;
-          break;
-        case "Weekly":
-          if (dayOfWeek) {
-            const currentDayOfWeek = momentDate.day();
-            const adjustedDayOfWeek =
-              currentDayOfWeek === 0 ? 7 : currentDayOfWeek;
-            isMatchingDate = dayOfWeek.includes(adjustedDayOfWeek);
-          }
-          break;
-        case "Monthly":
-          if (dayOfMonth) {
-            const currentDayOfMonth = momentDate.date();
-            isMatchingDate = dayOfMonth.includes(currentDayOfMonth);
-          }
-          break;
-        default:
-          break;
-      }
+    if (
+      timeOff.isRecurring &&
+      timeOff.recurringDuration &&
+      timeOff.recurringFrequency
+    ) {
+      // Handle recurring time off
+      const startDate = moment.tz(
+        timeOff._createdAt,
+        getIanaTimezone(timezone),
+      );
+      const endDate = startDate
+        .clone()
+        .add(timeOff.recurringDuration.value, timeOff.recurringDuration.unit);
 
-      if (isMatchingDate && from && to) {
-        const startTime = setTimeToDate(date, from, timezone);
-        const endTime = setTimeToDate(date, to, timezone);
-        if (startTime && endTime) {
-          events.push({
-            id: `time_off_${employee._id}_${scheduleDate || momentDate.toISOString()}`,
-            start: startTime,
-            end: endTime,
-            title: `Time Off`,
-            resourceId: employee._id,
-            type: "timeOff",
-          });
+      // Check if current date is within the recurring period
+      if (momentDate.isBetween(startDate, endDate, "day", "[]")) {
+        // Check frequency
+        const daysDiff = momentDate.diff(startDate, "days");
+        const frequencyValue = timeOff.recurringFrequency.value;
+        const frequencyUnit = timeOff.recurringFrequency.unit;
+
+        if (frequencyUnit === "days") {
+          isMatchingDate = daysDiff % frequencyValue === 0;
+        } else if (frequencyUnit === "weeks") {
+          const weeksDiff = momentDate.diff(startDate, "weeks");
+          isMatchingDate = weeksDiff % frequencyValue === 0;
         }
       }
-    });
+    } else {
+      // Non-recurring time off - check if it's for today
+      const timeOffDate = moment.tz(
+        timeOff.startTime,
+        getIanaTimezone(timezone),
+      );
+      isMatchingDate = timeOffDate.isSame(momentDate, "day");
+    }
+
+    if (isMatchingDate) {
+      const startTime = moment
+        .tz(timeOff.startTime, getIanaTimezone(timezone))
+        .toDate();
+      let endTime;
+
+      if (timeOff.duration === "to_close") {
+        // For "to close", set end time to the end of the day (maxTime)
+        const maxTimeMoment = setTimeToDate(date, maxTime, timezone);
+        endTime =
+          maxTimeMoment ||
+          moment
+            .tz(timeOff.startTime, getIanaTimezone(timezone))
+            .add(480, "minutes") // Fallback to 8 hours if maxTime parsing fails
+            .toDate();
+      } else {
+        // For regular duration, add minutes to start time
+        endTime = moment
+          .tz(timeOff.startTime, getIanaTimezone(timezone))
+          .add(timeOff.duration, "minutes")
+          .toDate();
+      }
+
+              events.push({
+          id: `appointment_time_off_${timeOff._id}_${momentDate.format("YYYY-MM-DD")}`,
+          start: startTime,
+          end: endTime,
+          title: "Time Off",
+          resourceId: timeOff.employee._id,
+          type: "appointmentTimeOff",
+          data: timeOff,
+        });
+    }
   });
 
   return events;
@@ -288,14 +311,28 @@ const generateTimeOffEvents = (
 const AppointmentScheduleTimezone = ({
   initialEmployees,
   initialAppointments,
+  initialAppointmentTimeOffs = [],
   currentDate,
   notWorking = false,
   cancelled = false,
+  minTime: propMinTime,
+  maxTime: propMaxTime,
 }: AppointmentScheduleProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { date, setDate, isLoading, setIsLoading, timezone } =
-    useContext(CalendarContext);
+  const {
+    date,
+    setDate,
+    isLoading,
+    setIsLoading,
+    timezone,
+    minTime: contextMinTime,
+    maxTime: contextMaxTime,
+  } = useContext(CalendarContext);
+
+  // Use props if provided, otherwise use context values
+  const minTime = propMinTime || contextMinTime;
+  const maxTime = propMaxTime || contextMaxTime;
 
   moment.tz.setDefault(getIanaTimezone(timezone));
   const localizer = momentLocalizer(moment);
@@ -309,6 +346,16 @@ const AppointmentScheduleTimezone = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflicts, setConflicts] = useState<any[]>([]);
+  const [pendingAppointmentData, setPendingAppointmentData] =
+    useState<any>(null);
+  const [appointmentTimeOffs, setAppointmentTimeOffs] = useState<any[]>(
+    initialAppointmentTimeOffs,
+  );
+  const [showTimeOffDialog, setShowTimeOffDialog] = useState(false);
+  const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
+  const [editingTimeOff, setEditingTimeOff] = useState<any>(null);
   const formRef = React.useRef<HTMLFormElement>(null);
 
   // Chuẩn hóa ngày khi múi giờ thay đổi
@@ -397,13 +444,14 @@ const AppointmentScheduleTimezone = ({
 
     return generateNotWorkingEvents(
       initialEmployees,
-      "8:00 AM",
-      "6:00 PM",
+      minTime,
+      maxTime,
       dateAtStartOfDay,
       timezone,
     );
   }, [initialEmployees, currentDate, timezone]);
 
+  // Generate appointment time off events
   const timeOffEvents = useMemo(() => {
     const dateAtStartOfDay = currentDate
       ? moment
@@ -415,8 +463,13 @@ const AppointmentScheduleTimezone = ({
           .startOf("day")
           .toDate();
 
-    return generateTimeOffEvents(initialEmployees, dateAtStartOfDay, timezone);
-  }, [initialEmployees, currentDate, timezone]);
+    return generateAppointmentTimeOffEvents(
+      appointmentTimeOffs,
+      dateAtStartOfDay,
+      timezone,
+      maxTime || "6:00 PM",
+    );
+  }, [appointmentTimeOffs, currentDate, timezone, maxTime]);
 
   // Ánh xạ initialAppointments thành sự kiện lịch
   const appointmentEvents = useMemo(() => {
@@ -460,6 +513,28 @@ const AppointmentScheduleTimezone = ({
   useEffect(() => {
     setIsLoading(false);
   }, [initialAppointments, setIsLoading]);
+
+  // Fetch appointment time off data
+  const fetchAppointmentTimeOffs = React.useCallback(async () => {
+    try {
+      const timeOffs = await client.fetch(APPOINTMENT_TIME_OFF_QUERY);
+      setAppointmentTimeOffs(timeOffs);
+    } catch (error) {
+      console.error("Error fetching appointment time offs:", error);
+    }
+  }, []);
+
+  // Fetch appointment time offs on component mount
+  useEffect(() => {
+    fetchAppointmentTimeOffs();
+  }, [fetchAppointmentTimeOffs]);
+
+
+
+  // Refresh appointment time offs when appointments change (indicating new time off was created)
+  useEffect(() => {
+    fetchAppointmentTimeOffs();
+  }, [initialAppointments, fetchAppointmentTimeOffs]);
 
   const updateUrlParams = (updates: Record<string, string | boolean>) => {
     const currentParams = new URLSearchParams(searchParams.toString());
@@ -578,9 +653,152 @@ const AppointmentScheduleTimezone = ({
     await handleAppointmentSuccess();
   };
 
-  const handleFormSave = () => {
+  const handleConflictConfirm = async () => {
+    if (!pendingAppointmentData) return;
+
+    setIsSubmitting(true);
+    setIsLoading(true);
+    setShowConflictDialog(false);
+
+    try {
+      const result = await createAppointment(
+        pendingAppointmentData.formData,
+        pendingAppointmentData.customer,
+        pendingAppointmentData.employee,
+        pendingAppointmentData.services,
+        pendingAppointmentData.reminder,
+        pendingAppointmentData.isRecurring,
+        pendingAppointmentData.recurringDuration,
+        pendingAppointmentData.recurringFrequency,
+      );
+
+      if (result.status === "SUCCESS") {
+        setOpen(false);
+        appointmentForm.reset();
+        toast.success("Success", {
+          description:
+            "Recurring appointments created successfully (with conflicts)",
+        });
+        router.refresh();
+        fetchAppointmentTimeOffs(); // Refresh time off data
+      } else {
+        toast.error("Error", {
+          description: result.error,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error", {
+        description: "An unexpected error occurred",
+      });
+    } finally {
+      setIsSubmitting(false);
+      setIsLoading(false);
+      setPendingAppointmentData(null);
+      setConflicts([]);
+    }
+  };
+
+  const handleConflictCancel = () => {
+    setShowConflictDialog(false);
+    setPendingAppointmentData(null);
+    setConflicts([]);
+    setIsSubmitting(false);
+    setIsLoading(false);
+  };
+
+  const handleTimeOffCancel = async () => {
+    if (!selectedTimeOff) return;
+    
+    setIsSubmitting(true);
+    try {
+      const result = await deleteTimeOff(selectedTimeOff._id);
+      
+      if (result.status === "SUCCESS") {
+        toast.success("Time off cancelled successfully");
+        setShowTimeOffDialog(false);
+        setSelectedTimeOff(null);
+        fetchAppointmentTimeOffs();
+      } else {
+        toast.error("Error cancelling time off", {
+          description: result.error,
+        });
+      }
+    } catch (error) {
+      console.error("Error cancelling time off:", error);
+      toast.error("Error", {
+        description: "An unexpected error occurred",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleTimeOffUpdate = async () => {
+    if (!selectedTimeOff || !editingTimeOff) return;
+    
+    setIsSubmitting(true);
+    try {
+      const result = await updateTimeOff(selectedTimeOff._id, editingTimeOff);
+      
+      if (result.status === "SUCCESS") {
+        toast.success("Time off updated successfully");
+        setShowTimeOffDialog(false);
+        setSelectedTimeOff(null);
+        setEditingTimeOff(null);
+        fetchAppointmentTimeOffs();
+      } else {
+        toast.error("Error updating time off", {
+          description: result.error,
+        });
+      }
+    } catch (error) {
+      console.error("Error updating time off:", error);
+      toast.error("Error", {
+        description: "An unexpected error occurred",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditTimeOff = () => {
+    if (selectedTimeOff) {
+      setEditingTimeOff({
+        employee: {
+          _ref: selectedTimeOff.employee._id,
+          _type: "reference",
+        },
+        employeeInfo: selectedTimeOff.employee, // Giữ thông tin employee để hiển thị
+        startTime: selectedTimeOff.startTime,
+        duration: selectedTimeOff.duration,
+        reason: selectedTimeOff.reason,
+        isRecurring: selectedTimeOff.isRecurring,
+        recurringDuration: selectedTimeOff.recurringDuration,
+        recurringFrequency: selectedTimeOff.recurringFrequency,
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTimeOff(null);
+  };
+
+  const formatDuration = (duration: number | string): string => {
+    if (duration === "to_close") {
+      return "To close";
+    }
+    const min = duration as number;
+    const hr = Math.floor(min / 60);
+    const m = min % 60;
+    if (hr && m) return `${hr}hr ${m}min`;
+    if (hr) return `${hr}hr`;
+    return `${m}min`;
+  };
+
+  const handleFormSave = async () => {
     if (type === "create") {
-      handleAppointmentSuccess();
+      await handleAppointmentSuccess();
     } else {
       setShowConfirm(true); // Show confirm dialog only for edit
     }
@@ -629,6 +847,77 @@ const AppointmentScheduleTimezone = ({
           return;
         }
 
+        // For create mode, check for conflicts first if it's a recurring appointment
+        if (formValues.isRecurring) {
+          // Calculate end time for the first appointment
+          const startTime = new Date(formValues.time);
+          const totalDuration = formValues.services.reduce(
+            (total, service) => total + service.duration * service.quantity,
+            0,
+          );
+          const endTime = new Date(startTime.getTime() + totalDuration * 60000);
+
+          const conflictResult = await checkRecurringConflicts(
+            formValues.employee._ref,
+            startTime.toISOString(),
+            endTime.toISOString(),
+            formValues.isRecurring,
+            formValues.recurringDuration?.value &&
+              formValues.recurringDuration?.unit
+              ? {
+                  value: formValues.recurringDuration.value,
+                  unit: formValues.recurringDuration.unit,
+                }
+              : undefined,
+            formValues.recurringFrequency?.value &&
+              formValues.recurringFrequency?.unit
+              ? {
+                  value: formValues.recurringFrequency.value,
+                  unit: formValues.recurringFrequency.unit,
+                }
+              : undefined,
+          );
+
+          if (
+            conflictResult.status === "SUCCESS" &&
+            conflictResult.conflicts.length > 0
+          ) {
+            // Store the appointment data and show conflict dialog
+            setPendingAppointmentData({
+              formData,
+              customer: {
+                _ref: formValues.customer._ref,
+                _type: formValues.customer._type,
+              },
+              employee: formValues.employee,
+              services: formValues.services,
+              reminder: formValues.reminder,
+              isRecurring: formValues.isRecurring,
+              recurringDuration:
+                formValues.recurringDuration?.value &&
+                formValues.recurringDuration?.unit
+                  ? {
+                      value: formValues.recurringDuration.value,
+                      unit: formValues.recurringDuration.unit,
+                    }
+                  : undefined,
+              recurringFrequency:
+                formValues.recurringFrequency?.value &&
+                formValues.recurringFrequency?.unit
+                  ? {
+                      value: formValues.recurringFrequency.value,
+                      unit: formValues.recurringFrequency.unit,
+                    }
+                  : undefined,
+            });
+            setConflicts(conflictResult.conflicts);
+            setShowConflictDialog(true);
+            setIsSubmitting(false);
+            setIsLoading(false);
+            return;
+          }
+        }
+
         const result = await createAppointment(
           formData,
           {
@@ -662,6 +951,7 @@ const AppointmentScheduleTimezone = ({
             description: `Appointment created successfully`,
           });
           router.refresh(); // Trigger re-fetch
+          fetchAppointmentTimeOffs(); // Refresh time off data
         } else {
           toast.error("Error", {
             description: result.error,
@@ -676,6 +966,78 @@ const AppointmentScheduleTimezone = ({
         const customerResult = await createCustomer(customerFormData);
         if (customerResult.status === "SUCCESS") {
           const customerId = customerResult._id;
+
+          // Check for conflicts if it's a recurring appointment
+          if (formValues.isRecurring) {
+            const startTime = new Date(formValues.time);
+            const totalDuration = formValues.services.reduce(
+              (total, service) => total + service.duration * service.quantity,
+              0,
+            );
+            const endTime = new Date(
+              startTime.getTime() + totalDuration * 60000,
+            );
+
+            const conflictResult = await checkRecurringConflicts(
+              formValues.employee._ref,
+              startTime.toISOString(),
+              endTime.toISOString(),
+              formValues.isRecurring,
+              formValues.recurringDuration?.value &&
+                formValues.recurringDuration?.unit
+                ? {
+                    value: formValues.recurringDuration.value,
+                    unit: formValues.recurringDuration.unit,
+                  }
+                : undefined,
+              formValues.recurringFrequency?.value &&
+                formValues.recurringFrequency?.unit
+                ? {
+                    value: formValues.recurringFrequency.value,
+                    unit: formValues.recurringFrequency.unit,
+                  }
+                : undefined,
+            );
+
+            if (
+              conflictResult.status === "SUCCESS" &&
+              conflictResult.conflicts.length > 0
+            ) {
+              setPendingAppointmentData({
+                formData,
+                customer: {
+                  _ref: customerId,
+                  _type: "reference",
+                },
+                employee: formValues.employee,
+                services: formValues.services,
+                reminder: formValues.reminder,
+                isRecurring: formValues.isRecurring,
+                recurringDuration:
+                  formValues.recurringDuration?.value &&
+                  formValues.recurringDuration?.unit
+                    ? {
+                        value: formValues.recurringDuration.value,
+                        unit: formValues.recurringDuration.unit,
+                      }
+                    : undefined,
+                recurringFrequency:
+                  formValues.recurringFrequency?.value &&
+                  formValues.recurringFrequency?.unit
+                    ? {
+                        value: formValues.recurringFrequency.value,
+                        unit: formValues.recurringFrequency.unit,
+                      }
+                    : undefined,
+              });
+              setConflicts(conflictResult.conflicts);
+              setShowConflictDialog(true);
+              setIsSubmitting(false);
+              setIsLoading(false);
+              return;
+            }
+          }
+
           const result = await createAppointment(
             formData,
             {
@@ -709,6 +1071,7 @@ const AppointmentScheduleTimezone = ({
               description: "New Appointment created successfully",
             });
             router.refresh(); // Trigger re-fetch
+            fetchAppointmentTimeOffs(); // Refresh time off data
           } else {
             toast.error("Error", {
               description: result.error,
@@ -766,10 +1129,13 @@ const AppointmentScheduleTimezone = ({
   const handleSelectEvent = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
 
-    if (
-      calendarEvent.type === "not_working" ||
-      calendarEvent.type === "timeOff"
-    ) {
+    if (calendarEvent.type === "not_working") {
+      return;
+    }
+
+    if (calendarEvent.type === "appointmentTimeOff") {
+      setSelectedTimeOff(calendarEvent.data);
+      setShowTimeOffDialog(true);
       return;
     }
 
@@ -807,7 +1173,10 @@ const AppointmentScheduleTimezone = ({
     );
     // Set recurringGroupId for Cancel Standing functionality
     if (calendarEvent.data.recurringGroupId) {
-      appointmentForm.setValue("recurringGroupId", calendarEvent.data.recurringGroupId);
+      appointmentForm.setValue(
+        "recurringGroupId",
+        calendarEvent.data.recurringGroupId,
+      );
     }
     setDuration(calendarEvent.data.duration || 0);
     setOpen(true);
@@ -825,7 +1194,8 @@ const AppointmentScheduleTimezone = ({
 
       if (
         calendarEvent.type === "not_working" ||
-        calendarEvent.type === "timeOff"
+        calendarEvent.type === "timeOff" ||
+        calendarEvent.type === "appointmentTimeOff"
       ) {
         return;
       }
@@ -876,7 +1246,7 @@ const AppointmentScheduleTimezone = ({
 
       if (
         calendarEvent.type === "not_working" ||
-        calendarEvent.type === "timeOff"
+        calendarEvent.type === "appointmentTimeOff"
       ) {
         return;
       }
@@ -980,14 +1350,16 @@ const AppointmentScheduleTimezone = ({
   const resizableAccessor = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
     return (
-      calendarEvent.type !== "not_working" && calendarEvent.type !== "timeOff"
+      calendarEvent.type !== "not_working" &&
+      calendarEvent.type !== "appointmentTimeOff"
     );
   }, []);
 
   const draggableAccessor = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
     return (
-      calendarEvent.type !== "not_working" && calendarEvent.type !== "timeOff"
+      calendarEvent.type !== "not_working" &&
+      calendarEvent.type !== "appointmentTimeOff"
     );
   }, []);
 
@@ -1062,11 +1434,21 @@ const AppointmentScheduleTimezone = ({
             localizer={localizer}
             min={moment
               .tz(getIanaTimezone(timezone))
-              .set({ hour: 8, minute: 0, second: 0, millisecond: 0 })
+              .set({
+                hour: moment(minTime, "h:mm A").hour(),
+                minute: moment(minTime, "h:mm A").minute(),
+                second: 0,
+                millisecond: 0,
+              })
               .toDate()}
             max={moment
               .tz(getIanaTimezone(timezone))
-              .set({ hour: 18, minute: 0, second: 0, millisecond: 0 })
+              .set({
+                hour: moment(maxTime, "h:mm A").hour(),
+                minute: moment(maxTime, "h:mm A").minute(),
+                second: 0,
+                millisecond: 0,
+              })
               .toDate()}
             // dayLayoutAlgorithm={"no-overlap"}
             resources={resources}
@@ -1160,13 +1542,18 @@ const AppointmentScheduleTimezone = ({
                       </div>
                     </div>
                   );
-                } else if (calendarEvent.type === "timeOff") {
+                } else if (calendarEvent.type === "appointmentTimeOff") {
                   return (
                     <div className="bg-blue-400 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className="text-[14px] text-black ">
+                        <span className="text-[14px] text-black font-medium">
                           {calendarEvent.title}
                         </span>
+                        {(calendarEvent.data as any)?.reason && (
+                          <span className="text-[12px] text-black opacity-80">
+                            {(calendarEvent.data as any).reason}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );
@@ -1204,6 +1591,10 @@ const AppointmentScheduleTimezone = ({
             formRef={isMobile ? formRef : undefined}
             isSubmitting={isSubmitting}
             type={type}
+            onTimeOffCreated={() => {
+              fetchAppointmentTimeOffs();
+              setOpen(false);
+            }}
           />
         </DialogContent>
       </Dialog>
@@ -1214,6 +1605,238 @@ const AppointmentScheduleTimezone = ({
         description="Are you sure you want to update this appointment?"
         onConfirm={handleConfirm}
       />
+      <ConflictDialog
+        open={showConflictDialog}
+        onOpenChange={setShowConflictDialog}
+        conflicts={conflicts}
+        timezone={timezone}
+        onConfirm={handleConflictConfirm}
+        onCancel={handleConflictCancel}
+      />
+
+      {/* Time Off Dialog */}
+      <Dialog open={showTimeOffDialog} onOpenChange={setShowTimeOffDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Time Off Details</DialogTitle>
+            <DialogDescription>
+              View and manage time off details
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTimeOff && (
+            <div className="space-y-4">
+              {!editingTimeOff ? (
+                // View Mode
+                <>
+                                     <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <label className="text-sm font-medium">Employee</label>
+                       <p className="text-sm text-gray-600">
+                         {selectedTimeOff.employee?.firstName} {selectedTimeOff.employee?.lastName}
+                       </p>
+                     </div>
+                     <div>
+                       <label className="text-sm font-medium">Start Time</label>
+                       <p className="text-sm text-gray-600">
+                         {moment.tz(selectedTimeOff.startTime, getIanaTimezone(timezone))
+                           .format("MMM DD, YYYY h:mm A")}
+                       </p>
+                     </div>
+                     <div>
+                       <label className="text-sm font-medium">Duration</label>
+                       <p className="text-sm text-gray-600">
+                         {formatDuration(selectedTimeOff.duration)}
+                       </p>
+                     </div>
+                     <div>
+                       <label className="text-sm font-medium">Recurring</label>
+                       <p className="text-sm text-gray-600">
+                         {selectedTimeOff.isRecurring ? "Yes" : "No"}
+                       </p>
+                     </div>
+                   </div>
+
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <label className="text-sm font-medium">Created At</label>
+                       <p className="text-sm text-gray-600">
+                         {selectedTimeOff._createdAt 
+                           ? moment.tz(selectedTimeOff._createdAt, getIanaTimezone(timezone))
+                               .format("MMM DD, YYYY h:mm A")
+                           : "N/A"}
+                       </p>
+                     </div>
+                     <div>
+                       <label className="text-sm font-medium">Last Updated</label>
+                       <p className="text-sm text-gray-600">
+                         {selectedTimeOff._updatedAt 
+                           ? moment.tz(selectedTimeOff._updatedAt, getIanaTimezone(timezone))
+                               .format("MMM DD, YYYY h:mm A")
+                           : "N/A"}
+                       </p>
+                     </div>
+                   </div>
+                  
+                  {selectedTimeOff.reason && (
+                    <div>
+                      <label className="text-sm font-medium">Reason</label>
+                      <p className="text-sm text-gray-600">{selectedTimeOff.reason}</p>
+                    </div>
+                  )}
+                  
+                  {selectedTimeOff.isRecurring && selectedTimeOff.recurringDuration && selectedTimeOff.recurringFrequency && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Recurring Duration</label>
+                        <p className="text-sm text-gray-600">
+                          {selectedTimeOff.recurringDuration.value} {selectedTimeOff.recurringDuration.unit}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Recurring Frequency</label>
+                        <p className="text-sm text-gray-600">
+                          Every {selectedTimeOff.recurringFrequency.value} {selectedTimeOff.recurringFrequency.unit}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowTimeOffDialog(false)}
+                      disabled={isSubmitting}
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleEditTimeOff}
+                      disabled={isSubmitting}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={handleTimeOffCancel}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Cancelling..." : "Cancel Time Off"}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                                 // Edit Mode
+                 <>
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <label className="text-sm font-medium">Employee</label>
+                       <p className="text-sm text-gray-600">
+                         {editingTimeOff.employeeInfo?.firstName} {editingTimeOff.employeeInfo?.lastName}
+                       </p>
+                     </div>
+                     <div>
+                       <label className="text-sm font-medium">Start Time</label>
+                       <p className="text-sm text-gray-600">
+                         {moment.tz(editingTimeOff.startTime, getIanaTimezone(timezone))
+                           .format("MMM DD, YYYY h:mm A")}
+                       </p>
+                     </div>
+                   </div>
+
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <label className="text-sm font-medium">Created At</label>
+                       <p className="text-sm text-gray-600">
+                         {selectedTimeOff._createdAt 
+                           ? moment.tz(selectedTimeOff._createdAt, getIanaTimezone(timezone))
+                               .format("MMM DD, YYYY h:mm A")
+                           : "N/A"}
+                       </p>
+                     </div>
+                     <div>
+                       <label className="text-sm font-medium">Last Updated</label>
+                       <p className="text-sm text-gray-600">
+                         {selectedTimeOff._updatedAt 
+                           ? moment.tz(selectedTimeOff._updatedAt, getIanaTimezone(timezone))
+                               .format("MMM DD, YYYY h:mm A")
+                           : "N/A"}
+                       </p>
+                     </div>
+                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Duration</Label>
+                    <Select
+                      value={editingTimeOff.duration?.toString() || ""}
+                      onValueChange={(value) => {
+                        if (value === "to_close") {
+                          setEditingTimeOff((prev: any) => ({ ...prev, duration: "to_close" }));
+                        } else {
+                          setEditingTimeOff((prev: any) => ({ ...prev, duration: Number(value) }));
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select duration" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 32 }, (_, i) => (i + 1) * 15).map((min) => (
+                          <SelectItem key={min} value={min.toString()}>
+                            {formatDuration(min)}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="to_close">To close</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {editingTimeOff.reason && (
+                    <div>
+                      <label className="text-sm font-medium">Reason</label>
+                      <p className="text-sm text-gray-600">{editingTimeOff.reason}</p>
+                    </div>
+                  )}
+                  
+                  {editingTimeOff.isRecurring && editingTimeOff.recurringDuration && editingTimeOff.recurringFrequency && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Recurring Duration</label>
+                        <p className="text-sm text-gray-600">
+                          {editingTimeOff.recurringDuration.value} {editingTimeOff.recurringDuration.unit}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Recurring Frequency</label>
+                        <p className="text-sm text-gray-600">
+                          Every {editingTimeOff.recurringFrequency.value} {editingTimeOff.recurringFrequency.unit}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelEdit}
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleTimeOffUpdate}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Updating..." : "Update Time Off"}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

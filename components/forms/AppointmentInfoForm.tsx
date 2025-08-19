@@ -99,7 +99,12 @@ const AppointmentInfoForm = ({
         employee.value === employeeRef,
     );
     if (selectedEmployee && employeeValue !== selectedEmployee.value) {
-      console.log("Setting employee value:", selectedEmployee.value, "Type:", type);
+      console.log(
+        "Setting employee value:",
+        selectedEmployee.value,
+        "Type:",
+        type,
+      );
       setEmployeeValue(selectedEmployee.value);
     }
   }
@@ -108,8 +113,9 @@ const AppointmentInfoForm = ({
 
   // Filter out cancelled appointments
   const filteredAppointments = useMemo(() => {
-    const filtered = appointments.filter((appointment) => appointment.status !== "cancelled");
-    console.log("Original appointments:", appointments.length, "Filtered appointments:", filtered.length);
+    const filtered = appointments.filter(
+      (appointment) => appointment.status !== "cancelled",
+    );
     return filtered;
   }, [appointments]);
 
@@ -192,7 +198,7 @@ const AppointmentInfoForm = ({
   return (
     <div className="flex flex-col h-full min-h-0 flex-1">
       <div className="flex gap-6 w-full flex-1 min-h-0 overflow-hidden">
-        <div className="w-1/3 flex flex-col gap-4">
+        <div className="w-1/4 flex flex-col gap-4">
           <div className="flex flex-col ">
             <span className="text-xl font-semibold text-primary">
               {form.getValues("customer.firstName")}{" "}
@@ -234,7 +240,7 @@ const AppointmentInfoForm = ({
 
         <div className="w-px bg-black self-stretch "></div>
 
-        <div className="flex flex-col gap-2 w-2/3 flex-1 min-h-0">
+        <div className="flex flex-col gap-2 w-3/4 flex-1 min-h-0">
           <FormField
             control={form.control}
             name="type"
@@ -585,6 +591,21 @@ const AppointmentInfoForm = ({
                           {format(
                             toZonedTime(
                               new Date(row.original.endTime),
+                              timezone,
+                            ),
+                            "dd/MM/yyyy HH:mm",
+                          )}
+                        </div>
+                      ),
+                    },
+                    {
+                      accessorKey: "_createdAt",
+                      header: "Created At",
+                      cell: ({ row }: { row: any }) => (
+                        <div>
+                          {format(
+                            fromZonedTime(
+                              new Date(row.original._createdAt),
                               timezone,
                             ),
                             "dd/MM/yyyy HH:mm",

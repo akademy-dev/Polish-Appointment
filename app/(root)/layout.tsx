@@ -23,25 +23,29 @@ export default function Layout({
   const value = pathname.split("/")[1] || "schedule";
   const isRoot = pathname === "/";
   const [timezone, setTimezone] = useState<string>("");
+  const [minTime, setMinTime] = useState<string>("8:00 AM");
+  const [maxTime, setMaxTime] = useState<string>("6:00 PM");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchTimezone = async () => {
+    const fetchSettings = async () => {
       try {
         setLoading(true);
         const data = await client.fetch(TIMEZONE_QUERY);
         setTimezone(parseOffset(data.timezone));
+        setMinTime(data.minTime || "8:00 AM");
+        setMaxTime(data.maxTime || "6:00 PM");
       } catch (err) {
-        console.error("Error fetching timezone:", err);
-        setError("Failed to fetch timezone. Please try again later.");
+        console.error("Error fetching settings:", err);
+        setError("Failed to fetch settings. Please try again later.");
         setTimezone("UTC"); // Set a default timezone in case of error
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTimezone();
+    fetchSettings();
   }, []); // Dependency array rỗng để chỉ chạy một lần
 
   if (loading) {
@@ -52,7 +56,7 @@ export default function Layout({
     <>
       {isRoot ? (
         <SidebarProvider>
-          <CalendarProvider timezone={timezone}>
+          <CalendarProvider timezone={timezone} minTime={minTime} maxTime={maxTime}>
             <AppSidebar />
             <SidebarTrigger />
             <main className="font-lexend p-4 w-full h-screen overflow-hidden">
@@ -73,7 +77,7 @@ export default function Layout({
           <header className="mb-5 w-full space-y-4 lg:space-y-0">
             <div className="flex items-center justify-between">
               <Navbar value={value} />
-              {value !== "settings" && value !== "appointments" ? (
+              {value !== "settings" && value !== "appointments" && value !== "time-tracking" ? (
                 <div className="hidden lg:flex items-center gap-4">
                   {value !== "services" && (
                     <div className="w-80">
@@ -82,7 +86,7 @@ export default function Layout({
                   )}
                   <CreateInfoButton type={value} />
                 </div>
-              ) : value !== "appointments" ? (
+              ) : value !== "appointments" && value !== "time-tracking" ? (
                 <Button variant="outline" className="hidden lg:flex" asChild>
                   <LogoutButton>
                     <LogOutIcon />
@@ -90,7 +94,7 @@ export default function Layout({
                 </Button>
               ) : null}
             </div>
-            {value !== "settings" && value !== "appointments" && (
+            {value !== "settings" && value !== "appointments" && value !== "time-tracking" && (
               <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
                 {value !== "services" && (
                   <div className="flex-1 sm:max-w-md">

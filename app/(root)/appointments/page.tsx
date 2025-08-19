@@ -47,6 +47,8 @@ const page = async ({ searchParams }: PageProps) => {
           searchTerm,
           limit,
           timezone: parseOffset(timezone.data.timezone),
+          minTime: timezone.data.minTime || "8:00 AM",
+          maxTime: timezone.data.maxTime || "6:00 PM",
         }}
       />
       <SanityLive />

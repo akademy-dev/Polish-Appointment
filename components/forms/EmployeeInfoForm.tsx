@@ -1,5 +1,6 @@
 import React from "react";
 import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 import {
   Select,
   SelectContent,
@@ -89,6 +90,23 @@ const EmployeeInfoForm = ({
           </FormItem>
         )}
       />
+              <FormField
+          control={form.control}
+          name="note"
+          render={({ field }) => (
+            <FormItem className="col-span-3">
+              <FormLabel>Note</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Additional notes about this employee..." 
+                  {...field} 
+                  value={field.value || ""}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
     </div>
   );
 };

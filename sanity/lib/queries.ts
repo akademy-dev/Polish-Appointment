@@ -44,6 +44,7 @@ export const EMPLOYEES_QUERY = defineQuery(
       _createdAt,
       phone,
       position,
+      note,
       workingTimes,
       timeOffSchedules,
       assignedServices,
@@ -98,6 +99,7 @@ export const ALL_EMPLOYEES_QUERY = defineQuery(
       _createdAt,
       phone,
       position,
+      note,
       workingTimes,
       timeOffSchedules,
       assignedServices
@@ -112,7 +114,8 @@ export const CUSTOMERS_QUERY = defineQuery(
       firstName,
       lastName,
       _createdAt,
-      phone
+      phone,
+      note
     } | order(_createdAt desc) [($page - 1) * $limit ... $page * $limit],
     "total": count(*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)])
   }`,
@@ -126,7 +129,8 @@ export const ALL_CUSTOMERS_QUERY = defineQuery(
       firstName,
       lastName,
       _createdAt,
-      phone
+      phone,
+      note
     }
   `,
 );
@@ -168,6 +172,26 @@ export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
   recurringGroupId
 }
 `,
+);
+
+export const APPOINTMENT_TIME_OFF_QUERY = defineQuery(
+  `*[_type == "appointmentTimeOff"] {
+  _id,
+  _createdAt,
+  _updatedAt,
+  employee->{
+    _id,
+    firstName,
+    lastName,
+    phone
+  },
+  startTime,
+  duration,
+  reason,
+  isRecurring,
+  recurringDuration,
+  recurringFrequency
+}`,
 );
 
 export const APPOINTMENTS_BY_EMPLOYEE_QUERY = defineQuery(
@@ -261,9 +285,128 @@ export const UPDATE_APPOINTMENT_STATUS_QUERY = defineQuery(
   }`,
 );
 
+export const CHECK_CONFLICT_QUERY = defineQuery(
+  `*[_type == "appointment" 
+    && status == "scheduled" 
+    && employee._ref == $employeeId
+    && (
+      (dateTime(startTime) >= dateTime($startTime) && dateTime(startTime) < dateTime($endTime)) ||
+      (dateTime(endTime) > dateTime($startTime) && dateTime(endTime) <= dateTime($endTime)) ||
+      (dateTime(startTime) <= dateTime($startTime) && dateTime(endTime) >= dateTime($endTime))
+    )
+  ] {
+    _id,
+    startTime,
+    endTime,
+    duration,
+    customer -> {
+      _id,
+      firstName,
+      lastName,
+      "fullName": firstName + " " + lastName
+    },
+    service -> {
+      _id,
+      name,
+      duration
+    },
+    status
+  } | order(startTime asc)`,
+);
+
+export const EMPLOYEE_WORKING_TIMES_QUERY = defineQuery(
+  `*[_type == "employee" && _id == $employeeId] {
+    _id,
+    firstName,
+    lastName,
+    workingTimes[] {
+      day,
+      from,
+      to
+    },
+    timeOffSchedules[] {
+      period,
+      date,
+      from,
+      to,
+      reason,
+      dayOfWeek,
+      dayOfMonth
+    }
+  }[0]`,
+);
+
 export const TIMEZONE_QUERY = defineQuery(
   `*[_type == "setting"][0]{
   _id,
-  timezone
+  timezone,
+  minTime,
+  maxTime,
+  smsMessage
 }`,
+);
+
+export const TIME_TRACKING_QUERY = defineQuery(
+  `*[_type == "timeTracking"] | order(checkIn desc) {
+  _id,
+  employee->{
+    _id,
+    firstName,
+    lastName
+  },
+  checkIn,
+  checkOut,
+  hourlyRate,
+  totalHours,
+  totalPay,
+  note,
+  status,
+  _createdAt,
+  _updatedAt
+}`
+);
+
+export const TIME_TRACKING_BY_DATE_RANGE_QUERY = defineQuery(
+  `*[_type == "timeTracking" && 
+  checkIn >= $startDate && 
+  checkIn <= $endDate
+] | order(checkIn desc) {
+  _id,
+  employee->{
+    _id,
+    firstName,
+    lastName
+  },
+  checkIn,
+  checkOut,
+  hourlyRate,
+  totalHours,
+  totalPay,
+  note,
+  status,
+  _createdAt,
+  _updatedAt
+}`
+);
+
+export const TIME_TRACKING_BY_EMPLOYEE_QUERY = defineQuery(
+  `*[_type == "timeTracking" && 
+  employee._ref == $employeeId
+] | order(checkIn desc) {
+  _id,
+  employee->{
+    _id,
+    firstName,
+    lastName
+  },
+  checkIn,
+  checkOut,
+  hourlyRate,
+  totalHours,
+  totalPay,
+  note,
+  status,
+  _createdAt,
+  _updatedAt
+}`
 );

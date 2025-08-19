@@ -10,6 +10,7 @@ import { getUserByEmail, getUserById } from "@/data/user";
 import { currentUser } from "@/lib/auth";
 import { generateVerificationToken } from "@/lib/tokens";
 import { sendVerificationEmail } from "@/lib/mail";
+import { writeClient } from "@/sanity/lib/write-client";
 
 export const settings = async (values: z.infer<typeof SettingsSchema>) => {
   const user = await currentUser();
@@ -82,3 +83,17 @@ export const settings = async (values: z.infer<typeof SettingsSchema>) => {
 
   return { success: "Settings Updated!" };
 };
+
+export async function updateSMSMessage(settingId: string, smsMessage: string) {
+  try {
+    await writeClient
+      .patch(settingId)
+      .set({ smsMessage })
+      .commit();
+    
+    return { status: "SUCCESS" };
+  } catch (error) {
+    console.error("Error updating SMS message:", error);
+    return { status: "ERROR", error: "Failed to update SMS message" };
+  }
+}

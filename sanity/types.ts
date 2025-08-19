@@ -20,6 +20,9 @@ export type Setting = {
   _updatedAt: string;
   _rev: string;
   timezone?: string;
+  minTime?: string;
+  maxTime?: string;
+  smsMessage?: string;
 };
 
 export type TwoFactorToken = {
@@ -195,10 +198,30 @@ export type TimeOffSchedule = {
   date?: string;
   from: string;
   to: string;
+  reason: string;
+  dayOfWeek?: number[];
+  dayOfMonth?: number[];
+  period: "Exact" | "Daily" | "Weekly" | "Monthly";
+};
+
+export type AppointmentTimeOff = {
+  _type: "appointmentTimeOff";
+  employee: {
+    _ref: string;
+    _type: "reference";
+  };
+  startTime: string;
+  duration: number | "to_close";
   reason?: string;
-  dayOfWeek?: Array<number>;
-  dayOfMonth?: Array<number>;
-  period?: "Exact" | "Daily" | "Weekly" | "Monthly";
+  isRecurring: boolean;
+  recurringDuration?: {
+    value: number;
+    unit: "days" | "weeks" | "months";
+  };
+  recurringFrequency?: {
+    value: number;
+    unit: "days" | "weeks";
+  };
 };
 
 export type Customer = {
@@ -210,6 +233,7 @@ export type Customer = {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  note?: string;
 };
 
 export type Employee = {
@@ -238,6 +262,7 @@ export type Employee = {
       _key: string;
     } & AssignedService
   >;
+  note?: string;
 };
 
 export type Service = {
@@ -385,6 +410,31 @@ export type SanityAssetSourceData = {
   url?: string;
 };
 
+export type TimeTracking = {
+  _id: string;
+  _type: "timeTracking";
+  _createdAt: string;
+  _updatedAt: string;
+  _rev: string;
+  employee?: {
+    _ref: string;
+    _type: "reference";
+    _weak?: boolean;
+    [internalGroqTypeReferenceTo]?: "employee";
+  } | {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  checkIn?: string;
+  checkOut?: string;
+  hourlyRate?: number;
+  totalHours?: number;
+  totalPay?: number;
+  note?: string;
+  status?: "checked_in" | "checked_out";
+};
+
 export type AllSanitySchemaTypes =
   | Setting
   | TwoFactorToken
@@ -398,6 +448,8 @@ export type AllSanitySchemaTypes =
   | AssignedService
   | WorkingTime
   | TimeOffSchedule
+  | AppointmentTimeOff
+  | TimeTracking
   | Customer
   | Employee
   | Service
