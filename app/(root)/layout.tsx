@@ -26,7 +26,7 @@ export default function Layout({
   const [minTime, setMinTime] = useState<string>("8:00 AM");
   const [maxTime, setMaxTime] = useState<string>("6:00 PM");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -38,7 +38,6 @@ export default function Layout({
         setMaxTime(data.maxTime || "6:00 PM");
       } catch (err) {
         console.error("Error fetching settings:", err);
-        setError("Failed to fetch settings. Please try again later.");
         setTimezone("UTC"); // Set a default timezone in case of error
       } finally {
         setLoading(false);

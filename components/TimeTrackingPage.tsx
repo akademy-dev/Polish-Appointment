@@ -15,16 +15,14 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { CalendarIcon, Clock, DollarSign, User, Filter, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { 
-  createTimeTracking, 
+import {
+  createTimeTracking,
   updateTimeTracking, 
   deleteTimeTracking,
-  getTimeTrackingByDateRange,
-  calculateTotalPay 
 } from "@/actions/time-tracking";
 import { Employee, TimeTracking } from "@/sanity/types";
 import { client } from "@/sanity/lib/client";
-import { ALL_EMPLOYEES_QUERY, TIME_TRACKING_QUERY } from "@/sanity/lib/queries";
+import { TIME_TRACKING_QUERY } from "@/sanity/lib/queries";
 
 interface TimeTrackingPageProps {
   initialEmployees: Employee[];
@@ -41,7 +39,7 @@ export default function TimeTrackingPage({
     employeesLength: initialEmployees?.length,
     timeTrackingLength: initialTimeTracking?.length
   });
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [employees] = useState<Employee[]>(initialEmployees);
   const [timeTracking, setTimeTracking] = useState<TimeTracking[]>(initialTimeTracking);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [selectedEmployeeName, setSelectedEmployeeName] = useState<string>("");
@@ -76,8 +74,8 @@ export default function TimeTrackingPage({
     try {
       const result = await client.fetch(TIME_TRACKING_QUERY);
       setTimeTracking(result);
-    } catch (error) {
-      console.error("Error fetching time tracking:", error);
+    } catch {
+      console.error("Error fetching time tracking");
       toast.error("Failed to fetch time tracking data");
     }
   }, []);
@@ -140,7 +138,7 @@ export default function TimeTrackingPage({
     }
 
     return filtered;
-  }, [timeTracking, filterType, selectedEmployee, dateRange]);
+  }, [timeTracking, filterType, selectedEmployee, dateRange, selectedEmployeeName]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -194,7 +192,7 @@ export default function TimeTrackingPage({
       } else {
         toast.error(result.error || "Failed to check in employee");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while checking in");
     } finally {
       setIsLoading(false);
@@ -220,7 +218,7 @@ export default function TimeTrackingPage({
       } else {
         toast.error(result.error || "Failed to check out employee");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while checking out");
     } finally {
       setIsLoading(false);
@@ -245,7 +243,7 @@ export default function TimeTrackingPage({
       } else {
         toast.error(result.error || "Failed to delete time tracking record");
       }
-    } catch (error) {
+    } catch {
       toast.error("An error occurred while deleting");
     } finally {
       setIsLoading(false);
@@ -325,7 +323,7 @@ export default function TimeTrackingPage({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Filter Type</Label>
-              <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+              <Select value={filterType} onValueChange={(value: "all" | "date" | "employee" | "both") => setFilterType(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
