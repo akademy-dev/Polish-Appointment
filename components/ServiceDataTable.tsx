@@ -176,7 +176,7 @@ export function ServiceDataTable({
           description: result.error,
         });
       }
-    } catch {
+    } catch (error) {
       toast.error("Error", {
         description: "Failed to delete service. Please try again.",
       });

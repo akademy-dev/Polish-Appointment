@@ -130,8 +130,8 @@ const FormButton = ({
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [timezone, setTimezone] = useState<string>("");
   const [showConflictDialog, setShowConflictDialog] = useState(false);
-  const [conflicts, setConflicts] = useState<unknown[]>([]);
-  const [pendingAppointmentData, setPendingAppointmentData] = useState<unknown>(null);
+  const [conflicts, setConflicts] = useState<any[]>([]);
+  const [pendingAppointmentData, setPendingAppointmentData] = useState<any>(null);
 
   const fetchEmployeeHistory = async () => {
     if (profile) {
