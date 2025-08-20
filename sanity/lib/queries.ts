@@ -20,7 +20,7 @@ export const SERVICES_QUERY = defineQuery(`
 `);
 
 export const ALL_SERVICES_QUERY = defineQuery(`
-*[_type == "service"]{
+*[_type == "service" && showOnline == true]{
   _id,
   name,
   price,
