@@ -1205,7 +1205,7 @@ const AppointmentScheduleTimezone = ({
           {
             _ref: calendarEvent.data.service._id,
             _type: "reference",
-            duration: calendarEvent.data.service.duration,
+            duration: calendarEvent.data.duration || calendarEvent.data.service.duration,
             quantity: 1,
           },
         ]
@@ -1267,7 +1267,7 @@ const AppointmentScheduleTimezone = ({
             {
               _ref: calendarEvent.data.service._id,
               _type: "reference",
-              duration: calendarEvent.data.service.duration,
+              duration: calendarEvent.data.duration || calendarEvent.data.service.duration,
               quantity: 1,
             },
           ]
@@ -1278,7 +1278,7 @@ const AppointmentScheduleTimezone = ({
         calendarEvent.data.status || "scheduled",
       );
 
-      setDuration(calendarEvent.data.service?.duration || 0);
+      setDuration(calendarEvent.data.duration || calendarEvent.data.service?.duration || 0);
       setShowConfirm(true);
     },
     [],
@@ -1319,7 +1319,7 @@ const AppointmentScheduleTimezone = ({
             {
               _ref: calendarEvent.data.service._id,
               _type: "reference",
-              duration: calendarEvent.data.service.duration,
+              duration: calendarEvent.data.duration || calendarEvent.data.service.duration,
               quantity: 1,
             },
           ]
