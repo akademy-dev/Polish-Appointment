@@ -91,6 +91,30 @@ type CustomerHistoryRow = {
   duration: number;
 };
 
+// Add interface for pending appointment data
+interface PendingAppointmentData {
+  formData: FormData;
+  customer: {
+    _ref: string;
+    _type: string;
+  };
+  employee: {
+    _ref: string;
+    _type: string;
+  };
+  services: any[];
+  reminder: any[];
+  isRecurring: boolean;
+  recurringDuration?: {
+    value: number;
+    unit: "days" | "weeks" | "months";
+  };
+  recurringFrequency?: {
+    value: number;
+    unit: "days" | "weeks";
+  };
+}
+
 interface FormButtonProps {
   children: ReactNode;
   mode: FormMode;
@@ -131,7 +155,8 @@ const FormButton = ({
   const [timezone, setTimezone] = useState<string>("");
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflicts, setConflicts] = useState<any[]>([]);
-  const [pendingAppointmentData, setPendingAppointmentData] = useState<any>(null);
+  const [pendingAppointmentData, setPendingAppointmentData] =
+    useState<PendingAppointmentData | null>(null);
 
   const fetchEmployeeHistory = async () => {
     if (profile) {
@@ -643,7 +668,10 @@ const FormButton = ({
         // Check for conflicts if it's a recurring appointment
         if (formValues.isRecurring) {
           const startTime = new Date(formValues.time);
-          const totalDuration = formValues.services.reduce((total, service) => total + (service.duration * service.quantity), 0);
+          const totalDuration = formValues.services.reduce(
+            (total, service) => total + service.duration * service.quantity,
+            0,
+          );
           const endTime = new Date(startTime.getTime() + totalDuration * 60000);
 
           const conflictResult = await checkRecurringConflicts(
@@ -651,13 +679,15 @@ const FormButton = ({
             startTime.toISOString(),
             endTime.toISOString(),
             formValues.isRecurring,
-            formValues.recurringDuration?.value && formValues.recurringDuration?.unit
+            formValues.recurringDuration?.value &&
+              formValues.recurringDuration?.unit
               ? {
                   value: formValues.recurringDuration.value,
                   unit: formValues.recurringDuration.unit,
                 }
               : undefined,
-            formValues.recurringFrequency?.value && formValues.recurringFrequency?.unit
+            formValues.recurringFrequency?.value &&
+              formValues.recurringFrequency?.unit
               ? {
                   value: formValues.recurringFrequency.value,
                   unit: formValues.recurringFrequency.unit,
@@ -665,7 +695,10 @@ const FormButton = ({
               : undefined,
           );
 
-          if (conflictResult.status === "SUCCESS" && conflictResult.conflicts.length > 0) {
+          if (
+            conflictResult.status === "SUCCESS" &&
+            conflictResult.conflicts.length > 0
+          ) {
             setPendingAppointmentData({
               formData,
               customer: {
@@ -676,18 +709,22 @@ const FormButton = ({
               services: formValues.services,
               reminder: formValues.reminder,
               isRecurring: formValues.isRecurring,
-              recurringDuration: formValues.recurringDuration?.value && formValues.recurringDuration?.unit
-                ? {
-                    value: formValues.recurringDuration.value,
-                    unit: formValues.recurringDuration.unit,
-                  }
-                : undefined,
-              recurringFrequency: formValues.recurringFrequency?.value && formValues.recurringFrequency?.unit
-                ? {
-                    value: formValues.recurringFrequency.value,
-                    unit: formValues.recurringFrequency.unit,
-                  }
-                : undefined,
+              recurringDuration:
+                formValues.recurringDuration?.value &&
+                formValues.recurringDuration?.unit
+                  ? {
+                      value: formValues.recurringDuration.value,
+                      unit: formValues.recurringDuration.unit,
+                    }
+                  : undefined,
+              recurringFrequency:
+                formValues.recurringFrequency?.value &&
+                formValues.recurringFrequency?.unit
+                  ? {
+                      value: formValues.recurringFrequency.value,
+                      unit: formValues.recurringFrequency.unit,
+                    }
+                  : undefined,
             });
             setConflicts(conflictResult.conflicts);
             setShowConflictDialog(true);
@@ -740,31 +777,38 @@ const FormButton = ({
         customerFormData.append("firstName", formValues.customer.firstName);
         customerFormData.append("lastName", formValues.customer.lastName);
         customerFormData.append("phone", formValues.customer.phone || "");
-        customerFormData.append("note", formValues.customer.note || "");
+        // Note: customer note is not part of appointment form schema, so we skip it
 
         const customerResult = await createCustomer(customerFormData);
         if (customerResult.status === "SUCCESS") {
           // Now create appointment with new customer
           const customerId = customerResult._id; // Assuming data contains the new customer object
-          
+
           // Check for conflicts if it's a recurring appointment
           if (formValues.isRecurring) {
             const startTime = new Date(formValues.time);
-            const totalDuration = formValues.services.reduce((total, service) => total + (service.duration * service.quantity), 0);
-            const endTime = new Date(startTime.getTime() + totalDuration * 60000);
+            const totalDuration = formValues.services.reduce(
+              (total, service) => total + service.duration * service.quantity,
+              0,
+            );
+            const endTime = new Date(
+              startTime.getTime() + totalDuration * 60000,
+            );
 
             const conflictResult = await checkRecurringConflicts(
               formValues.employee._ref,
               startTime.toISOString(),
               endTime.toISOString(),
               formValues.isRecurring,
-              formValues.recurringDuration?.value && formValues.recurringDuration?.unit
+              formValues.recurringDuration?.value &&
+                formValues.recurringDuration?.unit
                 ? {
                     value: formValues.recurringDuration.value,
                     unit: formValues.recurringDuration.unit,
                   }
                 : undefined,
-              formValues.recurringFrequency?.value && formValues.recurringFrequency?.unit
+              formValues.recurringFrequency?.value &&
+                formValues.recurringFrequency?.unit
                 ? {
                     value: formValues.recurringFrequency.value,
                     unit: formValues.recurringFrequency.unit,
@@ -772,7 +816,10 @@ const FormButton = ({
                 : undefined,
             );
 
-            if (conflictResult.status === "SUCCESS" && conflictResult.conflicts.length > 0) {
+            if (
+              conflictResult.status === "SUCCESS" &&
+              conflictResult.conflicts.length > 0
+            ) {
               setPendingAppointmentData({
                 formData,
                 customer: {
@@ -783,18 +830,22 @@ const FormButton = ({
                 services: formValues.services,
                 reminder: formValues.reminder,
                 isRecurring: formValues.isRecurring,
-                recurringDuration: formValues.recurringDuration?.value && formValues.recurringDuration?.unit
-                  ? {
-                      value: formValues.recurringDuration.value,
-                      unit: formValues.recurringDuration.unit,
-                    }
-                  : undefined,
-                recurringFrequency: formValues.recurringFrequency?.value && formValues.recurringFrequency?.unit
-                  ? {
-                      value: formValues.recurringFrequency.value,
-                      unit: formValues.recurringFrequency.unit,
-                    }
-                  : undefined,
+                recurringDuration:
+                  formValues.recurringDuration?.value &&
+                  formValues.recurringDuration?.unit
+                    ? {
+                        value: formValues.recurringDuration.value,
+                        unit: formValues.recurringDuration.unit,
+                      }
+                    : undefined,
+                recurringFrequency:
+                  formValues.recurringFrequency?.value &&
+                  formValues.recurringFrequency?.unit
+                    ? {
+                        value: formValues.recurringFrequency.value,
+                        unit: formValues.recurringFrequency.unit,
+                      }
+                    : undefined,
               });
               setConflicts(conflictResult.conflicts);
               setShowConflictDialog(true);
@@ -858,7 +909,7 @@ const FormButton = ({
 
   const handleConflictConfirm = async () => {
     if (!pendingAppointmentData) return;
-    
+
     setIsSubmitting(true);
     setShowConflictDialog(false);
 
@@ -878,7 +929,8 @@ const FormButton = ({
         setOpen(false);
         appointmentForm?.reset();
         toast.success("Success", {
-          description: "Recurring appointments created successfully (with conflicts)",
+          description:
+            "Recurring appointments created successfully (with conflicts)",
         });
         if (onSuccess) onSuccess();
       } else {

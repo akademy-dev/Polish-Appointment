@@ -99,12 +99,6 @@ const AppointmentInfoForm = ({
         employee.value === employeeRef,
     );
     if (selectedEmployee && employeeValue !== selectedEmployee.value) {
-      console.log(
-        "Setting employee value:",
-        selectedEmployee.value,
-        "Type:",
-        type,
-      );
       setEmployeeValue(selectedEmployee.value);
     }
   }
@@ -403,13 +397,17 @@ const AppointmentInfoForm = ({
                                   <SelectValue placeholder="1" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: 26 }, (_, i) => i + 1).map(
-                                    (num) => (
-                                      <SelectItem key={num} value={num.toString()}>
-                                        {num}
-                                      </SelectItem>
-                                    ),
-                                  )}
+                                  {Array.from(
+                                    { length: 26 },
+                                    (_, i) => i + 1,
+                                  ).map((num) => (
+                                    <SelectItem
+                                      key={num}
+                                      value={num.toString()}
+                                    >
+                                      {num}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </FormControl>
@@ -469,13 +467,17 @@ const AppointmentInfoForm = ({
                                   <SelectValue placeholder="1" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: 26 }, (_, i) => i + 1).map(
-                                    (num) => (
-                                      <SelectItem key={num} value={num.toString()}>
-                                        {num}
-                                      </SelectItem>
-                                    ),
-                                  )}
+                                  {Array.from(
+                                    { length: 26 },
+                                    (_, i) => i + 1,
+                                  ).map((num) => (
+                                    <SelectItem
+                                      key={num}
+                                      value={num.toString()}
+                                    >
+                                      {num}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             </FormControl>
@@ -687,6 +689,7 @@ const AppointmentInfoForm = ({
                                 });
                               }}
                               aria-label="Select row"
+                              disabled={isSubmitting}
                             />
                             {isChecked && idx !== -1 && (
                               <span className="text-xs text-muted-foreground">
@@ -769,6 +772,7 @@ const AppointmentInfoForm = ({
                               setSelectedOrder((prev) => [...prev, row.id]);
                             }
                           }}
+                          disabled={isSubmitting}
                         >
                           <SelectTrigger className="w-24">
                             <SelectValue />
@@ -821,6 +825,7 @@ const AppointmentInfoForm = ({
                               }
                               form.setValue("services", updatedServices);
                             }}
+                            disabled={isSubmitting}
                           />
                         );
                       },

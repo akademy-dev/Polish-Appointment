@@ -9,7 +9,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Calendar, Clock, User, Ban, Clock3 } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  Clock,
+  User,
+  Ban,
+  Clock3,
+} from "lucide-react";
 import moment from "moment-timezone";
 import { getIanaTimezone } from "@/lib/utils";
 
@@ -58,14 +65,19 @@ export function ConflictDialog({
   onCancel,
 }: ConflictDialogProps) {
   const formatDateTime = (dateTime: string) => {
-    return moment.tz(dateTime, getIanaTimezone(timezone)).format("MMM DD, YYYY h:mm A");
+    return moment
+      .tz(dateTime, getIanaTimezone(timezone))
+      .format("MMM DD, YYYY h:mm A");
   };
 
   const formatTime = (dateTime: string) => {
     return moment.tz(dateTime, getIanaTimezone(timezone)).format("h:mm A");
   };
 
-  const totalConflicts = conflicts.reduce((total, occurrence) => total + occurrence.conflicts.length, 0);
+  const totalConflicts = conflicts.reduce(
+    (total, occurrence) => total + occurrence.conflicts.length,
+    0,
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,7 +88,10 @@ export function ConflictDialog({
             Scheduling Conflicts Detected
           </DialogTitle>
           <DialogDescription>
-            The following {totalConflicts} conflict{totalConflicts !== 1 ? 's' : ''} were found with your recurring schedule (including existing appointments, working hours, and time off):
+            The following {totalConflicts} conflict
+            {totalConflicts !== 1 ? "s" : ""} were found with your recurring
+            schedule (including existing appointments, working hours, and time
+            off):
           </DialogDescription>
         </DialogHeader>
 
@@ -89,7 +104,8 @@ export function ConflictDialog({
                   Occurrence #{occurrence.occurrence}
                 </span>
                 <span className="text-sm text-gray-600">
-                  ({formatDateTime(occurrence.startTime)} - {formatTime(occurrence.endTime)})
+                  ({formatDateTime(occurrence.startTime)} -{" "}
+                  {formatTime(occurrence.endTime)})
                 </span>
               </div>
 
@@ -129,7 +145,10 @@ export function ConflictDialog({
                   };
 
                   return (
-                    <div key={conflict._id} className={`bg-white rounded p-3 border ${getConflictColor()}`}>
+                    <div
+                      key={conflict._id}
+                      className={`bg-white rounded p-3 border ${getConflictColor()}`}
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -147,15 +166,13 @@ export function ConflictDialog({
                           <div className="flex items-center gap-2 mb-1">
                             <Clock className="w-4 h-4 text-gray-600" />
                             <span className="text-sm text-gray-600">
-                              {formatTime(conflict.startTime)} - {formatTime(conflict.endTime)}
+                              {formatTime(conflict.startTime)} -{" "}
+                              {formatTime(conflict.endTime)}
                             </span>
                           </div>
                           <div className="text-sm text-gray-600">
-                            {conflict.service.name} ({conflict.duration} min)
+                            {conflict.service.name}
                           </div>
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {conflict.status}
                         </div>
                       </div>
                     </div>
@@ -170,8 +187,8 @@ export function ConflictDialog({
           <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button 
-            variant="destructive" 
+          <Button
+            variant="destructive"
             onClick={onConfirm}
             className="bg-red-600 hover:bg-red-700"
           >

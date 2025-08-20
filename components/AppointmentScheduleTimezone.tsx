@@ -1651,7 +1651,7 @@ const AppointmentScheduleTimezone = ({
             }}
             setIsCancellingStanding={setIsCancellingStanding}
             onCancelStandingSuccess={handleCancelStandingSuccess}
-            onClose={() => setOpen(false)}
+            setIsSubmitting={setIsSubmitting}
           />
         </DialogContent>
       </Dialog>

@@ -4,7 +4,10 @@ import { writeClient } from "@/sanity/lib/write-client";
 import { parseServerActionResponse } from "./utils";
 import { TimeOffSchedule, WorkingTime } from "@/models/profile";
 import { AssignedService } from "@/models/assignedService";
-import { CHECK_CONFLICT_QUERY, EMPLOYEE_WORKING_TIMES_QUERY } from "@/sanity/lib/queries";
+import {
+  CHECK_CONFLICT_QUERY,
+  EMPLOYEE_WORKING_TIMES_QUERY,
+} from "@/sanity/lib/queries";
 import moment from "moment-timezone";
 
 export const createEmployee = async (
@@ -159,7 +162,9 @@ export const createAppointment = async (
     let currentTime = new Date(time as string);
 
     // Generate recurring group ID if this is a recurring appointment
-    const recurringGroupId = isRecurring ? `recurring_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined;
+    const recurringGroupId = isRecurring
+      ? `recurring_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      : undefined;
 
     // Calculate how many recurring appointments to create
     let totalAppointments = 1; // Start with 1 (the original appointment)
@@ -604,7 +609,11 @@ export const updateTimezone = async (_id: string, timezone: string) => {
   }
 };
 
-export const updateTimeSettings = async (_id: string, minTime: string, maxTime: string) => {
+export const updateTimeSettings = async (
+  _id: string,
+  minTime: string,
+  maxTime: string,
+) => {
   try {
     const result = await writeClient
       .patch(_id)
@@ -656,33 +665,47 @@ export const checkRecurringConflicts = async (
         startTime,
         endTime,
       });
-      
+
       // Check working times and time off for single appointment
       const workingTimeConflicts = checkWorkingTimeConflicts(
         employee,
         new Date(startTime),
-        new Date(endTime)
+        new Date(endTime),
       );
-      
+
       const timeOffConflicts = checkTimeOffConflicts(
         employee,
         new Date(startTime),
-        new Date(endTime)
+        new Date(endTime),
       );
 
       const allConflicts = [
-        ...conflicts.map((conflict: any) => ({ ...conflict, type: "appointment" })),
-        ...workingTimeConflicts.map((conflict: any) => ({ ...conflict, type: "working_time" })),
-        ...timeOffConflicts.map((conflict: any) => ({ ...conflict, type: "time_off" }))
+        ...conflicts.map((conflict: any) => ({
+          ...conflict,
+          type: "appointment",
+        })),
+        ...workingTimeConflicts.map((conflict: any) => ({
+          ...conflict,
+          type: "working_time",
+        })),
+        ...timeOffConflicts.map((conflict: any) => ({
+          ...conflict,
+          type: "time_off",
+        })),
       ];
-      
+
       return parseServerActionResponse({
-        conflicts: allConflicts.length > 0 ? [{
-          occurrence: 1,
-          startTime,
-          endTime,
-          conflicts: allConflicts,
-        }] : [],
+        conflicts:
+          allConflicts.length > 0
+            ? [
+                {
+                  occurrence: 1,
+                  startTime,
+                  endTime,
+                  conflicts: allConflicts,
+                },
+              ]
+            : [],
         error: "",
         status: "SUCCESS",
       });
@@ -692,7 +715,7 @@ export const checkRecurringConflicts = async (
     const allConflicts: any[] = [];
     let currentStartTime = new Date(startTime);
     let currentEndTime = new Date(endTime);
-    
+
     // Calculate how many recurring appointments to check
     let totalAppointments = 1;
     if (recurringDuration && recurringFrequency) {
@@ -732,7 +755,7 @@ export const checkRecurringConflicts = async (
         const originalDate = new Date(startTime);
         const originalHour = originalDate.getHours();
         const originalMinute = originalDate.getMinutes();
-        
+
         let daysToAdd = 0;
         if (recurringFrequency) {
           switch (recurringFrequency.unit) {
@@ -749,34 +772,47 @@ export const checkRecurringConflicts = async (
         occurrenceTime.setDate(originalDate.getDate() + daysToAdd);
         occurrenceTime.setHours(originalHour, originalMinute, 0, 0);
 
-        const durationMs = new Date(endTime).getTime() - new Date(startTime).getTime();
+        const durationMs =
+          new Date(endTime).getTime() - new Date(startTime).getTime();
         currentStartTime = occurrenceTime;
         currentEndTime = new Date(occurrenceTime.getTime() + durationMs);
       }
 
-      const appointmentConflicts = await writeClient.fetch(CHECK_CONFLICT_QUERY, {
-        employeeId,
-        startTime: currentStartTime.toISOString(),
-        endTime: currentEndTime.toISOString(),
-      });
+      const appointmentConflicts = await writeClient.fetch(
+        CHECK_CONFLICT_QUERY,
+        {
+          employeeId,
+          startTime: currentStartTime.toISOString(),
+          endTime: currentEndTime.toISOString(),
+        },
+      );
 
       // Check working times and time off for this occurrence
       const workingTimeConflicts = checkWorkingTimeConflicts(
         employee,
         currentStartTime,
-        currentEndTime
+        currentEndTime,
       );
-      
+
       const timeOffConflicts = checkTimeOffConflicts(
         employee,
         currentStartTime,
-        currentEndTime
+        currentEndTime,
       );
 
       const allConflictsForOccurrence = [
-        ...appointmentConflicts.map((conflict: any) => ({ ...conflict, type: "appointment" })),
-        ...workingTimeConflicts.map((conflict: any) => ({ ...conflict, type: "working_time" })),
-        ...timeOffConflicts.map((conflict: any) => ({ ...conflict, type: "time_off" }))
+        ...appointmentConflicts.map((conflict: any) => ({
+          ...conflict,
+          type: "appointment",
+        })),
+        ...workingTimeConflicts.map((conflict: any) => ({
+          ...conflict,
+          type: "working_time",
+        })),
+        ...timeOffConflicts.map((conflict: any) => ({
+          ...conflict,
+          type: "time_off",
+        })),
       ];
 
       if (allConflictsForOccurrence.length > 0) {
@@ -804,11 +840,15 @@ export const checkRecurringConflicts = async (
 };
 
 // Helper function to check working time conflicts
-const checkWorkingTimeConflicts = (employee: any, startTime: Date, endTime: Date) => {
+const checkWorkingTimeConflicts = (
+  employee: any,
+  startTime: Date,
+  endTime: Date,
+) => {
   const conflicts: any[] = [];
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const dayOfWeek = daysOfWeek[startTime.getDay()];
-  
+
   const workingTimes = employee.workingTimes || [];
   const workSchedule = workingTimes.find((wt: any) => wt.day === dayOfWeek);
 
@@ -818,29 +858,37 @@ const checkWorkingTimeConflicts = (employee: any, startTime: Date, endTime: Date
       _id: `not_working_${dayOfWeek}`,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
-      duration: Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)),
+      duration: Math.round(
+        (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+      ),
       customer: {
         _id: "system",
         firstName: "System",
         lastName: "Notice",
-        fullName: "Not Working Day"
+        fullName: "Not Working Day",
       },
       service: {
         _id: "system",
         name: "Employee Not Available",
-        duration: Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+        duration: Math.round(
+          (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+        ),
       },
-      status: "not_working"
+      status: "not_working",
     });
     return conflicts;
   }
 
   // Check if appointment is outside working hours using moment.js
-  const appointmentDate = moment(startTime).format('YYYY-MM-DD');
-  const workStart = moment(`${appointmentDate} ${workSchedule.from}`, 'YYYY-MM-DD h:mm A').toDate();
-  const workEnd = moment(`${appointmentDate} ${workSchedule.to}`, 'YYYY-MM-DD h:mm A').toDate();
-
-
+  const appointmentDate = moment(startTime).format("YYYY-MM-DD");
+  const workStart = moment(
+    `${appointmentDate} ${workSchedule.from}`,
+    "YYYY-MM-DD h:mm A",
+  ).toDate();
+  const workEnd = moment(
+    `${appointmentDate} ${workSchedule.to}`,
+    "YYYY-MM-DD h:mm A",
+  ).toDate();
 
   // Only conflict if appointment is completely outside working hours
   if (startTime < workStart || endTime > workEnd) {
@@ -848,19 +896,23 @@ const checkWorkingTimeConflicts = (employee: any, startTime: Date, endTime: Date
       _id: `outside_working_hours_${dayOfWeek}`,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
-      duration: Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)),
+      duration: Math.round(
+        (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+      ),
       customer: {
         _id: "system",
         firstName: "System",
         lastName: "Notice",
-        fullName: "Outside Working Hours"
+        fullName: "Outside Working Hours",
       },
       service: {
         _id: "system",
         name: `Working Hours: ${workSchedule.from} - ${workSchedule.to}`,
-        duration: Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+        duration: Math.round(
+          (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+        ),
       },
-      status: "outside_working_hours"
+      status: "outside_working_hours",
     });
   }
 
@@ -868,7 +920,11 @@ const checkWorkingTimeConflicts = (employee: any, startTime: Date, endTime: Date
 };
 
 // Helper function to check time off conflicts
-const checkTimeOffConflicts = (employee: any, startTime: Date, endTime: Date) => {
+const checkTimeOffConflicts = (
+  employee: any,
+  startTime: Date,
+  endTime: Date,
+) => {
   const conflicts: any[] = [];
   const timeOffSchedules = employee.timeOffSchedules || [];
 
@@ -901,7 +957,8 @@ const checkTimeOffConflicts = (employee: any, startTime: Date, endTime: Date) =>
       case "Weekly":
         if (dayOfWeek) {
           const currentDayOfWeek = startTime.getDay();
-          const adjustedDayOfWeek = currentDayOfWeek === 0 ? 7 : currentDayOfWeek;
+          const adjustedDayOfWeek =
+            currentDayOfWeek === 0 ? 7 : currentDayOfWeek;
           isMatchingDate = dayOfWeek.includes(adjustedDayOfWeek);
         }
         break;
@@ -916,9 +973,15 @@ const checkTimeOffConflicts = (employee: any, startTime: Date, endTime: Date) =>
     }
 
     if (isMatchingDate && from && to) {
-      const appointmentDate = moment(startTime).format('YYYY-MM-DD');
-      const timeOffStart = moment(`${appointmentDate} ${from}`, 'YYYY-MM-DD h:mm A').toDate();
-      const timeOffEnd = moment(`${appointmentDate} ${to}`, 'YYYY-MM-DD h:mm A').toDate();
+      const appointmentDate = moment(startTime).format("YYYY-MM-DD");
+      const timeOffStart = moment(
+        `${appointmentDate} ${from}`,
+        "YYYY-MM-DD h:mm A",
+      ).toDate();
+      const timeOffEnd = moment(
+        `${appointmentDate} ${to}`,
+        "YYYY-MM-DD h:mm A",
+      ).toDate();
 
       // Check if appointment overlaps with time off
       if (
@@ -930,19 +993,23 @@ const checkTimeOffConflicts = (employee: any, startTime: Date, endTime: Date) =>
           _id: `time_off_${scheduleDate || startTime.toISOString()}`,
           startTime: timeOffStart.toISOString(),
           endTime: timeOffEnd.toISOString(),
-          duration: Math.round((timeOffEnd.getTime() - timeOffStart.getTime()) / (1000 * 60)),
+          duration: Math.round(
+            (timeOffEnd.getTime() - timeOffStart.getTime()) / (1000 * 60),
+          ),
           customer: {
             _id: "system",
             firstName: "System",
             lastName: "Notice",
-            fullName: "Time Off"
+            fullName: "Time Off",
           },
           service: {
             _id: "system",
             name: `Time Off: ${reason || "Scheduled time off"}`,
-            duration: Math.round((timeOffEnd.getTime() - timeOffStart.getTime()) / (1000 * 60))
+            duration: Math.round(
+              (timeOffEnd.getTime() - timeOffStart.getTime()) / (1000 * 60),
+            ),
           },
-          status: "time_off"
+          status: "time_off",
         });
       }
     }
@@ -958,8 +1025,6 @@ export const cancelRecurringAppointments = async (recurringGroupId: string) => {
       `*[_type == "appointment" && recurringGroupId == $recurringGroupId && status == "scheduled"]{_id}`,
       { recurringGroupId },
     );
-
-    console.log(`Found ${appointments.length} recurring appointments to cancel`);
 
     // Update all appointments to cancelled status
     const results = [];

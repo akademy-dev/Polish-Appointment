@@ -10,7 +10,10 @@ import {
 } from "@/components/ui/dialog";
 import { useForm, UseFormReturn, useWatch } from "react-hook-form";
 import { z } from "zod";
-import { appointmentFormSchema, appointmentTimeOffSchema } from "@/lib/validation";
+import {
+  appointmentFormSchema,
+  appointmentTimeOffSchema,
+} from "@/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import {
@@ -48,7 +51,7 @@ export const AppointmentForm = ({
   onTimeOffCreated,
   setIsCancellingStanding,
   onCancelStandingSuccess,
-  onClose,
+  setIsSubmitting,
 }: {
   onSuccess?: () => void;
   hideSubmitButton?: boolean;
@@ -60,7 +63,7 @@ export const AppointmentForm = ({
   onTimeOffCreated?: () => void;
   setIsCancellingStanding?: (value: boolean) => void;
   onCancelStandingSuccess?: () => void;
-  onClose?: () => void;
+  setIsSubmitting?: (value: boolean) => void;
 }) => {
   const [showAppointmentInfo, setShowAppointmentInfo] = React.useState(
     type === "edit",
@@ -160,34 +163,23 @@ export const AppointmentForm = ({
     React.useState(false);
   const [showUpcomingAppointmentsConfirm, setShowUpcomingAppointmentsConfirm] =
     React.useState(false);
-  const [upcomingAppointments, setUpcomingAppointments] = React.useState<Appointment[]>([]);
-  const [selectedEmployee, setSelectedEmployee] = React.useState<{
-    _id: string;
-    firstName: string;
-    lastName: string;
-  } | undefined>(undefined);
-
-  // Watch form state for debugging
-  React.useEffect(() => {
-    console.log("Form state changed:", {
-      values: form.getValues(),
-      errors: form.formState.errors,
-      isValid: form.formState.isValid,
-      isDirty: form.formState.isDirty,
-    });
-  }, [form.formState]);
+  const [upcomingAppointments, setUpcomingAppointments] = React.useState<
+    Appointment[]
+  >([]);
+  const [selectedEmployee, setSelectedEmployee] = React.useState<
+    | {
+        _id: string;
+        firstName: string;
+        lastName: string;
+      }
+    | undefined
+  >(undefined);
 
   // Watch services specifically
   const watchedServices = useWatch({
     control: form.control,
     name: "services",
   });
-
-  React.useEffect(() => {
-    console.log("Services changed:", watchedServices);
-  }, [watchedServices]);
-
-
 
   const customerRef = useWatch({
     control: form.control,
@@ -212,12 +204,12 @@ export const AppointmentForm = ({
   // Update selectedEmployee when employeeRef changes
   React.useEffect(() => {
     if (employeeRef && employees.length > 0) {
-      const employee = employees.find(emp => emp.value === employeeRef);
+      const employee = employees.find((emp) => emp.value === employeeRef);
       if (employee) {
         setSelectedEmployee({
           _id: employee.value,
-          firstName: employee.label.split(' ')[0] || '',
-          lastName: employee.label.split(' ').slice(1).join(' ') || '',
+          firstName: employee.label.split(" ")[0] || "",
+          lastName: employee.label.split(" ").slice(1).join(" ") || "",
         });
         // Auto-set employee in timeOffForm
         timeOffForm.setValue("employee", {
@@ -424,10 +416,13 @@ export const AppointmentForm = ({
   const checkUpcomingAppointments = async (customerId: string) => {
     try {
       const today = new Date();
-      const twoWeeksFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
-      
+      const twoWeeksFromNow = new Date(
+        today.getTime() + 14 * 24 * 60 * 60 * 1000,
+      );
+
       // Fetch appointments for the next 2 weeks
-      const upcomingAppointmentsRes = await client.fetch(`
+      const upcomingAppointmentsRes = await client.fetch(
+        `
         *[_type == "appointment" && 
           customer._ref == $customerId && 
           startTime >= $startDate && 
@@ -458,11 +453,13 @@ export const AppointmentForm = ({
             price
           }
         }
-      `, {
-        customerId,
-        startDate: today.toISOString(),
-        endDate: twoWeeksFromNow.toISOString()
-      });
+      `,
+        {
+          customerId,
+          startDate: today.toISOString(),
+          endDate: twoWeeksFromNow.toISOString(),
+        },
+      );
 
       return upcomingAppointmentsRes;
     } catch (error) {
@@ -473,10 +470,6 @@ export const AppointmentForm = ({
 
   // define a submit handler
   async function onSubmit() {
-    console.log("Form submitted with values:", form.getValues());
-    console.log("Form errors:", form.formState.errors);
-    console.log("Form is valid:", form.formState.isValid);
-    
     // Check for upcoming appointments before submitting
     const customerId = form.getValues("customer._ref");
     if (customerId && type === "create") {
@@ -487,7 +480,7 @@ export const AppointmentForm = ({
         return; // Don't submit yet, wait for user confirmation
       }
     }
-    
+
     onSuccess?.();
   }
 
@@ -499,7 +492,11 @@ export const AppointmentForm = ({
     }
 
     const timeOffData = timeOffForm.getValues();
-    if (timeOffData.duration && (typeof timeOffData.duration === 'number' || timeOffData.duration === 'to_close')) {
+    if (
+      timeOffData.duration &&
+      (typeof timeOffData.duration === "number" ||
+        timeOffData.duration === "to_close")
+    ) {
       console.log("Time Off Data:", timeOffData);
       try {
         const result = await createTimeOff(timeOffData);
@@ -553,6 +550,12 @@ export const AppointmentForm = ({
         return;
       }
 
+      // Close the confirm dialog first
+      setShowCancelStandingConfirm(false);
+
+      // Set isSubmitting to disable buttons
+      setIsSubmitting?.(true);
+
       const result = await cancelRecurringAppointments(recurringGroupId);
 
       if (result.status === "SUCCESS") {
@@ -561,18 +564,22 @@ export const AppointmentForm = ({
         });
         // Set status to cancelled for current appointment
         form.setValue("status", "cancelled");
-        // Call onCancelStandingSuccess to close dialog directly
+        // Then call onCancelStandingSuccess to close the main dialog
         onCancelStandingSuccess?.();
       } else {
         toast.error("Error", {
           description: result.error,
         });
+        // Reset isSubmitting on error
+        setIsSubmitting?.(false);
       }
     } catch (error) {
       toast.error("Error", {
         description:
           "Failed to cancel recurring appointments. Please try again.",
       });
+      // Reset isSubmitting on error
+      setIsSubmitting?.(false);
     }
   };
 
@@ -581,7 +588,6 @@ export const AppointmentForm = ({
     setShowUpcomingAppointmentsConfirm(false);
     setUpcomingAppointments([]);
     onSuccess?.(); // Proceed with appointment creation
-    onClose?.(); // Close the dialog after creating appointment
   };
 
   const handleUpcomingAppointmentsCancel = () => {
@@ -638,6 +644,7 @@ export const AppointmentForm = ({
                       onClick={() => {
                         form.setValue("status", "cancelled");
                       }}
+                      disabled={isSubmitting}
                     >
                       Cancel Appointment
                     </Button>
@@ -646,6 +653,7 @@ export const AppointmentForm = ({
                         variant="outline"
                         type="button"
                         onClick={() => setShowCancelStandingConfirm(true)}
+                        disabled={isSubmitting}
                       >
                         Cancel Standing
                       </Button>
@@ -677,20 +685,27 @@ export const AppointmentForm = ({
         description="Are you sure you want to cancel all recurring appointments in this series? This action cannot be undone."
         onConfirm={handleCancelStanding}
       />
-      
+
       {/* Upcoming Appointments Details Modal */}
-      <Dialog open={showUpcomingAppointmentsConfirm} onOpenChange={setShowUpcomingAppointmentsConfirm}>
+      <Dialog
+        open={showUpcomingAppointmentsConfirm}
+        onOpenChange={setShowUpcomingAppointmentsConfirm}
+      >
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Customer Has Upcoming Appointments</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p>
-              This customer has {upcomingAppointments.length} upcoming appointment(s) in the next 2 weeks:
+              This customer has {upcomingAppointments.length} upcoming
+              appointment(s) in the next 2 weeks:
             </p>
             <div className="space-y-2">
               {upcomingAppointments.map((appointment) => (
-                <div key={appointment._id} className="p-3 bg-gray-50 rounded text-sm">
+                <div
+                  key={appointment._id}
+                  className="p-3 bg-gray-50 rounded text-sm"
+                >
                   <div className="font-medium">
                     {new Date(appointment.startTime).toLocaleDateString()} at{" "}
                     {new Date(appointment.startTime).toLocaleTimeString([], {
@@ -699,10 +714,14 @@ export const AppointmentForm = ({
                     })}
                   </div>
                   <div className="text-gray-600">
-                    {appointment.employee?.firstName} {appointment.employee?.lastName} - {appointment.service?.name}
+                    {appointment.employee?.firstName}{" "}
+                    {appointment.employee?.lastName} -{" "}
+                    {appointment.service?.name}
                   </div>
                   {appointment.note && (
-                    <div className="text-gray-500 italic">"{appointment.note}"</div>
+                    <div className="text-gray-500 italic">
+                      "{appointment.note}"
+                    </div>
                   )}
                 </div>
               ))}
@@ -714,9 +733,7 @@ export const AppointmentForm = ({
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleUpcomingAppointmentsConfirm}
-              >
+              <Button onClick={handleUpcomingAppointmentsConfirm}>
                 Create Anyway
               </Button>
             </div>
