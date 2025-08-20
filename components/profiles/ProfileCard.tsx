@@ -14,11 +14,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 const ProfileCard = ({ 
-  profile, 
-  onDelete 
+  profile
 }: { 
   profile: Profile;
-  onDelete?: (id: string) => void;
 }) => {
   const [showConfirm, setShowConfirm] = useState(false);
   const getTitle = () => {
@@ -40,11 +38,6 @@ const ProfileCard = ({
   const handleConfirm = async () => {
     setShowConfirm(false);
     
-    // Optimistically remove from UI immediately
-    if (onDelete) {
-      onDelete(profile._id);
-    }
-    
     if (isEmployee(profile)) {
       // Handle employee deletion logic here
       const employeeId = profile._id;
@@ -58,8 +51,6 @@ const ProfileCard = ({
         toast.error("Error", {
           description: `Failed to delete employee: ${result.error}`,
         });
-        // Revert optimistic update on error
-        // Note: This would require more complex state management
       }
     } else {
       // Handle customer deletion logic here
@@ -74,8 +65,6 @@ const ProfileCard = ({
         toast.error("Error", {
           description: `Failed to delete customer: ${result.error}`,
         });
-        // Revert optimistic update on error
-        // Note: This would require more complex state management
       }
     }
   };

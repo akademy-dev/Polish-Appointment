@@ -510,15 +510,21 @@ export const updateService = async (_id: string, form: FormData) => {
 
 export const deleteEmployee = async (_id: string) => {
   try {
+    // Delete all documents that reference this employee
     const referencingDocs = await writeClient.fetch(
-      `*[_type == "appointment" && employee._ref == $id]{_id}`,
+      `*[references($id)]{_id, _type}`,
       { id: _id },
     );
 
+    console.log("Documents referencing employee:", referencingDocs);
+
+    // Delete all referencing documents
     for (const refDoc of referencingDocs) {
+      console.log(`Deleting ${refDoc._type} with id: ${refDoc._id}`);
       await writeClient.delete(refDoc._id);
     }
 
+    // Finally delete the employee
     const result = await writeClient.delete(_id);
 
     return parseServerActionResponse({
@@ -527,6 +533,7 @@ export const deleteEmployee = async (_id: string) => {
       status: "SUCCESS",
     });
   } catch (error) {
+    console.error("Error deleting employee:", error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -536,15 +543,21 @@ export const deleteEmployee = async (_id: string) => {
 
 export const deleteCustomer = async (_id: string) => {
   try {
+    // Delete all documents that reference this customer
     const referencingDocs = await writeClient.fetch(
-      `*[_type == "appointment" && customer._ref == $id]{_id}`,
+      `*[references($id)]{_id, _type}`,
       { id: _id },
     );
 
+    console.log("Documents referencing customer:", referencingDocs);
+
+    // Delete all referencing documents
     for (const refDoc of referencingDocs) {
+      console.log(`Deleting ${refDoc._type} with id: ${refDoc._id}`);
       await writeClient.delete(refDoc._id);
     }
 
+    // Finally delete the customer
     const result = await writeClient.delete(_id);
 
     return parseServerActionResponse({
@@ -553,6 +566,7 @@ export const deleteCustomer = async (_id: string) => {
       status: "SUCCESS",
     });
   } catch (error) {
+    console.error("Error deleting customer:", error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",

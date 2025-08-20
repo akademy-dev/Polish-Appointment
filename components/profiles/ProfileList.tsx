@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React from "react";
 import {
   Pagination,
   PaginationContent,
@@ -19,8 +19,6 @@ import {
 import { Profile, getProfileId } from "@/models/profile";
 import ProfileCard from "./ProfileCard";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { useOptimisticCustomers } from "@/hooks/useOptimisticCustomers";
-
 
 const ProfileList = ({
   data,
@@ -35,19 +33,6 @@ const ProfileList = ({
   const searchParams = useSearchParams();
   const router = useRouter();
   const currentPage = parseInt(searchParams.get("page") || "1", 10);
-
-  // Use optimistic updates hook
-  const {
-    customers,
-    changes,
-    deleteCustomer,
-    syncWithServer,
-  } = useOptimisticCustomers(data);
-
-  // Sync with server data when it changes
-  useEffect(() => {
-    syncWithServer(data);
-  }, [data, syncWithServer]);
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -148,11 +133,10 @@ const ProfileList = ({
   };
 
   return (
-    <>
-      <section className="space-y-6 max-w-4xl">
-        {totalItems === 0 ? (
-          <p className="text-center text-lg-medium">No results found</p>
-        ) : (
+    <section className="space-y-6 max-w-4xl">
+      {totalItems === 0 ? (
+        <p className="text-center text-lg-medium">No results found</p>
+      ) : (
         <>
           {/* Results Info and Items Per Page Selector */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pr-4">
@@ -193,12 +177,8 @@ const ProfileList = ({
 
           {/* Human List */}
           <ul className="list-container">
-            {customers.map((profile) => (
-              <ProfileCard 
-                profile={profile} 
-                key={getProfileId(profile)}
-                onDelete={deleteCustomer}
-              />
+            {data.map((profile) => (
+              <ProfileCard profile={profile} key={getProfileId(profile)} />
             ))}
           </ul>
 
@@ -243,10 +223,7 @@ const ProfileList = ({
           )}
         </>
       )}
-      </section>
-      
-
-    </>
+    </section>
   );
 };
 
