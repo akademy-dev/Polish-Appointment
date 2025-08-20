@@ -232,7 +232,7 @@ export type Customer = {
   _rev: string;
   firstName?: string;
   lastName?: string;
-  phone?: string;
+  phone: string;
   note?: string;
 };
 

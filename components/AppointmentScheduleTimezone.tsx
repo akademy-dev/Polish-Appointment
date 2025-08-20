@@ -435,6 +435,9 @@ const AppointmentScheduleTimezone = ({
     }));
   });
 
+  // Track if user has manually reordered resources
+  const [hasUserReordered, setHasUserReordered] = useState(false);
+
   useEffect(() => {
     const savedOrder = localStorage.getItem("resourceOrder");
     let orderedEmployees = filteredEmployees;
@@ -468,6 +471,9 @@ const AppointmentScheduleTimezone = ({
       })),
     );
     setIsLoading(false);
+    
+    // Reset hasUserReordered when filteredEmployees changes (e.g., when notWorking changes)
+    setHasUserReordered(false);
   }, [filteredEmployees]);
 
   // Memoize not working events
@@ -1421,6 +1427,7 @@ const AppointmentScheduleTimezone = ({
   );
 
   const moveResource = (dragIndex: number, hoverIndex: number) => {
+    setHasUserReordered(true); // Mark that user has manually reordered
     setResources((prevResources = []) => {
       const updated = [...prevResources];
       const [removed] = updated.splice(dragIndex, 1);
@@ -1430,11 +1437,14 @@ const AppointmentScheduleTimezone = ({
   };
 
   useEffect(() => {
-    localStorage.setItem(
-      "resourceOrder",
-      JSON.stringify(resources.map((r) => r.resourceId)),
-    );
-  }, [resources]);
+    // Only update localStorage if user has manually reordered resources
+    if (hasUserReordered) {
+      localStorage.setItem(
+        "resourceOrder",
+        JSON.stringify(resources.map((r) => r.resourceId)),
+      );
+    }
+  }, [resources, hasUserReordered]);
 
   const ResourceHeader = ({
     resource,
