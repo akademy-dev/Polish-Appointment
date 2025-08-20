@@ -22,7 +22,7 @@ export const appointmentTimeOffType = defineType({
     defineField({
       name: "duration",
       title: "Duration",
-      type: "string",
+      type: "number",
       validation: (Rule) => Rule.required(),
     }),
     defineField({

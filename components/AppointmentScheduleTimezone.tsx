@@ -226,7 +226,10 @@ const generateAppointmentTimeOffEvents = (
   const events: any[] = [];
 
   appointmentTimeOffs.forEach((timeOff) => {
+    console.log("Processing time off:", timeOff);
+    
     if (!timeOff.employee || !timeOff.startTime || !timeOff.duration) {
+      console.log("Skipping time off - missing required fields");
       return;
     }
 
@@ -239,28 +242,13 @@ const generateAppointmentTimeOffEvents = (
       timeOff.recurringFrequency
     ) {
       // Handle recurring time off
-      const startDate = moment.tz(
-        timeOff._createdAt,
+      // For recurring time offs, each document represents a specific occurrence
+      // So we just check if the startTime matches the current date
+      const timeOffDate = moment.tz(
+        timeOff.startTime,
         getIanaTimezone(timezone),
       );
-      const endDate = startDate
-        .clone()
-        .add(timeOff.recurringDuration.value, timeOff.recurringDuration.unit);
-
-      // Check if current date is within the recurring period
-      if (momentDate.isBetween(startDate, endDate, "day", "[]")) {
-        // Check frequency
-        const daysDiff = momentDate.diff(startDate, "days");
-        const frequencyValue = timeOff.recurringFrequency.value;
-        const frequencyUnit = timeOff.recurringFrequency.unit;
-
-        if (frequencyUnit === "days") {
-          isMatchingDate = daysDiff % frequencyValue === 0;
-        } else if (frequencyUnit === "weeks") {
-          const weeksDiff = momentDate.diff(startDate, "weeks");
-          isMatchingDate = weeksDiff % frequencyValue === 0;
-        }
-      }
+      isMatchingDate = timeOffDate.isSame(momentDate, "day");
     } else {
       // Non-recurring time off - check if it's for today
       const timeOffDate = moment.tz(
@@ -270,7 +258,10 @@ const generateAppointmentTimeOffEvents = (
       isMatchingDate = timeOffDate.isSame(momentDate, "day");
     }
 
+    console.log("Time off date match result:", isMatchingDate);
+    
     if (isMatchingDate) {
+      console.log("Creating event for time off:", timeOff);
       const startTime = moment
         .tz(timeOff.startTime, getIanaTimezone(timezone))
         .toDate();
@@ -507,12 +498,18 @@ const AppointmentScheduleTimezone = ({
           .startOf("day")
           .toDate();
 
-    return generateAppointmentTimeOffEvents(
+    console.log("Time offs data:", appointmentTimeOffs);
+    console.log("Current date:", dateAtStartOfDay);
+    
+    const events = generateAppointmentTimeOffEvents(
       appointmentTimeOffs,
       dateAtStartOfDay,
       timezone,
       maxTime || "6:00 PM",
     );
+    
+    console.log("Generated time off events:", events);
+    return events;
   }, [appointmentTimeOffs, currentDate, timezone, maxTime]);
 
   // Ánh xạ initialAppointments thành sự kiện lịch

@@ -115,14 +115,8 @@ export const AppointmentForm = ({
       duration: 30 as number,
       reason: "",
       isRecurring: false,
-      recurringDuration: {
-        value: 1,
-        unit: "months",
-      },
-      recurringFrequency: {
-        value: 1,
-        unit: "weeks",
-      },
+      recurringDuration: undefined,
+      recurringFrequency: undefined,
     },
   });
 
@@ -236,6 +230,34 @@ export const AppointmentForm = ({
     control: form.control,
     name: "customer.phone",
   });
+
+  // Watch isRecurring in timeOffForm to set default values
+  const timeOffIsRecurring = useWatch({
+    control: timeOffForm.control,
+    name: "isRecurring",
+  });
+
+  // Set default values for recurring fields when isRecurring is enabled
+  React.useEffect(() => {
+    if (timeOffIsRecurring) {
+      const currentRecurringDuration = timeOffForm.getValues("recurringDuration");
+      const currentRecurringFrequency = timeOffForm.getValues("recurringFrequency");
+
+      if (!currentRecurringDuration) {
+        timeOffForm.setValue("recurringDuration", {
+          value: 1,
+          unit: "months",
+        });
+      }
+
+      if (!currentRecurringFrequency) {
+        timeOffForm.setValue("recurringFrequency", {
+          value: 1,
+          unit: "weeks",
+        });
+      }
+    }
+  }, [timeOffIsRecurring, timeOffForm]);
 
   // Check if client form is complete and valid
   React.useEffect(() => {
@@ -492,49 +514,64 @@ export const AppointmentForm = ({
     }
 
     const timeOffData = timeOffForm.getValues();
-    if (
-      timeOffData.duration &&
-      (typeof timeOffData.duration === "number" ||
-        timeOffData.duration === "to_close")
-    ) {
-      console.log("Time Off Data:", timeOffData);
-      try {
-        const result = await createTimeOff(timeOffData);
-        if (result.status === "SUCCESS") {
-          toast.success("Time off scheduled successfully");
-          // Reset form after successful submission
-          timeOffForm.reset({
-            employee: {
-              _ref: selectedEmployee._id,
-              _type: "reference",
-            },
-            startTime: "",
-            duration: 30 as number,
-            reason: "",
-            isRecurring: false,
-            recurringDuration: {
-              value: 1,
-              unit: "months",
-            },
-            recurringFrequency: {
-              value: 1,
-              unit: "weeks",
-            },
-          });
-          // Refresh time off data and close dialog
-          onTimeOffCreated?.();
-        } else {
-          toast.error("Failed to schedule time off", {
-            description: result.error,
-          });
-        }
-      } catch (error) {
-        toast.error("Error scheduling time off", {
-          description: "An unexpected error occurred",
+    
+    // Validate required fields
+    if (!timeOffData.startTime) {
+      toast.error("Please select a start time");
+      return;
+    }
+    
+    if (!timeOffData.duration || 
+        (typeof timeOffData.duration !== "number" && timeOffData.duration !== "to_close")) {
+      toast.error("Please select duration");
+      return;
+    }
+
+    // Validate recurring fields if isRecurring is true
+    if (timeOffData.isRecurring) {
+      if (!timeOffData.recurringDuration?.value || !timeOffData.recurringDuration?.unit) {
+        toast.error("Please set recurring duration");
+        return;
+      }
+      if (!timeOffData.recurringFrequency?.value || !timeOffData.recurringFrequency?.unit) {
+        toast.error("Please set recurring frequency");
+        return;
+      }
+    }
+
+    console.log("Time Off Data:", timeOffData);
+    try {
+      const result = await createTimeOff(timeOffData);
+      if (result.status === "SUCCESS") {
+        const message = result.count > 1 
+          ? `${result.count} recurring time offs scheduled successfully`
+          : "Time off scheduled successfully";
+        toast.success(message);
+        // Reset form after successful submission
+        timeOffForm.reset({
+          employee: {
+            _ref: selectedEmployee._id,
+            _type: "reference",
+          },
+          startTime: "",
+          duration: 30 as number,
+          reason: "",
+          isRecurring: false,
+          recurringDuration: undefined,
+          recurringFrequency: undefined,
+        });
+        // Refresh time off data and close dialog
+        onTimeOffCreated?.();
+      } else {
+        toast.error("Failed to schedule time off", {
+          description: result.error,
         });
       }
-    } else {
-      toast.error("Please select duration");
+    } catch (error) {
+      console.error("Error creating time off:", error);
+      toast.error("Error scheduling time off", {
+        description: "An unexpected error occurred",
+      });
     }
   }
 

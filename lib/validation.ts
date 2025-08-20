@@ -103,13 +103,22 @@ export const appointmentTimeOffSchema = z.object({
   reason: z.string().optional(),
   isRecurring: z.boolean(),
   recurringDuration: z.object({
-    value: z.number().min(1).max(26).optional(),
-    unit: z.enum(["days", "weeks", "months"]).optional(),
+    value: z.number().min(1).max(26),
+    unit: z.enum(["days", "weeks", "months"]),
   }).optional(),
   recurringFrequency: z.object({
-    value: z.number().min(1).max(26).optional(),
-    unit: z.enum(["days", "weeks"]).optional(),
+    value: z.number().min(1).max(26),
+    unit: z.enum(["days", "weeks"]),
   }).optional(),
+}).refine((data) => {
+  // If isRecurring is true, recurringDuration and recurringFrequency are required
+  if (data.isRecurring) {
+    return data.recurringDuration && data.recurringFrequency;
+  }
+  return true;
+}, {
+  message: "Recurring duration and frequency are required when recurring is enabled",
+  path: ["isRecurring"],
 });
 
 export const employeeFormSchema = z.object({
