@@ -145,6 +145,12 @@ export const customerFormSchema = z.object({
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
+export const customerImportSchema = z.object({
+  file: z.instanceof(File, { message: "Please select a file" }),
+});
+
+export type CustomerImportValues = z.infer<typeof customerImportSchema>;
+
 const referenceSchema = z.object({
   _ref: z.string().min(1, "Reference is required"),
   _type: z.string(),
