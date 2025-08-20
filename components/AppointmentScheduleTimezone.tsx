@@ -356,6 +356,7 @@ const AppointmentScheduleTimezone = ({
   const [showTimeOffDialog, setShowTimeOffDialog] = useState(false);
   const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
   const [editingTimeOff, setEditingTimeOff] = useState<any>(null);
+  const [isCancellingStanding, setIsCancellingStanding] = useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
 
   // Chuẩn hóa ngày khi múi giờ thay đổi
@@ -845,6 +846,11 @@ const AppointmentScheduleTimezone = ({
     } else {
       setShowConfirm(true); // Show confirm dialog only for edit
     }
+  };
+
+  const handleCancelStandingSuccess = async () => {
+    // Handle success after cancel standing - close dialog directly
+    await handleAppointmentSuccess();
   };
 
   const handleAppointmentSuccess = async () => {
@@ -1643,6 +1649,9 @@ const AppointmentScheduleTimezone = ({
               fetchAppointmentTimeOffs();
               setOpen(false);
             }}
+            setIsCancellingStanding={setIsCancellingStanding}
+            onCancelStandingSuccess={handleCancelStandingSuccess}
+            onClose={() => setOpen(false)}
           />
         </DialogContent>
       </Dialog>

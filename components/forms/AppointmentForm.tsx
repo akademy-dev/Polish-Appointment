@@ -46,6 +46,9 @@ export const AppointmentForm = ({
   type,
   appointmentId,
   onTimeOffCreated,
+  setIsCancellingStanding,
+  onCancelStandingSuccess,
+  onClose,
 }: {
   onSuccess?: () => void;
   hideSubmitButton?: boolean;
@@ -55,6 +58,9 @@ export const AppointmentForm = ({
   type: "create" | "edit";
   appointmentId?: string;
   onTimeOffCreated?: () => void;
+  setIsCancellingStanding?: (value: boolean) => void;
+  onCancelStandingSuccess?: () => void;
+  onClose?: () => void;
 }) => {
   const [showAppointmentInfo, setShowAppointmentInfo] = React.useState(
     type === "edit",
@@ -553,7 +559,10 @@ export const AppointmentForm = ({
         toast.success("Success", {
           description: "All recurring appointments cancelled successfully.",
         });
-        onSuccess?.();
+        // Set status to cancelled for current appointment
+        form.setValue("status", "cancelled");
+        // Call onCancelStandingSuccess to close dialog directly
+        onCancelStandingSuccess?.();
       } else {
         toast.error("Error", {
           description: result.error,
@@ -572,6 +581,7 @@ export const AppointmentForm = ({
     setShowUpcomingAppointmentsConfirm(false);
     setUpcomingAppointments([]);
     onSuccess?.(); // Proceed with appointment creation
+    onClose?.(); // Close the dialog after creating appointment
   };
 
   const handleUpcomingAppointmentsCancel = () => {
