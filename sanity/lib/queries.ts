@@ -169,6 +169,7 @@ export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
     duration
   },
   status,
+  note,
   recurringGroupId
 }
 `,

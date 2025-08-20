@@ -371,6 +371,21 @@ const AppointmentScheduleTimezone = ({
     }
   }, [timezone, date, setDate]);
 
+  // Sync date from URL parameter on mount
+  useEffect(() => {
+    if (currentDate) {
+      // currentDate is already a string in correct timezone (e.g., "2025-08-20")
+      // Parse it directly without timezone conversion
+      const urlDate = moment(currentDate, "YYYY-MM-DD").toDate();
+      const contextDate = moment.tz(date, getIanaTimezone(timezone)).startOf("day").toDate();
+      
+      // Only update if dates are different
+      if (urlDate.getTime() !== contextDate.getTime()) {
+        setDate(urlDate);
+      }
+    }
+  }, [currentDate, timezone, setDate]);
+
   // Kiểm tra nhân viên không làm việc cả ngày theo múi giờ ứng dụng
   const isEmployeeNotWorkingAllDay = (employee: Employee, date: Date) => {
     const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -390,7 +405,7 @@ const AppointmentScheduleTimezone = ({
         !isEmployeeNotWorkingAllDay(
           employee,
           currentDate
-            ? moment.tz(currentDate, getIanaTimezone(timezone)).toDate()
+            ? moment(currentDate, "YYYY-MM-DD").toDate()
             : moment.tz(new Date(), getIanaTimezone(timezone)).toDate(),
         ),
     );
@@ -401,9 +416,26 @@ const AppointmentScheduleTimezone = ({
     let orderedEmployees = filteredEmployees;
     if (savedOrder) {
       const order: string[] = JSON.parse(savedOrder);
-      orderedEmployees = [...filteredEmployees].sort(
-        (a, b) => order.indexOf(a._id) - order.indexOf(b._id),
+      // Filter order to only include employees that are currently visible
+      const filteredOrder = order.filter(id => 
+        filteredEmployees.some(emp => emp._id === id)
       );
+      
+      // Sort employees: first by saved order, then add new employees at the end
+      orderedEmployees = [...filteredEmployees].sort((a, b) => {
+        const aIndex = filteredOrder.indexOf(a._id);
+        const bIndex = filteredOrder.indexOf(b._id);
+        
+        // If both are in saved order, sort by their order
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex;
+        }
+        // If only one is in saved order, prioritize the saved one
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        // If neither is in saved order, maintain original order
+        return 0;
+      });
     }
     return orderedEmployees.map((employee: any) => ({
       resourceId: employee._id,
@@ -416,9 +448,26 @@ const AppointmentScheduleTimezone = ({
     let orderedEmployees = filteredEmployees;
     if (savedOrder) {
       const order: string[] = JSON.parse(savedOrder);
-      orderedEmployees = [...filteredEmployees].sort(
-        (a, b) => order.indexOf(a._id) - order.indexOf(b._id),
+      // Filter order to only include employees that are currently visible
+      const filteredOrder = order.filter(id => 
+        filteredEmployees.some(emp => emp._id === id)
       );
+      
+      // Sort employees: first by saved order, then add new employees at the end
+      orderedEmployees = [...filteredEmployees].sort((a, b) => {
+        const aIndex = filteredOrder.indexOf(a._id);
+        const bIndex = filteredOrder.indexOf(b._id);
+        
+        // If both are in saved order, sort by their order
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex;
+        }
+        // If only one is in saved order, prioritize the saved one
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        // If neither is in saved order, maintain original order
+        return 0;
+      });
     }
     setResources(
       orderedEmployees.map((employee: any) => ({
@@ -433,10 +482,7 @@ const AppointmentScheduleTimezone = ({
   const notWorkingEvents = useMemo(() => {
     // Đảm bảo currentDate ở đầu ngày với múi giờ cụ thể
     const dateAtStartOfDay = currentDate
-      ? moment
-          .tz(currentDate, getIanaTimezone(timezone))
-          .startOf("day")
-          .toDate()
+      ? moment(currentDate, "YYYY-MM-DD").startOf("day").toDate()
       : moment
           .tz(new Date(), getIanaTimezone(timezone))
           .startOf("day")
@@ -454,10 +500,7 @@ const AppointmentScheduleTimezone = ({
   // Generate appointment time off events
   const timeOffEvents = useMemo(() => {
     const dateAtStartOfDay = currentDate
-      ? moment
-          .tz(currentDate, getIanaTimezone(timezone))
-          .startOf("day")
-          .toDate()
+      ? moment(currentDate, "YYYY-MM-DD").startOf("day").toDate()
       : moment
           .tz(new Date(), getIanaTimezone(timezone))
           .startOf("day")
@@ -1154,6 +1197,7 @@ const AppointmentScheduleTimezone = ({
       _ref: calendarEvent.data.customer._id,
       _type: "reference",
     });
+    appointmentForm.setValue("note", calendarEvent.data.note || "");
     appointmentForm.setValue("reminder", calendarEvent.data.reminder);
     appointmentForm.setValue("type", calendarEvent.data.type || "walk-in");
     const newServices = calendarEvent.data.service
@@ -1216,6 +1260,7 @@ const AppointmentScheduleTimezone = ({
       });
       appointmentForm.setValue("note", calendarEvent.data.note || "");
       appointmentForm.setValue("reminder", calendarEvent.data.reminder);
+      appointmentForm.setValue("type", calendarEvent.data.type || "walk-in");
 
       const newServices = calendarEvent.data.service
         ? [
@@ -1284,6 +1329,9 @@ const AppointmentScheduleTimezone = ({
         "status",
         calendarEvent.data.status || "scheduled",
       );
+      appointmentForm.setValue("type", calendarEvent.data.type || "walk-in");
+      appointmentForm.setValue("note", calendarEvent.data.note || "");
+      
 
       setDuration(
         Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60)),
@@ -1317,7 +1365,7 @@ const AppointmentScheduleTimezone = ({
     };
 
     return (
-      <div className="flex items-center mb-2 gap-2">
+      <div className="flex items-center mb-2 gap-2 relative z-20">
         <div className="flex items-center gap-2">
           <Button onClick={goToToday}>Today</Button>
           <Button
@@ -1364,7 +1412,7 @@ const AppointmentScheduleTimezone = ({
   }, []);
 
   const NoEventsOverlay = () => (
-    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+    <div className="absolute inset-0 flex items-center justify-center z-5 pointer-events-none">
       <span className="text-2xl font-bold text-gray-400">Business Closed</span>
     </div>
   );

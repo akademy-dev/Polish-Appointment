@@ -350,160 +350,164 @@ const AppointmentInfoForm = ({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="isRecurring"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={isSubmitting}
+          {type === "create" && (
+            <>
+              <FormField
+                control={form.control}
+                name="isRecurring"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <Label htmlFor="isRecurring" className="text-md">
+                        Recurring Appointment
+                      </Label>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              {form.watch("isRecurring") && (
+                <div className="flex flex-col gap-4 ml-6">
+                  <FormField
+                    control={form.control}
+                    name="recurringDuration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-start">
+                          <Label
+                            htmlFor="recurringDuration"
+                            className="whitespace-nowrap text-md flex items-center pt-1 w-20"
+                          >
+                            Duration
+                          </Label>
+                          <div className="flex gap-2 ml-4">
+                            <FormControl>
+                              <Select
+                                onValueChange={(value) => {
+                                  field.onChange({
+                                    value: parseInt(value),
+                                    unit: field.value?.unit || "months",
+                                  });
+                                }}
+                                value={field.value?.value?.toString() || ""}
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger className="w-20">
+                                  <SelectValue placeholder="1" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: 26 }, (_, i) => i + 1).map(
+                                    (num) => (
+                                      <SelectItem key={num} value={num.toString()}>
+                                        {num}
+                                      </SelectItem>
+                                    ),
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormControl>
+                              <Select
+                                onValueChange={(value) => {
+                                  field.onChange({
+                                    ...field.value,
+                                    unit: value as "days" | "weeks" | "months",
+                                  });
+                                }}
+                                value={field.value?.unit || "months"}
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger className="w-28">
+                                  <SelectValue placeholder="Unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="days">Days</SelectItem>
+                                  <SelectItem value="weeks">Weeks</SelectItem>
+                                  <SelectItem value="months">Months</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                          </div>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </FormControl>
-                <div className="space-y-1 leading-none">
-                  <Label htmlFor="isRecurring" className="text-md">
-                    Recurring Appointment
-                  </Label>
+
+                  <FormField
+                    control={form.control}
+                    name="recurringFrequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-start">
+                          <Label
+                            htmlFor="recurringFrequency"
+                            className="whitespace-nowrap text-md flex items-center pt-1 w-20"
+                          >
+                            Frequency
+                          </Label>
+                          <div className="flex gap-2 ml-4">
+                            <FormControl>
+                              <Select
+                                onValueChange={(value) => {
+                                  field.onChange({
+                                    value: parseInt(value),
+                                    unit: field.value?.unit || "weeks",
+                                  });
+                                }}
+                                value={field.value?.value?.toString() || ""}
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger className="w-20">
+                                  <SelectValue placeholder="1" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: 26 }, (_, i) => i + 1).map(
+                                    (num) => (
+                                      <SelectItem key={num} value={num.toString()}>
+                                        {num}
+                                      </SelectItem>
+                                    ),
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormControl>
+                              <Select
+                                onValueChange={(value) => {
+                                  field.onChange({
+                                    ...field.value,
+                                    unit: value as "days" | "weeks",
+                                  });
+                                }}
+                                value={field.value?.unit || "weeks"}
+                                disabled={isSubmitting}
+                              >
+                                <SelectTrigger className="w-28">
+                                  <SelectValue placeholder="Unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="days">Days</SelectItem>
+                                  <SelectItem value="weeks">Weeks</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                          </div>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              </FormItem>
-            )}
-          />
-
-          {form.watch("isRecurring") && (
-            <div className="flex flex-col gap-4 ml-6">
-              <FormField
-                control={form.control}
-                name="recurringDuration"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-start">
-                      <Label
-                        htmlFor="recurringDuration"
-                        className="whitespace-nowrap text-md flex items-center pt-1 w-20"
-                      >
-                        Duration
-                      </Label>
-                      <div className="flex gap-2 ml-4">
-                        <FormControl>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange({
-                                value: parseInt(value),
-                                unit: field.value?.unit || "months",
-                              });
-                            }}
-                            value={field.value?.value?.toString() || ""}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger className="w-20">
-                              <SelectValue placeholder="1" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 26 }, (_, i) => i + 1).map(
-                                (num) => (
-                                  <SelectItem key={num} value={num.toString()}>
-                                    {num}
-                                  </SelectItem>
-                                ),
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormControl>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange({
-                                ...field.value,
-                                unit: value as "days" | "weeks" | "months",
-                              });
-                            }}
-                            value={field.value?.unit || "months"}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger className="w-28">
-                              <SelectValue placeholder="Unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="days">Days</SelectItem>
-                              <SelectItem value="weeks">Weeks</SelectItem>
-                              <SelectItem value="months">Months</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                      </div>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="recurringFrequency"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-start">
-                      <Label
-                        htmlFor="recurringFrequency"
-                        className="whitespace-nowrap text-md flex items-center pt-1 w-20"
-                      >
-                        Frequency
-                      </Label>
-                      <div className="flex gap-2 ml-4">
-                        <FormControl>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange({
-                                value: parseInt(value),
-                                unit: field.value?.unit || "weeks",
-                              });
-                            }}
-                            value={field.value?.value?.toString() || ""}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger className="w-20">
-                              <SelectValue placeholder="1" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 26 }, (_, i) => i + 1).map(
-                                (num) => (
-                                  <SelectItem key={num} value={num.toString()}>
-                                    {num}
-                                  </SelectItem>
-                                ),
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                        <FormControl>
-                          <Select
-                            onValueChange={(value) => {
-                              field.onChange({
-                                ...field.value,
-                                unit: value as "days" | "weeks",
-                              });
-                            }}
-                            value={field.value?.unit || "weeks"}
-                            disabled={isSubmitting}
-                          >
-                            <SelectTrigger className="w-28">
-                              <SelectValue placeholder="Unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="days">Days</SelectItem>
-                              <SelectItem value="weeks">Weeks</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                      </div>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+              )}
+            </>
           )}
 
           <div className="w-full h-px bg-black my-2"></div>

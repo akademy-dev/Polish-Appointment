@@ -13,7 +13,13 @@ import { deleteCustomer, deleteEmployee } from "@/lib/actions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-const ProfileCard = ({ profile }: { profile: Profile }) => {
+const ProfileCard = ({ 
+  profile, 
+  onDelete 
+}: { 
+  profile: Profile;
+  onDelete?: (id: string) => void;
+}) => {
   const [showConfirm, setShowConfirm] = useState(false);
   const getTitle = () => {
     if (isEmployee(profile)) {
@@ -33,6 +39,12 @@ const ProfileCard = ({ profile }: { profile: Profile }) => {
 
   const handleConfirm = async () => {
     setShowConfirm(false);
+    
+    // Optimistically remove from UI immediately
+    if (onDelete) {
+      onDelete(profile._id);
+    }
+    
     if (isEmployee(profile)) {
       // Handle employee deletion logic here
       const employeeId = profile._id;
@@ -46,11 +58,13 @@ const ProfileCard = ({ profile }: { profile: Profile }) => {
         toast.error("Error", {
           description: `Failed to delete employee: ${result.error}`,
         });
+        // Revert optimistic update on error
+        // Note: This would require more complex state management
       }
     } else {
       // Handle customer deletion logic here
       const customerId = profile._id;
-      const result = await deleteCustomer(customerId); // Replace with deleteCustomer if you have that function
+      const result = await deleteCustomer(customerId);
       if (result.status === "SUCCESS") {
         toast.success("Success", {
           description: "Customer deleted successfully.",
@@ -60,6 +74,8 @@ const ProfileCard = ({ profile }: { profile: Profile }) => {
         toast.error("Error", {
           description: `Failed to delete customer: ${result.error}`,
         });
+        // Revert optimistic update on error
+        // Note: This would require more complex state management
       }
     }
   };

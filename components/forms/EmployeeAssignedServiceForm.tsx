@@ -496,15 +496,15 @@ const EmployeeAssignedServiceForm = ({
   const availableByCategory = getServicesByCategory(false);
 
   return (
-    <div className="space-y-6">
-      <Accordion type="single" className="w-full">
+    <div className="space-y-6 mb-8">
+      <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="assigned">
           <AccordionTrigger className="text-lg font-semibold">
             Assigned Services ({Object.values(assignedByCategory).flat().length}
             )
           </AccordionTrigger>
           <AccordionContent>
-            <ScrollArea className="h-[400px] w-full">
+            <ScrollArea className="h-[300px] w-full">
               <div className="space-y-6 pr-4">
                 {Object.keys(assignedByCategory).length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">
@@ -570,7 +570,7 @@ const EmployeeAssignedServiceForm = ({
             {Object.values(availableByCategory).flat().length})
           </AccordionTrigger>
           <AccordionContent>
-            <ScrollArea className="h-[500px] w-full">
+            <ScrollArea className="h-[350px] w-full">
               <div className="space-y-6 pr-4">
                 {Object.entries(availableByCategory).map(
                   ([categoryName, categoryServices]) => (
