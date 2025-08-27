@@ -44,10 +44,7 @@ const CustomerPageHeader = () => {
           </DialogContent>
         </Dialog>
 
-        <Button onClick={handleAddCustomer}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Customer
-        </Button>
+    
       </div>
     </div>
   );
