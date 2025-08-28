@@ -59,22 +59,22 @@ export default function Layout({
           <CalendarProvider timezone={timezone} minTime={minTime} maxTime={maxTime}>
             <AppSidebar />
             <SidebarTrigger />
-            <main className="font-lexend p-4 w-full h-screen overflow-hidden">
-              <header className="mb-5 w-full space-y-4 lg:space-y-0">
+            <main className="font-lexend p-2 sm:p-4 w-full h-screen overflow-hidden">
+              <header className="mb-3 sm:mb-5 w-full space-y-3 sm:space-y-4 lg:space-y-0">
                 <div className="flex items-center justify-between">
                   <Navbar value={value} />
                 </div>
-                <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2 sm:gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
                   <CreateInfoButton type={value} />
                 </div>
               </header>
-              <div className="w-full h-[calc(100vh-6rem)]">{children}</div>
+              <div className="w-full h-[calc(100vh-5rem)] sm:h-[calc(100vh-6rem)]">{children}</div>
             </main>
           </CalendarProvider>
         </SidebarProvider>
       ) : (
-        <main className="font-lexend p-4">
-          <header className="mb-5 w-full space-y-4 lg:space-y-0">
+        <main className="font-lexend p-2 sm:p-4 h-screen overflow-y-auto">
+          <header className="mb-3 sm:mb-5 w-full space-y-3 sm:space-y-4 lg:space-y-0">
             <div className="flex items-center justify-between">
               <Navbar value={value} />
               {value !== "settings" && value !== "appointments" && value !== "time-tracking" ? (
@@ -95,7 +95,7 @@ export default function Layout({
               ) : null}
             </div>
             {value !== "settings" && value !== "appointments" && value !== "time-tracking" && (
-              <div className="flex flex-col gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:gap-3 lg:hidden sm:flex-row sm:items-center sm:justify-between">
                 {value !== "services" && (
                   <div className="flex-1 sm:max-w-md">
                     <SearchForm action={`/${value}`} />
@@ -105,7 +105,9 @@ export default function Layout({
               </div>
             )}
           </header>
-          {children}
+          <div className="pb-8">
+            {children}
+          </div>
         </main>
       )}
     </>

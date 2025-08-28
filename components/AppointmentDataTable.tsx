@@ -40,6 +40,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { useState } from "react";
 import { toast } from "sonner";
 import { deleteAppointment } from "@/lib/actions";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Define a custom meta interface to include className
 interface CustomColumnMeta<TData, TValue> extends ColumnMeta<TData, TValue> {
@@ -80,6 +81,7 @@ export function AppointmentDataTable({
   total,
   initialParams,
 }: AppointmentDataTableProps) {
+  const isMobile = useIsMobile();
   const [data, setData] = React.useState<Appointment[]>(initialAppointments);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -197,26 +199,38 @@ export function AppointmentDataTable({
       {
         accessorKey: "customer.fullName",
         header: "Customer",
+        meta: {
+          className: isMobile ? "min-w-[120px]" : "",
+        } as CustomColumnMeta<Appointment, unknown>,
       },
       {
         accessorKey: "employee.fullName",
         header: "Employee",
+        meta: {
+          className: isMobile ? "min-w-[120px]" : "",
+        } as CustomColumnMeta<Appointment, unknown>,
       },
       {
         accessorKey: "service.name",
         header: "Service",
+        meta: {
+          className: isMobile ? "min-w-[100px]" : "",
+        } as CustomColumnMeta<Appointment, unknown>,
       },
       {
         accessorKey: "startTime",
         header: "Start Time",
+        meta: {
+          className: isMobile ? "min-w-[140px]" : "",
+        } as CustomColumnMeta<Appointment, unknown>,
         cell: ({ row }: { row: { original: Appointment } }) => (
-          <div>
+          <div className={isMobile ? "text-xs" : ""}>
             {format(
               toZonedTime(
                 new Date(row.original.startTime),
                 initialParams.timezone,
               ),
-              "dd/MM/yyyy HH:mm",
+              isMobile ? "dd/MM HH:mm" : "dd/MM/yyyy HH:mm",
             )}
           </div>
         ),
@@ -224,14 +238,17 @@ export function AppointmentDataTable({
       {
         accessorKey: "endTime",
         header: "End Time",
+        meta: {
+          className: isMobile ? "min-w-[140px]" : "",
+        } as CustomColumnMeta<Appointment, unknown>,
         cell: ({ row }: { row: { original: Appointment } }) => (
-          <div>
+          <div className={isMobile ? "text-xs" : ""}>
             {format(
               toZonedTime(
                 new Date(row.original.endTime),
                 initialParams.timezone,
               ),
-              "dd/MM/yyyy HH:mm",
+              isMobile ? "dd/MM HH:mm" : "dd/MM/yyyy HH:mm",
             )}
           </div>
         ),
@@ -240,21 +257,23 @@ export function AppointmentDataTable({
         accessorKey: "duration",
         header: "Duration",
         meta: {
-          className: "text-center w-40",
-        } as CustomColumnMeta<Appointment, unknown>, // Type assertion
+          className: isMobile ? "min-w-[80px] text-center" : "text-center w-40",
+        } as CustomColumnMeta<Appointment, unknown>,
         cell: ({ row }: { row: { original: Appointment } }) => (
-          <div className="text-center">{row.original.duration}</div>
+          <div className={`text-center ${isMobile ? "text-xs" : ""}`}>
+            {row.original.duration}
+          </div>
         ),
       },
       {
         accessorKey: "status",
         header: "Status",
         meta: {
-          className: "w-40",
-        } as CustomColumnMeta<Appointment, unknown>, // Type assertion
+          className: isMobile ? "min-w-[100px]" : "w-40",
+        } as CustomColumnMeta<Appointment, unknown>,
         cell: ({ row }: { row: { original: Appointment } }) => (
           <div
-            className={`text-center ${
+            className={`text-center ${isMobile ? "text-xs px-1 py-0.5" : "px-2 py-1"} ${
               row.original.status === "completed"
                 ? "bg-green-100 text-green-800"
                 : row.original.status === "cancelled"
@@ -262,7 +281,7 @@ export function AppointmentDataTable({
                   : row.original.status === "scheduled"
                     ? "bg-yellow-100 text-yellow-800"
                     : "bg-gray-100 text-gray-800"
-            } rounded-md px-2 py-1`}
+            } rounded-md`}
           >
             {row.original.status
               ? row.original.status.charAt(0).toUpperCase() +
@@ -275,11 +294,11 @@ export function AppointmentDataTable({
         accessorKey: "action",
         header: "",
         meta: {
-          className: "w-20 text-center",
-        } as CustomColumnMeta<Appointment, unknown>, // Type assertion
+          className: isMobile ? "min-w-[60px] text-center" : "w-20 text-center",
+        } as CustomColumnMeta<Appointment, unknown>,
         cell: ({ row }) => {
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center">
               <Button
                 variant="destructive"
                 size="icon"
@@ -295,7 +314,7 @@ export function AppointmentDataTable({
           );
         },
       },
-    ] as ColumnDef<Appointment, unknown>[], // Explicitly type columns
+    ] as ColumnDef<Appointment, unknown>[],
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -383,7 +402,7 @@ export function AppointmentDataTable({
   return (
     <>
       <div className="w-full">
-        <div className="flex items-center justify-between py-4 gap-2 w-full">
+        <div className={`flex items-center justify-between py-4 gap-2 w-full ${isMobile ? 'flex-col sm:flex-row' : ''}`}>
           <Input
             placeholder="Search "
             value={search}
@@ -392,11 +411,11 @@ export function AppointmentDataTable({
               setSearch(newSearch);
               setPage(1);
             }}
-            className="max-w-sm"
+            className={isMobile ? "w-full" : "max-w-sm"}
           />
-          <div className="flex gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Status:</span>
+          <div className={`flex gap-2 ${isMobile ? 'w-full flex-wrap justify-center sm:justify-end' : ''}`}>
+            <div className={`flex items-center gap-2 ${isMobile ? 'flex-1 sm:flex-none' : ''}`}>
+              <span className={`text-sm text-muted-foreground ${isMobile ? 'text-xs' : ''}`}>Status:</span>
               <Select
                 value={status || "all"}
                 onValueChange={(value) => {
@@ -408,7 +427,7 @@ export function AppointmentDataTable({
                   });
                 }}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className={isMobile ? "w-24 text-xs" : "w-32"}>
                   <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
@@ -420,8 +439,8 @@ export function AppointmentDataTable({
               </Select>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Show:</span>
+            <div className={`flex items-center gap-2 ${isMobile ? 'flex-1 sm:flex-none' : ''}`}>
+              <span className={`text-sm text-muted-foreground ${isMobile ? 'text-xs' : ''}`}>Show:</span>
               <Select
                 value={String(limit)}
                 onValueChange={(value) => {
@@ -431,7 +450,7 @@ export function AppointmentDataTable({
                   updateQueryParams({ limit: newLimit, page: 1 });
                 }}
               >
-                <SelectTrigger className="w-20">
+                <SelectTrigger className={isMobile ? "w-16 text-xs" : "w-20"}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -451,36 +470,38 @@ export function AppointmentDataTable({
         <div
           className={`rounded-md border transition-opacity ${loading ? "opacity-50 pointer-events-none" : ""}`}
         >
-          <Table className="table-fixed w-full">
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className={
-                        (
-                          header.column.columnDef.meta as CustomColumnMeta<
-                            Appointment,
-                            unknown
-                          >
-                        )?.className || ""
-                      }
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-          </Table>
-          <div className="h-[calc(100vh-300px)] overflow-y-auto">
-            <Table className="table-fixed w-full">
+          <div className={isMobile ? "overflow-x-auto" : ""}>
+            <Table className={isMobile ? "min-w-[800px]" : "table-fixed w-full"}>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead
+                        key={header.id}
+                        className={`${isMobile ? "text-xs" : ""} ${
+                          (
+                            header.column.columnDef.meta as CustomColumnMeta<
+                              Appointment,
+                              unknown
+                            >
+                          )?.className || ""
+                        }`}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+            </Table>
+          </div>
+          <div className={`${isMobile ? "overflow-x-auto" : ""} h-[calc(100vh-300px)] overflow-y-auto`}>
+            <Table className={isMobile ? "min-w-[800px]" : "table-fixed w-full"}>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
@@ -491,14 +512,14 @@ export function AppointmentDataTable({
                       {row.getVisibleCells().map((cell) => (
                         <TableCell
                           key={cell.id}
-                          className={
+                          className={`${isMobile ? "text-xs" : ""} ${
                             (
                               cell.column.columnDef.meta as CustomColumnMeta<
                                 Appointment,
                                 unknown
                               >
                             )?.className || ""
-                          }
+                          }`}
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
@@ -522,34 +543,36 @@ export function AppointmentDataTable({
             </Table>
           </div>
         </div>
-        <div className="flex items-center justify-end space-x-2 py-3">
-          <span className="text-sm text-muted-foreground mr-4">
+        <div className={`flex items-center justify-end space-x-2 py-3 ${isMobile ? 'flex-col gap-2 sm:flex-row sm:gap-0' : ''}`}>
+          <span className={`text-sm text-muted-foreground ${isMobile ? 'text-xs' : 'mr-4'}`}>
             Page {page} of {totalPages}
           </span>
-          <Button
-            variant="outline"
-            size="default"
-            onClick={() => {
-              const newPage = Math.max(1, page - 1);
-              setPage(newPage);
-              updateQueryParams({ page: newPage });
-            }}
-            disabled={page <= 1}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="default"
-            onClick={() => {
-              const newPage = Math.min(totalPages, page + 1);
-              setPage(newPage);
-              updateQueryParams({ page: newPage });
-            }}
-            disabled={page >= totalPages}
-          >
-            Next
-          </Button>
+          <div className={`flex gap-2 ${isMobile ? 'w-full justify-center sm:w-auto' : ''}`}>
+                         <Button
+               variant="outline"
+               size="default"
+               onClick={() => {
+                 const newPage = Math.max(1, page - 1);
+                 setPage(newPage);
+                 updateQueryParams({ page: newPage });
+               }}
+               disabled={page <= 1}
+             >
+               Previous
+             </Button>
+             <Button
+               variant="outline"
+               size="default"
+               onClick={() => {
+                 const newPage = Math.min(totalPages, page + 1);
+                 setPage(newPage);
+                 updateQueryParams({ page: newPage });
+               }}
+               disabled={page >= totalPages}
+             >
+               Next
+             </Button>
+          </div>
         </div>
       </div>
       <ConfirmDialog

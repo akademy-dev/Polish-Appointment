@@ -1374,29 +1374,31 @@ const AppointmentScheduleTimezone = ({
     };
 
     return (
-      <div className="flex items-center mb-2 gap-2 relative z-20">
-        <div className="flex items-center gap-2">
-          <Button onClick={goToToday}>Today</Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={goToBack}
-            aria-label="Back"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={goToNext}
-            aria-label="Next"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </Button>
+      <div className={`flex items-center mb-2 gap-2 relative z-20 ${isMobile ? 'flex-col sm:flex-row' : ''}`}>
+        <div className={`flex items-center gap-2 ${isMobile ? 'w-full justify-between' : ''}`}>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button onClick={goToToday}>Today</Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={goToBack}
+              aria-label="Back"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={goToNext}
+              aria-label="Next"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
-        <span className="font-semibold text-lg">
+        <span className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'} ${isMobile ? 'text-center w-full' : ''}`}>
           {toolbar.label}{" "}
-          <span className="font-semibold text-lg">
+          <span className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>
             {toolbar.date.getFullYear()}
           </span>
         </span>
@@ -1472,18 +1474,49 @@ const AppointmentScheduleTimezone = ({
     });
     drag(drop(ref));
     return (
-      <div ref={ref} style={{ opacity: isDragging ? 0.5 : 1, cursor: "move" }}>
-        <GripVertical size={16} style={{ marginRight: 4 }} />
-        {resource.resourceTitle}
+      <div 
+        ref={ref} 
+        style={{ opacity: isDragging ? 0.5 : 1, cursor: "move" }}
+        className={`flex items-center ${isMobile ? 'text-xs px-1' : 'px-2'}`}
+      >
+        <GripVertical size={isMobile ? 12 : 16} style={{ marginRight: isMobile ? 2 : 4 }} />
+        <span className={`${isMobile ? 'text-xs truncate' : 'text-sm'}`}>
+          {resource.resourceTitle}
+        </span>
       </div>
     );
   };
 
   return (
     <div className="relative h-full w-full">
+      {isMobile && (
+        <style jsx>{`
+          .mobile-calendar .rbc-time-header {
+            font-size: 12px;
+          }
+          .mobile-calendar .rbc-header {
+            padding: 4px 2px;
+            font-size: 11px;
+            font-weight: 600;
+          }
+          .mobile-calendar .rbc-time-slot {
+            font-size: 10px;
+          }
+          .mobile-calendar .rbc-event {
+            font-size: 10px;
+            padding: 1px;
+          }
+          .mobile-calendar .rbc-time-content {
+            font-size: 10px;
+          }
+          .mobile-calendar .rbc-timeslot-group {
+            min-height: 30px;
+          }
+        `}</style>
+      )}
       <DndProvider backend={HTML5Backend}>
         <div
-          className={`h-full w-full  ${processing || isLoading ? "loading" : null}`}
+          className={`h-full w-full ${isMobile ? 'mobile-calendar' : ''} ${processing || isLoading ? "loading" : null}`}
         >
           {resources.length === 0 && <NoEventsOverlay />}
           <DragAndDropCalendar
@@ -1545,12 +1578,12 @@ const AppointmentScheduleTimezone = ({
                       className={`${bgColor} h-full rounded border border-gray-100 cursor-pointer`}
                     >
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className="text-md text-black ≈">
+                        <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-black font-medium truncate w-full text-center`}>
                           {calendarEvent.data?.customer
                             ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                             : "No Customer"}
                         </span>
-                        <span className="text-[14px] text-white">
+                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-white truncate w-full text-center`}>
                           {calendarEvent.title}
                         </span>
                       </div>
@@ -1564,12 +1597,12 @@ const AppointmentScheduleTimezone = ({
                   return (
                     <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className="text-md text-white">
+                        <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-white font-medium truncate w-full text-center`}>
                           {calendarEvent.data?.customer
                             ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                             : "No Customer"}
                         </span>
-                        <span className="text-[14px] text-white">
+                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-white truncate w-full text-center`}>
                           {calendarEvent.title}
                         </span>
                       </div>
@@ -1582,12 +1615,12 @@ const AppointmentScheduleTimezone = ({
                   return (
                     <div className="bg-green-700 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className="text-md text-white">
+                        <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-white font-medium truncate w-full text-center`}>
                           {calendarEvent.data?.customer
                             ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                             : "No Customer"}
                         </span>
-                        <span className="text-[14px] text-white">
+                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-white truncate w-full text-center`}>
                           {calendarEvent.title}
                         </span>
                       </div>
@@ -1597,7 +1630,7 @@ const AppointmentScheduleTimezone = ({
                   return (
                     <div className="bg-gray-500 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className="text-[14px] text-white">
+                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-white truncate w-full text-center`}>
                           {calendarEvent.title}
                         </span>
                       </div>
@@ -1607,11 +1640,11 @@ const AppointmentScheduleTimezone = ({
                   return (
                     <div className="bg-blue-400 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className="text-[14px] text-black font-medium">
+                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-black font-medium truncate w-full text-center`}>
                           {calendarEvent.title}
                         </span>
                         {(calendarEvent.data as any)?.reason && (
-                          <span className="text-[12px] text-black opacity-80">
+                          <span className={`${isMobile ? 'text-[8px]' : 'text-[12px]'} text-black opacity-80 truncate w-full text-center`}>
                             {(calendarEvent.data as any).reason}
                           </span>
                         )}
@@ -1636,7 +1669,7 @@ const AppointmentScheduleTimezone = ({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild></DialogTrigger>
         <DialogContent
-          className={`sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl max-h-[95vh] h-[95vh] flex flex-col items-start justify-start`}
+          className={`${isMobile ? 'w-[95vw] max-w-[95vw] h-[95vh] max-h-[95vh]' : 'sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl'} max-h-[95vh] h-[95vh] flex flex-col items-start justify-start`}
           aria-describedby="form-dialog"
         >
           <DialogHeader>
@@ -1680,7 +1713,7 @@ const AppointmentScheduleTimezone = ({
 
       {/* Time Off Dialog */}
       <Dialog open={showTimeOffDialog} onOpenChange={setShowTimeOffDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className={`${isMobile ? 'w-[95vw] max-w-[95vw]' : 'sm:max-w-md'}`}>
           <DialogHeader>
             <DialogTitle>Time Off Details</DialogTitle>
             <DialogDescription>
@@ -1693,7 +1726,7 @@ const AppointmentScheduleTimezone = ({
               {!editingTimeOff ? (
                 // View Mode
                 <>
-                                     <div className="grid grid-cols-2 gap-4">
+                                     <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                      <div>
                        <label className="text-sm font-medium">Employee</label>
                        <p className="text-sm text-gray-600">
@@ -1721,7 +1754,7 @@ const AppointmentScheduleTimezone = ({
                      </div>
                    </div>
 
-                   <div className="grid grid-cols-2 gap-4">
+                   <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                      <div>
                        <label className="text-sm font-medium">Created At</label>
                        <p className="text-sm text-gray-600">
@@ -1750,7 +1783,7 @@ const AppointmentScheduleTimezone = ({
                   )}
                   
                   {selectedTimeOff.isRecurring && selectedTimeOff.recurringDuration && selectedTimeOff.recurringFrequency && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                       <div>
                         <label className="text-sm font-medium">Recurring Duration</label>
                         <p className="text-sm text-gray-600">
@@ -1766,7 +1799,7 @@ const AppointmentScheduleTimezone = ({
                     </div>
                   )}
                   
-                  <div className="flex justify-end gap-2 pt-4">
+                  <div className={`flex ${isMobile ? 'flex-col' : 'justify-end'} gap-2 pt-4`}>
                     <Button
                       variant="outline"
                       onClick={() => setShowTimeOffDialog(false)}
@@ -1793,7 +1826,7 @@ const AppointmentScheduleTimezone = ({
               ) : (
                                  // Edit Mode
                  <>
-                   <div className="grid grid-cols-2 gap-4">
+                   <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                      <div>
                        <label className="text-sm font-medium">Employee</label>
                        <p className="text-sm text-gray-600">
@@ -1809,7 +1842,7 @@ const AppointmentScheduleTimezone = ({
                      </div>
                    </div>
 
-                   <div className="grid grid-cols-2 gap-4">
+                   <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                      <div>
                        <label className="text-sm font-medium">Created At</label>
                        <p className="text-sm text-gray-600">
@@ -1864,7 +1897,7 @@ const AppointmentScheduleTimezone = ({
                   )}
                   
                   {editingTimeOff.isRecurring && editingTimeOff.recurringDuration && editingTimeOff.recurringFrequency && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                       <div>
                         <label className="text-sm font-medium">Recurring Duration</label>
                         <p className="text-sm text-gray-600">
@@ -1880,7 +1913,7 @@ const AppointmentScheduleTimezone = ({
                     </div>
                   )}
                   
-                  <div className="flex justify-end gap-2 pt-4">
+                  <div className={`flex ${isMobile ? 'flex-col' : 'justify-end'} gap-2 pt-4`}>
                     <Button
                       variant="outline"
                       onClick={handleCancelEdit}
