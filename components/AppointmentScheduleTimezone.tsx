@@ -1754,7 +1754,6 @@ const AppointmentScheduleTimezone = ({
         onCancel={handleConflictCancel}
       />
 
-      {/* Time Off Dialog */}
       <Dialog open={showTimeOffDialog} onOpenChange={setShowTimeOffDialog}>
         <DialogContent
           className={`${isMobile ? "w-[95vw] max-w-[95vw]" : "sm:max-w-md"}`}
