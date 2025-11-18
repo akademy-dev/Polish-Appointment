@@ -54,7 +54,13 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { ConflictDialog } from "@/components/ConflictDialog";
 import { getIanaTimezone } from "@/lib/utils";
 import { deleteTimeOff, updateTimeOff } from "@/actions/time-off";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
 const DragAndDropCalendar = withDragAndDrop(Calendar);
@@ -88,7 +94,7 @@ interface AppointmentScheduleProps {
 export const formatToISO8601 = (
   date: Date,
   time: string,
-  timezone: string,
+  timezone: string
 ): string => {
   const dateMoment = moment.tz(date, getIanaTimezone(timezone));
   const [hours, minutes] =
@@ -110,7 +116,7 @@ const generateNotWorkingEvents = (
   standardStart: string,
   standardEnd: string,
   currentDate: Date,
-  timezone: string,
+  timezone: string
 ): CalendarEvent[] => {
   const notWorkingEvents: any[] = [];
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -124,7 +130,7 @@ const generateNotWorkingEvents = (
   const standardStartTime = formatToISO8601(
     currentDate,
     standardStart,
-    timezone,
+    timezone
   );
   const standardEndTime = formatToISO8601(currentDate, standardEnd, timezone);
 
@@ -146,7 +152,7 @@ const generateNotWorkingEvents = (
       const workStart = formatToISO8601(
         currentDate,
         workSchedule.from,
-        timezone,
+        timezone
       );
       const workEnd = formatToISO8601(currentDate, workSchedule.to, timezone);
 
@@ -154,11 +160,11 @@ const generateNotWorkingEvents = (
       const workEndMoment = moment.tz(workEnd, getIanaTimezone(timezone));
       const standardStartMoment = moment.tz(
         standardStartTime,
-        getIanaTimezone(timezone),
+        getIanaTimezone(timezone)
       );
       const standardEndMoment = moment.tz(
         standardEndTime,
-        getIanaTimezone(timezone),
+        getIanaTimezone(timezone)
       );
 
       if (workStartMoment.isAfter(standardStartMoment)) {
@@ -198,12 +204,12 @@ const isValidTimeString = (timeStr: string): boolean => {
 const setTimeToDate = (
   date: Date,
   timeStr: string,
-  timezone: string,
+  timezone: string
 ): Date | null => {
   timeStr = timeStr.trim();
   if (!isValidTimeString(timeStr)) {
     console.error(
-      `Invalid time format: ${timeStr}. Expected HH:mm AM/PM (e.g., "10:00 AM").`,
+      `Invalid time format: ${timeStr}. Expected HH:mm AM/PM (e.g., "10:00 AM").`
     );
     return null;
   }
@@ -221,13 +227,13 @@ const generateAppointmentTimeOffEvents = (
   appointmentTimeOffs: any[],
   date: Date,
   timezone: string,
-  maxTime: string,
+  maxTime: string
 ): CalendarEvent[] => {
   const events: any[] = [];
 
   appointmentTimeOffs.forEach((timeOff) => {
     console.log("Processing time off:", timeOff);
-    
+
     if (!timeOff.employee || !timeOff.startTime || !timeOff.duration) {
       console.log("Skipping time off - missing required fields");
       return;
@@ -246,20 +252,20 @@ const generateAppointmentTimeOffEvents = (
       // So we just check if the startTime matches the current date
       const timeOffDate = moment.tz(
         timeOff.startTime,
-        getIanaTimezone(timezone),
+        getIanaTimezone(timezone)
       );
       isMatchingDate = timeOffDate.isSame(momentDate, "day");
     } else {
       // Non-recurring time off - check if it's for today
       const timeOffDate = moment.tz(
         timeOff.startTime,
-        getIanaTimezone(timezone),
+        getIanaTimezone(timezone)
       );
       isMatchingDate = timeOffDate.isSame(momentDate, "day");
     }
 
     console.log("Time off date match result:", isMatchingDate);
-    
+
     if (isMatchingDate) {
       console.log("Creating event for time off:", timeOff);
       const startTime = moment
@@ -284,15 +290,15 @@ const generateAppointmentTimeOffEvents = (
           .toDate();
       }
 
-              events.push({
-          id: `appointment_time_off_${timeOff._id}_${momentDate.format("YYYY-MM-DD")}`,
-          start: startTime,
-          end: endTime,
-          title: "Time Off",
-          resourceId: timeOff.employee._id,
-          type: "appointmentTimeOff",
-          data: timeOff,
-        });
+      events.push({
+        id: `appointment_time_off_${timeOff._id}_${momentDate.format("YYYY-MM-DD")}`,
+        start: startTime,
+        end: endTime,
+        title: "Time Off",
+        resourceId: timeOff.employee._id,
+        type: "appointmentTimeOff",
+        data: timeOff,
+      });
     }
   });
 
@@ -342,7 +348,7 @@ const AppointmentScheduleTimezone = ({
   const [pendingAppointmentData, setPendingAppointmentData] =
     useState<any>(null);
   const [appointmentTimeOffs, setAppointmentTimeOffs] = useState<any[]>(
-    initialAppointmentTimeOffs,
+    initialAppointmentTimeOffs
   );
   const [showTimeOffDialog, setShowTimeOffDialog] = useState(false);
   const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
@@ -369,8 +375,11 @@ const AppointmentScheduleTimezone = ({
       // currentDate is already a string in correct timezone (e.g., "2025-08-20")
       // Parse it directly without timezone conversion
       const urlDate = moment(currentDate, "YYYY-MM-DD").toDate();
-      const contextDate = moment.tz(date, getIanaTimezone(timezone)).startOf("day").toDate();
-      
+      const contextDate = moment
+        .tz(date, getIanaTimezone(timezone))
+        .startOf("day")
+        .toDate();
+
       // Only update if dates are different
       if (urlDate.getTime() !== contextDate.getTime()) {
         setDate(urlDate);
@@ -398,8 +407,8 @@ const AppointmentScheduleTimezone = ({
           employee,
           currentDate
             ? moment(currentDate, "YYYY-MM-DD").toDate()
-            : moment.tz(new Date(), getIanaTimezone(timezone)).toDate(),
-        ),
+            : moment.tz(new Date(), getIanaTimezone(timezone)).toDate()
+        )
     );
   }, [initialEmployees, currentDate, notWorking, timezone]);
 
@@ -409,15 +418,15 @@ const AppointmentScheduleTimezone = ({
     if (savedOrder) {
       const order: string[] = JSON.parse(savedOrder);
       // Filter order to only include employees that are currently visible
-      const filteredOrder = order.filter(id => 
-        filteredEmployees.some(emp => emp._id === id)
+      const filteredOrder = order.filter((id) =>
+        filteredEmployees.some((emp) => emp._id === id)
       );
-      
+
       // Sort employees: first by saved order, then add new employees at the end
       orderedEmployees = [...filteredEmployees].sort((a, b) => {
         const aIndex = filteredOrder.indexOf(a._id);
         const bIndex = filteredOrder.indexOf(b._id);
-        
+
         // If both are in saved order, sort by their order
         if (aIndex !== -1 && bIndex !== -1) {
           return aIndex - bIndex;
@@ -444,15 +453,15 @@ const AppointmentScheduleTimezone = ({
     if (savedOrder) {
       const order: string[] = JSON.parse(savedOrder);
       // Filter order to only include employees that are currently visible
-      const filteredOrder = order.filter(id => 
-        filteredEmployees.some(emp => emp._id === id)
+      const filteredOrder = order.filter((id) =>
+        filteredEmployees.some((emp) => emp._id === id)
       );
-      
+
       // Sort employees: first by saved order, then add new employees at the end
       orderedEmployees = [...filteredEmployees].sort((a, b) => {
         const aIndex = filteredOrder.indexOf(a._id);
         const bIndex = filteredOrder.indexOf(b._id);
-        
+
         // If both are in saved order, sort by their order
         if (aIndex !== -1 && bIndex !== -1) {
           return aIndex - bIndex;
@@ -468,10 +477,10 @@ const AppointmentScheduleTimezone = ({
       orderedEmployees.map((employee: any) => ({
         resourceId: employee._id,
         resourceTitle: getProfileName(employee),
-      })),
+      }))
     );
     setIsLoading(false);
-    
+
     // Reset hasUserReordered when filteredEmployees changes (e.g., when notWorking changes)
     setHasUserReordered(false);
   }, [filteredEmployees]);
@@ -491,7 +500,7 @@ const AppointmentScheduleTimezone = ({
       minTime,
       maxTime,
       dateAtStartOfDay,
-      timezone,
+      timezone
     );
   }, [initialEmployees, currentDate, timezone]);
 
@@ -506,14 +515,14 @@ const AppointmentScheduleTimezone = ({
 
     console.log("Time offs data:", appointmentTimeOffs);
     console.log("Current date:", dateAtStartOfDay);
-    
+
     const events = generateAppointmentTimeOffEvents(
       appointmentTimeOffs,
       dateAtStartOfDay,
       timezone,
-      maxTime || "6:00 PM",
+      maxTime || "6:00 PM"
     );
-    
+
     console.log("Generated time off events:", events);
     return events;
   }, [appointmentTimeOffs, currentDate, timezone, maxTime]);
@@ -549,7 +558,7 @@ const AppointmentScheduleTimezone = ({
       ...(cancelled
         ? appointmentEvents
         : appointmentEvents.filter(
-            (event) => event.data?.status !== "cancelled",
+            (event) => event.data?.status !== "cancelled"
           )),
     ];
     setEvents(filteredEvents);
@@ -575,8 +584,6 @@ const AppointmentScheduleTimezone = ({
   useEffect(() => {
     fetchAppointmentTimeOffs();
   }, [fetchAppointmentTimeOffs]);
-
-
 
   // Refresh appointment time offs when appointments change (indicating new time off was created)
   useEffect(() => {
@@ -663,7 +670,7 @@ const AppointmentScheduleTimezone = ({
     }
 
     const selectedEmployee = filteredEmployees.find(
-      (emp) => emp._id === watchedEmployeeRef,
+      (emp) => emp._id === watchedEmployeeRef
     );
 
     if (!selectedEmployee) {
@@ -716,7 +723,7 @@ const AppointmentScheduleTimezone = ({
         pendingAppointmentData.reminder,
         pendingAppointmentData.isRecurring,
         pendingAppointmentData.recurringDuration,
-        pendingAppointmentData.recurringFrequency,
+        pendingAppointmentData.recurringFrequency
       );
 
       if (result.status === "SUCCESS") {
@@ -756,11 +763,11 @@ const AppointmentScheduleTimezone = ({
 
   const handleTimeOffCancel = async () => {
     if (!selectedTimeOff) return;
-    
+
     setIsSubmitting(true);
     try {
       const result = await deleteTimeOff(selectedTimeOff._id);
-      
+
       if (result.status === "SUCCESS") {
         toast.success("Time off cancelled successfully");
         setShowTimeOffDialog(false);
@@ -783,11 +790,11 @@ const AppointmentScheduleTimezone = ({
 
   const handleTimeOffUpdate = async () => {
     if (!selectedTimeOff || !editingTimeOff) return;
-    
+
     setIsSubmitting(true);
     try {
       const result = await updateTimeOff(selectedTimeOff._id, editingTimeOff);
-      
+
       if (result.status === "SUCCESS") {
         toast.success("Time off updated successfully");
         setShowTimeOffDialog(false);
@@ -881,7 +888,7 @@ const AppointmentScheduleTimezone = ({
               _type: formValues.customer._type,
             },
             formValues.employee,
-            formValues.reminder,
+            formValues.reminder
           );
 
           if (result.status === "SUCCESS") {
@@ -905,7 +912,7 @@ const AppointmentScheduleTimezone = ({
           const startTime = new Date(formValues.time);
           const totalDuration = formValues.services.reduce(
             (total, service) => total + service.duration * service.quantity,
-            0,
+            0
           );
           const endTime = new Date(startTime.getTime() + totalDuration * 60000);
 
@@ -927,7 +934,7 @@ const AppointmentScheduleTimezone = ({
                   value: formValues.recurringFrequency.value,
                   unit: formValues.recurringFrequency.unit,
                 }
-              : undefined,
+              : undefined
           );
 
           if (
@@ -993,7 +1000,7 @@ const AppointmentScheduleTimezone = ({
                 value: formValues.recurringFrequency.value,
                 unit: formValues.recurringFrequency.unit,
               }
-            : undefined,
+            : undefined
         );
 
         if (result.status === "SUCCESS") {
@@ -1024,10 +1031,10 @@ const AppointmentScheduleTimezone = ({
             const startTime = new Date(formValues.time);
             const totalDuration = formValues.services.reduce(
               (total, service) => total + service.duration * service.quantity,
-              0,
+              0
             );
             const endTime = new Date(
-              startTime.getTime() + totalDuration * 60000,
+              startTime.getTime() + totalDuration * 60000
             );
 
             const conflictResult = await checkRecurringConflicts(
@@ -1048,7 +1055,7 @@ const AppointmentScheduleTimezone = ({
                     value: formValues.recurringFrequency.value,
                     unit: formValues.recurringFrequency.unit,
                   }
-                : undefined,
+                : undefined
             );
 
             if (
@@ -1113,7 +1120,7 @@ const AppointmentScheduleTimezone = ({
                   value: formValues.recurringFrequency.value,
                   unit: formValues.recurringFrequency.unit,
                 }
-              : undefined,
+              : undefined
           );
 
           if (result.status === "SUCCESS") {
@@ -1175,7 +1182,7 @@ const AppointmentScheduleTimezone = ({
 
       setOpen(true);
     },
-    [],
+    []
   );
 
   const handleSelectEvent = useCallback((event: object) => {
@@ -1214,7 +1221,9 @@ const AppointmentScheduleTimezone = ({
           {
             _ref: calendarEvent.data.service._id,
             _type: "reference",
-            duration: calendarEvent.data.duration || calendarEvent.data.service.duration,
+            duration:
+              calendarEvent.data.duration ||
+              calendarEvent.data.service.duration,
             quantity: 1,
           },
         ]
@@ -1222,13 +1231,13 @@ const AppointmentScheduleTimezone = ({
     appointmentForm.setValue("services", newServices);
     appointmentForm.setValue(
       "status",
-      calendarEvent.data.status || "scheduled",
+      calendarEvent.data.status || "scheduled"
     );
     // Set recurringGroupId for Cancel Standing functionality
     if (calendarEvent.data.recurringGroupId) {
       appointmentForm.setValue(
         "recurringGroupId",
-        calendarEvent.data.recurringGroupId,
+        calendarEvent.data.recurringGroupId
       );
     }
     setDuration(calendarEvent.data.duration || 0);
@@ -1276,7 +1285,9 @@ const AppointmentScheduleTimezone = ({
             {
               _ref: calendarEvent.data.service._id,
               _type: "reference",
-              duration: calendarEvent.data.duration || calendarEvent.data.service.duration,
+              duration:
+                calendarEvent.data.duration ||
+                calendarEvent.data.service.duration,
               quantity: 1,
             },
           ]
@@ -1284,13 +1295,15 @@ const AppointmentScheduleTimezone = ({
       appointmentForm.setValue("services", newServices);
       appointmentForm.setValue(
         "status",
-        calendarEvent.data.status || "scheduled",
+        calendarEvent.data.status || "scheduled"
       );
 
-      setDuration(calendarEvent.data.duration || calendarEvent.data.service?.duration || 0);
+      setDuration(
+        calendarEvent.data.duration || calendarEvent.data.service?.duration || 0
+      );
       setShowConfirm(true);
     },
-    [],
+    []
   );
 
   const resizeEvent = useCallback(
@@ -1328,7 +1341,9 @@ const AppointmentScheduleTimezone = ({
             {
               _ref: calendarEvent.data.service._id,
               _type: "reference",
-              duration: calendarEvent.data.duration || calendarEvent.data.service.duration,
+              duration:
+                calendarEvent.data.duration ||
+                calendarEvent.data.service.duration,
               quantity: 1,
             },
           ]
@@ -1336,18 +1351,17 @@ const AppointmentScheduleTimezone = ({
       appointmentForm.setValue("services", newServices);
       appointmentForm.setValue(
         "status",
-        calendarEvent.data.status || "scheduled",
+        calendarEvent.data.status || "scheduled"
       );
       appointmentForm.setValue("type", calendarEvent.data.type || "walk-in");
       appointmentForm.setValue("note", calendarEvent.data.note || "");
-      
 
       setDuration(
-        Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60)),
+        Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60))
       );
       setShowConfirm(true);
     },
-    [],
+    []
   );
 
   const CustomToolbar = (toolbar: any) => {
@@ -1374,8 +1388,12 @@ const AppointmentScheduleTimezone = ({
     };
 
     return (
-      <div className={`flex items-center mb-2 gap-2 relative z-20 ${isMobile ? 'flex-col sm:flex-row' : ''}`}>
-        <div className={`flex items-center gap-2 ${isMobile ? 'w-full justify-between' : ''}`}>
+      <div
+        className={`flex items-center mb-2 gap-2 relative z-20 ${isMobile ? "flex-col sm:flex-row" : ""}`}
+      >
+        <div
+          className={`flex items-center gap-2 ${isMobile ? "w-full justify-between" : ""}`}
+        >
           <div className="flex items-center gap-1 sm:gap-2">
             <Button onClick={goToToday}>Today</Button>
             <Button
@@ -1396,9 +1414,13 @@ const AppointmentScheduleTimezone = ({
             </Button>
           </div>
         </div>
-        <span className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'} ${isMobile ? 'text-center w-full' : ''}`}>
+        <span
+          className={`font-semibold ${isMobile ? "text-base" : "text-lg"} ${isMobile ? "text-center w-full" : ""}`}
+        >
           {toolbar.label}{" "}
-          <span className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>
+          <span
+            className={`font-semibold ${isMobile ? "text-base" : "text-lg"}`}
+          >
             {toolbar.date.getFullYear()}
           </span>
         </span>
@@ -1443,7 +1465,7 @@ const AppointmentScheduleTimezone = ({
     if (hasUserReordered) {
       localStorage.setItem(
         "resourceOrder",
-        JSON.stringify(resources.map((r) => r.resourceId)),
+        JSON.stringify(resources.map((r) => r.resourceId))
       );
     }
   }, [resources, hasUserReordered]);
@@ -1474,13 +1496,16 @@ const AppointmentScheduleTimezone = ({
     });
     drag(drop(ref));
     return (
-      <div 
-        ref={ref} 
+      <div
+        ref={ref}
         style={{ opacity: isDragging ? 0.5 : 1, cursor: "move" }}
-        className={`flex items-center ${isMobile ? 'text-xs px-1' : 'px-2'}`}
+        className={`flex items-center ${isMobile ? "text-xs px-1" : "px-2"}`}
       >
-        <GripVertical size={isMobile ? 12 : 16} style={{ marginRight: isMobile ? 2 : 4 }} />
-        <span className={`${isMobile ? 'text-xs truncate' : 'text-sm'}`}>
+        <GripVertical
+          size={isMobile ? 12 : 16}
+          style={{ marginRight: isMobile ? 2 : 4 }}
+        />
+        <span className={`${isMobile ? "text-xs truncate" : "text-sm"}`}>
           {resource.resourceTitle}
         </span>
       </div>
@@ -1516,7 +1541,7 @@ const AppointmentScheduleTimezone = ({
       )}
       <DndProvider backend={HTML5Backend}>
         <div
-          className={`h-full w-full ${isMobile ? 'mobile-calendar' : ''} ${processing || isLoading ? "loading" : null}`}
+          className={`h-full w-full ${isMobile ? "mobile-calendar" : ""} ${processing || isLoading ? "loading" : null}`}
         >
           {resources.length === 0 && <NoEventsOverlay />}
           <DragAndDropCalendar
@@ -1578,12 +1603,16 @@ const AppointmentScheduleTimezone = ({
                       className={`${bgColor} h-full rounded border border-gray-100 cursor-pointer`}
                     >
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-black font-medium truncate w-full text-center`}>
+                        <span
+                          className={`${isMobile ? "text-xs" : "text-sm"} text-black font-medium truncate w-full text-center`}
+                        >
                           {calendarEvent.data?.customer
                             ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                             : "No Customer"}
                         </span>
-                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-white truncate w-full text-center`}>
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                        >
                           {calendarEvent.title}
                         </span>
                       </div>
@@ -1597,12 +1626,16 @@ const AppointmentScheduleTimezone = ({
                   return (
                     <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-white font-medium truncate w-full text-center`}>
+                        <span
+                          className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
+                        >
                           {calendarEvent.data?.customer
                             ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                             : "No Customer"}
                         </span>
-                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-white truncate w-full text-center`}>
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                        >
                           {calendarEvent.title}
                         </span>
                       </div>
@@ -1615,12 +1648,16 @@ const AppointmentScheduleTimezone = ({
                   return (
                     <div className="bg-green-700 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className={`${isMobile ? 'text-xs' : 'text-sm'} text-white font-medium truncate w-full text-center`}>
+                        <span
+                          className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
+                        >
                           {calendarEvent.data?.customer
                             ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
                             : "No Customer"}
                         </span>
-                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-white truncate w-full text-center`}>
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                        >
                           {calendarEvent.title}
                         </span>
                       </div>
@@ -1630,7 +1667,9 @@ const AppointmentScheduleTimezone = ({
                   return (
                     <div className="bg-gray-500 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-white truncate w-full text-center`}>
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                        >
                           {calendarEvent.title}
                         </span>
                       </div>
@@ -1640,11 +1679,15 @@ const AppointmentScheduleTimezone = ({
                   return (
                     <div className="bg-blue-400 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
                       <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span className={`${isMobile ? 'text-[10px]' : 'text-[14px]'} text-black font-medium truncate w-full text-center`}>
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-black font-medium truncate w-full text-center`}
+                        >
                           {calendarEvent.title}
                         </span>
                         {(calendarEvent.data as any)?.reason && (
-                          <span className={`${isMobile ? 'text-[8px]' : 'text-[12px]'} text-black opacity-80 truncate w-full text-center`}>
+                          <span
+                            className={`${isMobile ? "text-[8px]" : "text-[12px]"} text-black opacity-80 truncate w-full text-center`}
+                          >
                             {(calendarEvent.data as any).reason}
                           </span>
                         )}
@@ -1655,7 +1698,7 @@ const AppointmentScheduleTimezone = ({
               },
               resourceHeader: (props: any) => {
                 const index = resources.findIndex(
-                  (r) => r.resourceId === props.resource.resourceId,
+                  (r) => r.resourceId === props.resource.resourceId
                 );
                 return (
                   <ResourceHeader resource={props.resource} index={index} />
@@ -1669,7 +1712,7 @@ const AppointmentScheduleTimezone = ({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild></DialogTrigger>
         <DialogContent
-          className={`${isMobile ? 'w-[95vw] max-w-[95vw] h-[95vh] max-h-[95vh]' : 'sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl'} max-h-[95vh] h-[95vh] flex flex-col items-start justify-start`}
+          className={`${isMobile ? "w-[95vw] max-w-[95vw] h-[95vh] max-h-[95vh]" : "sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl"} max-h-[95vh] h-[95vh] flex flex-col items-start justify-start`}
           aria-describedby="form-dialog"
         >
           <DialogHeader>
@@ -1713,93 +1756,128 @@ const AppointmentScheduleTimezone = ({
 
       {/* Time Off Dialog */}
       <Dialog open={showTimeOffDialog} onOpenChange={setShowTimeOffDialog}>
-        <DialogContent className={`${isMobile ? 'w-[95vw] max-w-[95vw]' : 'sm:max-w-md'}`}>
+        <DialogContent
+          className={`${isMobile ? "w-[95vw] max-w-[95vw]" : "sm:max-w-md"}`}
+        >
           <DialogHeader>
             <DialogTitle>Time Off Details</DialogTitle>
             <DialogDescription>
               View and manage time off details
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedTimeOff && (
             <div className="space-y-4">
               {!editingTimeOff ? (
                 // View Mode
                 <>
-                                     <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                     <div>
-                       <label className="text-sm font-medium">Employee</label>
-                       <p className="text-sm text-gray-600">
-                         {selectedTimeOff.employee?.firstName} {selectedTimeOff.employee?.lastName}
-                       </p>
-                     </div>
-                     <div>
-                       <label className="text-sm font-medium">Start Time</label>
-                       <p className="text-sm text-gray-600">
-                         {moment.tz(selectedTimeOff.startTime, getIanaTimezone(timezone))
-                           .format("MMM DD, YYYY h:mm A")}
-                       </p>
-                     </div>
-                     <div>
-                       <label className="text-sm font-medium">Duration</label>
-                       <p className="text-sm text-gray-600">
-                         {formatDuration(selectedTimeOff.duration)}
-                       </p>
-                     </div>
-                     <div>
-                       <label className="text-sm font-medium">Recurring</label>
-                       <p className="text-sm text-gray-600">
-                         {selectedTimeOff.isRecurring ? "Yes" : "No"}
-                       </p>
-                     </div>
-                   </div>
+                  <div
+                    className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}
+                  >
+                    <div>
+                      <label className="text-sm font-medium">Employee</label>
+                      <p className="text-sm text-gray-600">
+                        {selectedTimeOff.employee?.firstName}{" "}
+                        {selectedTimeOff.employee?.lastName}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Start Time</label>
+                      <p className="text-sm text-gray-600">
+                        {moment
+                          .tz(
+                            selectedTimeOff.startTime,
+                            getIanaTimezone(timezone)
+                          )
+                          .format("MMM DD, YYYY h:mm A")}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Duration</label>
+                      <p className="text-sm text-gray-600">
+                        {formatDuration(selectedTimeOff.duration)}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Recurring</label>
+                      <p className="text-sm text-gray-600">
+                        {selectedTimeOff.isRecurring ? "Yes" : "No"}
+                      </p>
+                    </div>
+                  </div>
 
-                   <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                     <div>
-                       <label className="text-sm font-medium">Created At</label>
-                       <p className="text-sm text-gray-600">
-                         {selectedTimeOff._createdAt 
-                           ? moment.tz(selectedTimeOff._createdAt, getIanaTimezone(timezone))
-                               .format("MMM DD, YYYY h:mm A")
-                           : "N/A"}
-                       </p>
-                     </div>
-                     <div>
-                       <label className="text-sm font-medium">Last Updated</label>
-                       <p className="text-sm text-gray-600">
-                         {selectedTimeOff._updatedAt 
-                           ? moment.tz(selectedTimeOff._updatedAt, getIanaTimezone(timezone))
-                               .format("MMM DD, YYYY h:mm A")
-                           : "N/A"}
-                       </p>
-                     </div>
-                   </div>
-                  
+                  <div
+                    className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}
+                  >
+                    <div>
+                      <label className="text-sm font-medium">Created At</label>
+                      <p className="text-sm text-gray-600">
+                        {selectedTimeOff._createdAt
+                          ? moment
+                              .tz(
+                                selectedTimeOff._createdAt,
+                                getIanaTimezone(timezone)
+                              )
+                              .format("MMM DD, YYYY h:mm A")
+                          : "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Last Updated
+                      </label>
+                      <p className="text-sm text-gray-600">
+                        {selectedTimeOff._updatedAt
+                          ? moment
+                              .tz(
+                                selectedTimeOff._updatedAt,
+                                getIanaTimezone(timezone)
+                              )
+                              .format("MMM DD, YYYY h:mm A")
+                          : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+
                   {selectedTimeOff.reason && (
                     <div>
                       <label className="text-sm font-medium">Reason</label>
-                      <p className="text-sm text-gray-600">{selectedTimeOff.reason}</p>
+                      <p className="text-sm text-gray-600">
+                        {selectedTimeOff.reason}
+                      </p>
                     </div>
                   )}
-                  
-                  {selectedTimeOff.isRecurring && selectedTimeOff.recurringDuration && selectedTimeOff.recurringFrequency && (
-                    <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                      <div>
-                        <label className="text-sm font-medium">Recurring Duration</label>
-                        <p className="text-sm text-gray-600">
-                          {selectedTimeOff.recurringDuration.value} {selectedTimeOff.recurringDuration.unit}
-                        </p>
+
+                  {selectedTimeOff.isRecurring &&
+                    selectedTimeOff.recurringDuration &&
+                    selectedTimeOff.recurringFrequency && (
+                      <div
+                        className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}
+                      >
+                        <div>
+                          <label className="text-sm font-medium">
+                            Recurring Duration
+                          </label>
+                          <p className="text-sm text-gray-600">
+                            {selectedTimeOff.recurringDuration.value}{" "}
+                            {selectedTimeOff.recurringDuration.unit}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            Recurring Frequency
+                          </label>
+                          <p className="text-sm text-gray-600">
+                            Every {selectedTimeOff.recurringFrequency.value}{" "}
+                            {selectedTimeOff.recurringFrequency.unit}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-sm font-medium">Recurring Frequency</label>
-                        <p className="text-sm text-gray-600">
-                          Every {selectedTimeOff.recurringFrequency.value} {selectedTimeOff.recurringFrequency.unit}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className={`flex ${isMobile ? 'flex-col' : 'justify-end'} gap-2 pt-4`}>
+                    )}
+
+                  <div
+                    className={`flex ${isMobile ? "flex-col" : "justify-end"} gap-2 pt-4`}
+                  >
                     <Button
                       variant="outline"
                       onClick={() => setShowTimeOffDialog(false)}
@@ -1824,44 +1902,63 @@ const AppointmentScheduleTimezone = ({
                   </div>
                 </>
               ) : (
-                                 // Edit Mode
-                 <>
-                   <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                     <div>
-                       <label className="text-sm font-medium">Employee</label>
-                       <p className="text-sm text-gray-600">
-                         {editingTimeOff.employeeInfo?.firstName} {editingTimeOff.employeeInfo?.lastName}
-                       </p>
-                     </div>
-                     <div>
-                       <label className="text-sm font-medium">Start Time</label>
-                       <p className="text-sm text-gray-600">
-                         {moment.tz(editingTimeOff.startTime, getIanaTimezone(timezone))
-                           .format("MMM DD, YYYY h:mm A")}
-                       </p>
-                     </div>
-                   </div>
+                // Edit Mode
+                <>
+                  <div
+                    className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}
+                  >
+                    <div>
+                      <label className="text-sm font-medium">Employee</label>
+                      <p className="text-sm text-gray-600">
+                        {editingTimeOff.employeeInfo?.firstName}{" "}
+                        {editingTimeOff.employeeInfo?.lastName}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Start Time</label>
+                      <p className="text-sm text-gray-600">
+                        {moment
+                          .tz(
+                            editingTimeOff.startTime,
+                            getIanaTimezone(timezone)
+                          )
+                          .format("MMM DD, YYYY h:mm A")}
+                      </p>
+                    </div>
+                  </div>
 
-                   <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                     <div>
-                       <label className="text-sm font-medium">Created At</label>
-                       <p className="text-sm text-gray-600">
-                         {selectedTimeOff._createdAt 
-                           ? moment.tz(selectedTimeOff._createdAt, getIanaTimezone(timezone))
-                               .format("MMM DD, YYYY h:mm A")
-                           : "N/A"}
-                       </p>
-                     </div>
-                     <div>
-                       <label className="text-sm font-medium">Last Updated</label>
-                       <p className="text-sm text-gray-600">
-                         {selectedTimeOff._updatedAt 
-                           ? moment.tz(selectedTimeOff._updatedAt, getIanaTimezone(timezone))
-                               .format("MMM DD, YYYY h:mm A")
-                           : "N/A"}
-                       </p>
-                     </div>
-                   </div>
+                  <div
+                    className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}
+                  >
+                    <div>
+                      <label className="text-sm font-medium">Created At</label>
+                      <p className="text-sm text-gray-600">
+                        {selectedTimeOff._createdAt
+                          ? moment
+                              .tz(
+                                selectedTimeOff._createdAt,
+                                getIanaTimezone(timezone)
+                              )
+                              .format("MMM DD, YYYY h:mm A")
+                          : "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">
+                        Last Updated
+                      </label>
+                      <p className="text-sm text-gray-600">
+                        {selectedTimeOff._updatedAt
+                          ? moment
+                              .tz(
+                                selectedTimeOff._updatedAt,
+                                getIanaTimezone(timezone)
+                              )
+                              .format("MMM DD, YYYY h:mm A")
+                          : "N/A"}
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="duration">Duration</Label>
@@ -1869,9 +1966,15 @@ const AppointmentScheduleTimezone = ({
                       value={editingTimeOff.duration?.toString() || ""}
                       onValueChange={(value) => {
                         if (value === "to_close") {
-                          setEditingTimeOff((prev: any) => ({ ...prev, duration: "to_close" }));
+                          setEditingTimeOff((prev: any) => ({
+                            ...prev,
+                            duration: "to_close",
+                          }));
                         } else {
-                          setEditingTimeOff((prev: any) => ({ ...prev, duration: Number(value) }));
+                          setEditingTimeOff((prev: any) => ({
+                            ...prev,
+                            duration: Number(value),
+                          }));
                         }
                       }}
                     >
@@ -1879,11 +1982,13 @@ const AppointmentScheduleTimezone = ({
                         <SelectValue placeholder="Select duration" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: 32 }, (_, i) => (i + 1) * 15).map((min) => (
-                          <SelectItem key={min} value={min.toString()}>
-                            {formatDuration(min)}
-                          </SelectItem>
-                        ))}
+                        {Array.from({ length: 32 }, (_, i) => (i + 1) * 15).map(
+                          (min) => (
+                            <SelectItem key={min} value={min.toString()}>
+                              {formatDuration(min)}
+                            </SelectItem>
+                          )
+                        )}
                         <SelectItem value="to_close">To close</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1892,28 +1997,42 @@ const AppointmentScheduleTimezone = ({
                   {editingTimeOff.reason && (
                     <div>
                       <label className="text-sm font-medium">Reason</label>
-                      <p className="text-sm text-gray-600">{editingTimeOff.reason}</p>
+                      <p className="text-sm text-gray-600">
+                        {editingTimeOff.reason}
+                      </p>
                     </div>
                   )}
-                  
-                  {editingTimeOff.isRecurring && editingTimeOff.recurringDuration && editingTimeOff.recurringFrequency && (
-                    <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                      <div>
-                        <label className="text-sm font-medium">Recurring Duration</label>
-                        <p className="text-sm text-gray-600">
-                          {editingTimeOff.recurringDuration.value} {editingTimeOff.recurringDuration.unit}
-                        </p>
+
+                  {editingTimeOff.isRecurring &&
+                    editingTimeOff.recurringDuration &&
+                    editingTimeOff.recurringFrequency && (
+                      <div
+                        className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}
+                      >
+                        <div>
+                          <label className="text-sm font-medium">
+                            Recurring Duration
+                          </label>
+                          <p className="text-sm text-gray-600">
+                            {editingTimeOff.recurringDuration.value}{" "}
+                            {editingTimeOff.recurringDuration.unit}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">
+                            Recurring Frequency
+                          </label>
+                          <p className="text-sm text-gray-600">
+                            Every {editingTimeOff.recurringFrequency.value}{" "}
+                            {editingTimeOff.recurringFrequency.unit}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-sm font-medium">Recurring Frequency</label>
-                        <p className="text-sm text-gray-600">
-                          Every {editingTimeOff.recurringFrequency.value} {editingTimeOff.recurringFrequency.unit}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className={`flex ${isMobile ? 'flex-col' : 'justify-end'} gap-2 pt-4`}>
+                    )}
+
+                  <div
+                    className={`flex ${isMobile ? "flex-col" : "justify-end"} gap-2 pt-4`}
+                  >
                     <Button
                       variant="outline"
                       onClick={handleCancelEdit}
