@@ -11,6 +11,15 @@ const ProfileListSkeleton = ({
   itemCount = 5,
   showPagination = true,
 }: ProfileListSkeletonProps) => {
+  // Validate and sanitize itemCount to prevent invalid array length errors
+  const safeItemCount = Math.max(
+    0,
+    Math.min(
+      Number.isFinite(itemCount) && itemCount > 0 ? Math.floor(itemCount) : 5,
+      100
+    )
+  );
+
   return (
     <>
       <h2 className="heading">{title}</h2>
@@ -27,7 +36,7 @@ const ProfileListSkeleton = ({
 
         {/* Profile Cards Skeleton */}
         <ul className="list-container">
-          {Array.from({ length: itemCount }).map((_, index) => (
+          {Array.from({ length: safeItemCount }).map((_, index) => (
             <li key={index} className="flex-between line_card animate-pulse">
               {/* Name skeleton */}
               <div className="space-y-2">

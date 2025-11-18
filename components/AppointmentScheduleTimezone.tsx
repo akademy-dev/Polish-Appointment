@@ -328,11 +328,51 @@ const AppointmentScheduleTimezone = ({
   } = useContext(CalendarContext);
 
   // Use props if provided, otherwise use context values
-  const minTime = propMinTime || contextMinTime;
-  const maxTime = propMaxTime || contextMaxTime;
+  const minTime = propMinTime || contextMinTime || "9:00 AM";
+  const maxTime = propMaxTime || contextMaxTime || "6:00 PM";
 
   moment.tz.setDefault(getIanaTimezone(timezone));
   const localizer = momentLocalizer(moment);
+
+  // Safely calculate min and max dates with validation
+  const { minDate, maxDate } = useMemo(() => {
+    const timezoneStr = getIanaTimezone(timezone);
+    const baseMoment = moment.tz(timezoneStr).startOf("day");
+
+    // Parse minTime with validation
+    const minTimeMoment = moment(minTime, "h:mm A");
+    const minHour = minTimeMoment.isValid() ? minTimeMoment.hour() : 9;
+    const minMinute = minTimeMoment.isValid() ? minTimeMoment.minute() : 0;
+
+    // Parse maxTime with validation
+    const maxTimeMoment = moment(maxTime, "h:mm A");
+    const maxHour = maxTimeMoment.isValid() ? maxTimeMoment.hour() : 18;
+    const maxMinute = maxTimeMoment.isValid() ? maxTimeMoment.minute() : 0;
+
+    const min = baseMoment.clone().set({
+      hour: minHour,
+      minute: minMinute,
+      second: 0,
+      millisecond: 0,
+    });
+
+    const max = baseMoment.clone().set({
+      hour: maxHour,
+      minute: maxMinute,
+      second: 0,
+      millisecond: 0,
+    });
+
+    // Ensure min < max, if not, adjust max to be after min
+    if (max.isSameOrBefore(min)) {
+      max.add(1, "hour");
+    }
+
+    return {
+      minDate: min.toDate(),
+      maxDate: max.toDate(),
+    };
+  }, [timezone, minTime, maxTime]);
 
   const isMobile = useIsMobile();
   const [isPending, startTransition] = useTransition();
@@ -413,77 +453,104 @@ const AppointmentScheduleTimezone = ({
   }, [initialEmployees, currentDate, notWorking, timezone]);
 
   const [resources, setResources] = useState<Resource[]>(() => {
-    const savedOrder = localStorage.getItem("resourceOrder");
-    let orderedEmployees = filteredEmployees;
-    if (savedOrder) {
-      const order: string[] = JSON.parse(savedOrder);
-      // Filter order to only include employees that are currently visible
-      const filteredOrder = order.filter((id) =>
-        filteredEmployees.some((emp) => emp._id === id)
-      );
+    try {
+      const savedOrder = localStorage.getItem("resourceOrder");
+      let orderedEmployees = filteredEmployees || [];
+      if (savedOrder) {
+        try {
+          const order: string[] = JSON.parse(savedOrder);
+          // Filter order to only include employees that are currently visible
+          const filteredOrder = order.filter((id) =>
+            orderedEmployees.some((emp) => emp._id === id)
+          );
 
-      // Sort employees: first by saved order, then add new employees at the end
-      orderedEmployees = [...filteredEmployees].sort((a, b) => {
-        const aIndex = filteredOrder.indexOf(a._id);
-        const bIndex = filteredOrder.indexOf(b._id);
+          // Sort employees: first by saved order, then add new employees at the end
+          orderedEmployees = [...orderedEmployees].sort((a, b) => {
+            const aIndex = filteredOrder.indexOf(a._id);
+            const bIndex = filteredOrder.indexOf(b._id);
 
-        // If both are in saved order, sort by their order
-        if (aIndex !== -1 && bIndex !== -1) {
-          return aIndex - bIndex;
+            // If both are in saved order, sort by their order
+            if (aIndex !== -1 && bIndex !== -1) {
+              return aIndex - bIndex;
+            }
+            // If only one is in saved order, prioritize the saved one
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            // If neither is in saved order, maintain original order
+            return 0;
+          });
+        } catch (parseError) {
+          console.error(
+            "Error parsing resourceOrder from localStorage:",
+            parseError
+          );
+          // Continue with default order if parsing fails
         }
-        // If only one is in saved order, prioritize the saved one
-        if (aIndex !== -1) return -1;
-        if (bIndex !== -1) return 1;
-        // If neither is in saved order, maintain original order
-        return 0;
-      });
+      }
+      return orderedEmployees.map((employee: any) => ({
+        resourceId: employee._id,
+        resourceTitle: getProfileName(employee),
+      }));
+    } catch (error) {
+      console.error("Error initializing resources:", error);
+      return [];
     }
-    return orderedEmployees.map((employee: any) => ({
-      resourceId: employee._id,
-      resourceTitle: getProfileName(employee),
-    }));
   });
 
   // Track if user has manually reordered resources
   const [hasUserReordered, setHasUserReordered] = useState(false);
 
   useEffect(() => {
-    const savedOrder = localStorage.getItem("resourceOrder");
-    let orderedEmployees = filteredEmployees;
-    if (savedOrder) {
-      const order: string[] = JSON.parse(savedOrder);
-      // Filter order to only include employees that are currently visible
-      const filteredOrder = order.filter((id) =>
-        filteredEmployees.some((emp) => emp._id === id)
-      );
+    try {
+      const savedOrder = localStorage.getItem("resourceOrder");
+      let orderedEmployees = filteredEmployees || [];
+      if (savedOrder) {
+        try {
+          const order: string[] = JSON.parse(savedOrder);
+          // Filter order to only include employees that are currently visible
+          const filteredOrder = order.filter((id) =>
+            orderedEmployees.some((emp) => emp._id === id)
+          );
 
-      // Sort employees: first by saved order, then add new employees at the end
-      orderedEmployees = [...filteredEmployees].sort((a, b) => {
-        const aIndex = filteredOrder.indexOf(a._id);
-        const bIndex = filteredOrder.indexOf(b._id);
+          // Sort employees: first by saved order, then add new employees at the end
+          orderedEmployees = [...orderedEmployees].sort((a, b) => {
+            const aIndex = filteredOrder.indexOf(a._id);
+            const bIndex = filteredOrder.indexOf(b._id);
 
-        // If both are in saved order, sort by their order
-        if (aIndex !== -1 && bIndex !== -1) {
-          return aIndex - bIndex;
+            // If both are in saved order, sort by their order
+            if (aIndex !== -1 && bIndex !== -1) {
+              return aIndex - bIndex;
+            }
+            // If only one is in saved order, prioritize the saved one
+            if (aIndex !== -1) return -1;
+            if (bIndex !== -1) return 1;
+            // If neither is in saved order, maintain original order
+            return 0;
+          });
+        } catch (parseError) {
+          console.error(
+            "Error parsing resourceOrder from localStorage:",
+            parseError
+          );
+          // Continue with default order if parsing fails
         }
-        // If only one is in saved order, prioritize the saved one
-        if (aIndex !== -1) return -1;
-        if (bIndex !== -1) return 1;
-        // If neither is in saved order, maintain original order
-        return 0;
-      });
-    }
-    setResources(
-      orderedEmployees.map((employee: any) => ({
-        resourceId: employee._id,
-        resourceTitle: getProfileName(employee),
-      }))
-    );
-    setIsLoading(false);
+      }
+      setResources(
+        orderedEmployees.map((employee: any) => ({
+          resourceId: employee._id,
+          resourceTitle: getProfileName(employee),
+        }))
+      );
+      setIsLoading(false);
 
-    // Reset hasUserReordered when filteredEmployees changes (e.g., when notWorking changes)
-    setHasUserReordered(false);
-  }, [filteredEmployees]);
+      // Reset hasUserReordered when filteredEmployees changes (e.g., when notWorking changes)
+      setHasUserReordered(false);
+    } catch (error) {
+      console.error("Error updating resources:", error);
+      setResources([]);
+      setIsLoading(false);
+    }
+  }, [filteredEmployees, setIsLoading]);
 
   // Memoize not working events
   const notWorkingEvents = useMemo(() => {
@@ -502,7 +569,7 @@ const AppointmentScheduleTimezone = ({
       dateAtStartOfDay,
       timezone
     );
-  }, [initialEmployees, currentDate, timezone]);
+  }, [initialEmployees, currentDate, timezone, minTime, maxTime]);
 
   // Generate appointment time off events
   const timeOffEvents = useMemo(() => {
@@ -1551,24 +1618,8 @@ const AppointmentScheduleTimezone = ({
             defaultView={Views.DAY}
             events={myEvents}
             localizer={localizer}
-            min={moment
-              .tz(getIanaTimezone(timezone))
-              .set({
-                hour: moment(minTime, "h:mm A").hour(),
-                minute: moment(minTime, "h:mm A").minute(),
-                second: 0,
-                millisecond: 0,
-              })
-              .toDate()}
-            max={moment
-              .tz(getIanaTimezone(timezone))
-              .set({
-                hour: moment(maxTime, "h:mm A").hour(),
-                minute: moment(maxTime, "h:mm A").minute(),
-                second: 0,
-                millisecond: 0,
-              })
-              .toDate()}
+            min={minDate}
+            max={maxDate}
             // dayLayoutAlgorithm={"no-overlap"}
             resources={resources}
             resourceIdAccessor={(resource) => (resource as Resource).resourceId}
@@ -1754,6 +1805,7 @@ const AppointmentScheduleTimezone = ({
         onCancel={handleConflictCancel}
       />
 
+      {/* Time Off Dialog */}
       <Dialog open={showTimeOffDialog} onOpenChange={setShowTimeOffDialog}>
         <DialogContent
           className={`${isMobile ? "w-[95vw] max-w-[95vw]" : "sm:max-w-md"}`}
