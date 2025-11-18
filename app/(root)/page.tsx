@@ -20,16 +20,30 @@ interface PageProps {
 const page = async ({ searchParams }: PageProps) => {
   const resolvedSearchParams = await searchParams;
 
-  const timezone = await sanityFetch({
-    query: TIMEZONE_QUERY,
-    params: {},
-  });
+  let timezone;
+  try {
+    timezone = await sanityFetch({
+      query: TIMEZONE_QUERY,
+      params: {},
+    });
+  } catch (error) {
+    console.error("Error fetching timezone settings:", error);
+    // Provide default values if the query fails
+    timezone = {
+      data: {
+        timezone: "UTC-7:00",
+        minTime: "8:00 AM",
+        maxTime: "6:00 PM",
+      },
+    };
+  }
 
-  moment.tz.setDefault(getIanaTimezone(parseOffset(timezone.data.timezone)));
+  const timezoneValue = timezone.data?.timezone || "UTC-7:00";
+  moment.tz.setDefault(getIanaTimezone(parseOffset(timezoneValue)));
   const date = resolvedSearchParams.date
     ? resolvedSearchParams.date
     : moment
-        .tz(new Date(), getIanaTimezone(parseOffset(timezone.data.timezone)))
+        .tz(new Date(), getIanaTimezone(parseOffset(timezoneValue)))
         .format("YYYY-MM-DD");
 
   const notWorking = resolvedSearchParams.notWorking === "true";

@@ -197,8 +197,17 @@ const FormButton = ({
   useEffect(() => {
     // Fetch timezone on mount
     const fetchTimezone = async () => {
-      const result = await client.fetch(TIMEZONE_QUERY);
-      setTimezone(parseOffset(result.timezone));
+      try {
+        const result = await client.fetch(TIMEZONE_QUERY);
+        if (result) {
+          setTimezone(parseOffset(result.timezone || "UTC-7:00"));
+        } else {
+          setTimezone("UTC");
+        }
+      } catch (error) {
+        console.error("Error fetching timezone settings:", error);
+        setTimezone("UTC"); // Set default timezone on error
+      }
     };
 
     fetchTimezone();

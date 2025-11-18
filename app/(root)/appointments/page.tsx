@@ -31,9 +31,28 @@ const page = async ({ searchParams }: PageProps) => {
     },
   });
 
-  const timezone = await sanityFetch({
-    query: TIMEZONE_QUERY,
-  });
+  let timezone;
+  try {
+    timezone = await sanityFetch({
+      query: TIMEZONE_QUERY,
+    });
+  } catch (error) {
+    console.error("Error fetching timezone settings:", error);
+    // Provide default values if the query fails
+    timezone = {
+      data: {
+        timezone: "UTC-7:00",
+        minTime: "8:00 AM",
+        maxTime: "6:00 PM",
+      },
+    };
+  }
+
+  const timezoneData = timezone.data || {
+    timezone: "UTC-7:00",
+    minTime: "8:00 AM",
+    maxTime: "6:00 PM",
+  };
 
   return (
     <>
@@ -46,9 +65,9 @@ const page = async ({ searchParams }: PageProps) => {
           status,
           searchTerm,
           limit,
-          timezone: parseOffset(timezone.data.timezone),
-          minTime: timezone.data.minTime || "8:00 AM",
-          maxTime: timezone.data.maxTime || "6:00 PM",
+          timezone: parseOffset(timezoneData.timezone),
+          minTime: timezoneData.minTime || "8:00 AM",
+          maxTime: timezoneData.maxTime || "6:00 PM",
         }}
       />
       <SanityLive />
