@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { writeClient } from "@/sanity/lib/write-client";
 import { parseServerActionResponse } from "./utils";
 import { TimeOffSchedule, WorkingTime } from "@/models/profile";
@@ -125,6 +126,8 @@ export const createCustomer = async (form: FormData) => {
     });
 
     console.log("Customer created successfully", result);
+
+    revalidatePath("/customers");
 
     return parseServerActionResponse({
       ...result,
@@ -295,6 +298,9 @@ export const createAppointment = async (
       }
     }
 
+    revalidatePath("/appointments");
+    revalidatePath("/");
+
     return parseServerActionResponse({
       results, // Return array of created appointments
       error: "",
@@ -367,6 +373,9 @@ export const updateAppointment = async (
       })
       .commit();
 
+    revalidatePath("/appointments");
+    revalidatePath("/");
+
     return parseServerActionResponse({
       ...result,
       error: "",
@@ -384,6 +393,9 @@ export const updateAppointment = async (
 export const deleteAppointment = async (_id: string) => {
   try {
     const result = await writeClient.delete(_id);
+
+    revalidatePath("/appointments");
+    revalidatePath("/");
 
     return parseServerActionResponse({
       ...result,
@@ -418,6 +430,8 @@ export const updateCustomer = async (_id: string, form: FormData) => {
         ...customer,
       })
       .commit();
+
+    revalidatePath("/customers");
 
     return parseServerActionResponse({
       ...result,
@@ -556,6 +570,9 @@ export const deleteCustomer = async (_id: string) => {
     // Finally delete the customer
     const result = await writeClient.delete(_id);
 
+    revalidatePath("/customers");
+    revalidatePath("/appointments");
+
     return parseServerActionResponse({
       ...result,
       error: "",
@@ -609,11 +626,16 @@ export const deleteAllCustomers = async () => {
     }
 
     if (errorCount > 0) {
+      revalidatePath("/customers");
+      revalidatePath("/appointments");
       return parseServerActionResponse({
         error: `Deleted ${deletedCount} customers, but ${errorCount} failed`,
         status: "ERROR",
       });
     }
+
+    revalidatePath("/customers");
+    revalidatePath("/appointments");
 
     return parseServerActionResponse({
       error: "",

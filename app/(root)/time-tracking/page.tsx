@@ -3,6 +3,9 @@ import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { ALL_EMPLOYEES_QUERY, TIME_TRACKING_QUERY } from "@/sanity/lib/queries";
 import TimeTrackingPage from "@/components/TimeTrackingPage";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function TimeTracking() {
   const [employeesResult, timeTrackingResult] = await Promise.all([
     sanityFetch({

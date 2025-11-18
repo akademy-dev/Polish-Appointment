@@ -2,6 +2,9 @@ import ProfileList from "@/components/profiles/ProfileList";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { EMPLOYEES_QUERY } from "@/sanity/lib/queries";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEFAULT_ITEMS_PER_PAGE = 20;
 
 const Page = async ({

@@ -3,6 +3,9 @@ import CustomerPageHeader from "@/components/CustomerPageHeader";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { CUSTOMERS_QUERY } from "@/sanity/lib/queries";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DEFAULT_ITEMS_PER_PAGE = 20;
 
 const Page = async ({

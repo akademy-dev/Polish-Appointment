@@ -4,6 +4,9 @@ import { APPOINTMENTS_QUERY, TIMEZONE_QUERY } from "@/sanity/lib/queries";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 import { parseOffset } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface PageProps {
   searchParams: Promise<{
     page?: string;

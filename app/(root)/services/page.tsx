@@ -3,6 +3,9 @@ import { ServiceDataTable } from "@/components/ServiceDataTable";
 import { CATEGORIES_QUERY, SERVICES_QUERY } from "@/sanity/lib/queries";
 import { sanityFetch, SanityLive } from "@/sanity/lib/live";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface PageProps {
   searchParams: Promise<{
     page?: string;

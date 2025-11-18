@@ -9,6 +9,9 @@ import AppointmentScheduleTimezone from "@/components/AppointmentScheduleTimezon
 import moment from "moment-timezone";
 import { getIanaTimezone, parseOffset } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 interface PageProps {
   searchParams: Promise<{
     date?: string;
