@@ -183,7 +183,7 @@ const FormButton = ({
         });
         // Filter out cancelled appointments
         const filteredResult = (result || []).filter(
-          (appointment: Appointment) => appointment.status !== "cancelled",
+          (appointment: Appointment) => appointment.status !== "cancelled"
         );
         setCustomerHistory(filteredResult);
       } catch {
@@ -197,16 +197,22 @@ const FormButton = ({
   useEffect(() => {
     // Fetch timezone on mount
     const fetchTimezone = async () => {
+      console.log("[FormButton] Fetching timezone settings...");
       try {
         const result = await client.fetch(TIMEZONE_QUERY);
-        if (result) {
-          setTimezone(parseOffset(result.timezone || "UTC-7:00"));
-        } else {
-          setTimezone("UTC");
-        }
-      } catch (error) {
-        console.error("Error fetching timezone settings:", error);
-        setTimezone("UTC"); // Set default timezone on error
+        console.log("[FormButton] Successfully fetched timezone:", {
+          hasTimezone: !!result?.timezone,
+          timezone: result?.timezone,
+        });
+        setTimezone(parseOffset(result.timezone));
+      } catch (error: any) {
+        console.error("[FormButton] Error fetching timezone:", {
+          error: error?.message,
+          stack: error?.stack,
+          name: error?.name,
+        });
+        // Set default timezone on error
+        setTimezone("UTC");
       }
     };
 
@@ -490,7 +496,7 @@ const FormButton = ({
           formData,
           formValues.workingTimes as unknown as WorkingTime[],
           formValues.timeOffSchedules as unknown as TimeOffSchedule[],
-          formValues.assignedServices as unknown as AssignedService[],
+          formValues.assignedServices as unknown as AssignedService[]
         );
 
         if (result.status == "SUCCESS") {
@@ -512,7 +518,7 @@ const FormButton = ({
         formData,
         formValues.workingTimes as unknown as WorkingTime[],
         formValues.timeOffSchedules as unknown as TimeOffSchedule[],
-        formValues.assignedServices as unknown as AssignedService[],
+        formValues.assignedServices as unknown as AssignedService[]
       );
 
       if (result.status == "SUCCESS") {
@@ -679,7 +685,7 @@ const FormButton = ({
           const startTime = new Date(formValues.time);
           const totalDuration = formValues.services.reduce(
             (total, service) => total + service.duration * service.quantity,
-            0,
+            0
           );
           const endTime = new Date(startTime.getTime() + totalDuration * 60000);
 
@@ -701,7 +707,7 @@ const FormButton = ({
                   value: formValues.recurringFrequency.value,
                   unit: formValues.recurringFrequency.unit,
                 }
-              : undefined,
+              : undefined
           );
 
           if (
@@ -766,7 +772,7 @@ const FormButton = ({
                 value: formValues.recurringFrequency.value,
                 unit: formValues.recurringFrequency.unit,
               }
-            : undefined,
+            : undefined
         );
 
         if (result.status == "SUCCESS") {
@@ -798,10 +804,10 @@ const FormButton = ({
             const startTime = new Date(formValues.time);
             const totalDuration = formValues.services.reduce(
               (total, service) => total + service.duration * service.quantity,
-              0,
+              0
             );
             const endTime = new Date(
-              startTime.getTime() + totalDuration * 60000,
+              startTime.getTime() + totalDuration * 60000
             );
 
             const conflictResult = await checkRecurringConflicts(
@@ -822,7 +828,7 @@ const FormButton = ({
                     value: formValues.recurringFrequency.value,
                     unit: formValues.recurringFrequency.unit,
                   }
-                : undefined,
+                : undefined
             );
 
             if (
@@ -886,7 +892,7 @@ const FormButton = ({
                   value: formValues.recurringFrequency.value,
                   unit: formValues.recurringFrequency.unit,
                 }
-              : undefined,
+              : undefined
           );
 
           if (result.status === "SUCCESS") {
@@ -931,7 +937,7 @@ const FormButton = ({
         pendingAppointmentData.reminder,
         pendingAppointmentData.isRecurring,
         pendingAppointmentData.recurringDuration,
-        pendingAppointmentData.recurringFrequency,
+        pendingAppointmentData.recurringFrequency
       );
 
       if (result.status === "SUCCESS") {
@@ -1013,7 +1019,7 @@ const FormButton = ({
               <div>
                 {format(
                   toZonedTime(new Date(info.getValue() as string), timezone),
-                  "MM/dd/yyyy",
+                  "MM/dd/yyyy"
                 )}
               </div>
             );
@@ -1090,7 +1096,7 @@ const FormButton = ({
               <div>
                 {format(
                   toZonedTime(new Date(info.getValue() as string), timezone),
-                  "MM/dd/yyyy",
+                  "MM/dd/yyyy"
                 )}
               </div>
             );

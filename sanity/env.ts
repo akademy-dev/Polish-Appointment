@@ -12,6 +12,15 @@ export const projectId = assertValue(
 
 export const token = process.env.SANITY_WRITE_TOKEN;
 
+// Log environment configuration (without sensitive data)
+console.log("[Sanity Env] Configuration loaded:", {
+  apiVersion: apiVersion || 'NOT SET',
+  dataset,
+  projectId,
+  hasToken: !!token,
+  tokenLength: token ? token.length : 0,
+});
+
 function assertValue<T>(v: T | undefined, errorMessage: string): T {
   if (v === undefined) {
     throw new Error(errorMessage);
