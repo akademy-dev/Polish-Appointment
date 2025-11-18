@@ -3,7 +3,6 @@ export type Service = {
   name: string;
   price: number;
   duration: number;
-  showOnline: boolean;
   category: {
     _id: string;
     name: string;

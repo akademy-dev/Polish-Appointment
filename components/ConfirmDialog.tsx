@@ -17,12 +17,16 @@ const ConfirmDialog = ({
   title,
   description,
   onConfirm,
+  confirmText = "Confirm",
+  disabled = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
-  onConfirm?: () => void; // add this prop type
+  onConfirm?: () => void;
+  confirmText?: string;
+  disabled?: boolean;
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -34,10 +38,10 @@ const ConfirmDialog = ({
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline" disabled={disabled}>Cancel</Button>
           </DialogClose>
-          <Button type="button" onClick={onConfirm}>
-            Save changes
+          <Button type="button" onClick={onConfirm} disabled={disabled} variant="destructive">
+            {confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -280,7 +280,6 @@ export type Service = {
   name?: string;
   price?: number;
   duration?: number;
-  showOnline?: boolean;
 };
 
 export type Category = {
@@ -416,16 +415,18 @@ export type TimeTracking = {
   _createdAt: string;
   _updatedAt: string;
   _rev: string;
-  employee?: {
-    _ref: string;
-    _type: "reference";
-    _weak?: boolean;
-    [internalGroqTypeReferenceTo]?: "employee";
-  } | {
-    _id: string;
-    firstName?: string;
-    lastName?: string;
-  };
+  employee?:
+    | {
+        _ref: string;
+        _type: "reference";
+        _weak?: boolean;
+        [internalGroqTypeReferenceTo]?: "employee";
+      }
+    | {
+        _id: string;
+        firstName?: string;
+        lastName?: string;
+      };
   checkIn?: string;
   checkOut?: string;
   hourlyRate?: number;

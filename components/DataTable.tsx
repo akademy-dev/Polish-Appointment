@@ -48,6 +48,7 @@ interface DataTableProps<TData, TValue> {
   searchName?: string; // Optional search name
   isShowExport?: boolean; // Optional prop to show export button
   timezone?: string; // Optional timezone prop
+  getRowClassName?: (row: TData) => string; // Optional function to get row className
 }
 
 export const columns: ColumnDef<HistoryData>[] = [
@@ -107,6 +108,7 @@ const DataTable = <TData, TValue>({
   getRowId,
   isShowExport = false,
   timezone = "",
+  getRowClassName,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -156,9 +158,7 @@ const DataTable = <TData, TValue>({
     // Get header row as plain text
     const headerRow = visibleColumns
       .map((col) =>
-        typeof col.columnDef.header === "string"
-          ? col.columnDef.header
-          : col.id,
+        typeof col.columnDef.header === "string" ? col.columnDef.header : col.id
       )
       .map(escapeCSV)
       .join(",");
@@ -175,7 +175,7 @@ const DataTable = <TData, TValue>({
               try {
                 const zone = format(
                   toZonedTime(new Date(dateValue as string), timezone),
-                  "dd/MM/yyyy HH:mm",
+                  "dd/MM/yyyy HH:mm"
                 );
                 return escapeCSV(zone);
               } catch {
@@ -185,7 +185,7 @@ const DataTable = <TData, TValue>({
           }
           return escapeCSV(cell.getValue());
         })
-        .join(","),
+        .join(",")
     );
 
     const csvContent = [headerRow, ...dataRows].join("\n");
@@ -241,7 +241,7 @@ const DataTable = <TData, TValue>({
                           ? null
                           : flexRender(
                               header.column.columnDef.header,
-                              header.getContext(),
+                              header.getContext()
                             )}
                       </TableHead>
                     );
@@ -255,12 +255,17 @@ const DataTable = <TData, TValue>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
+                    className={
+                      getRowClassName
+                        ? getRowClassName(row.original)
+                        : undefined
+                    }
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
                         {flexRender(
                           cell.column.columnDef.cell,
-                          cell.getContext(),
+                          cell.getContext()
                         )}
                       </TableCell>
                     ))}

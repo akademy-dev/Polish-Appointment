@@ -12,7 +12,9 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem("appointment").title("Appointments"),
       S.documentTypeListItem("timeOffSchedule").title("Time Off Schedules"),
       S.documentTypeListItem("timeTracking").title("Time Tracking"),
-      S.documentTypeListItem("appointmentTimeOff").title("Appointment Time Offs"),
+      S.documentTypeListItem("appointmentTimeOff").title(
+        "Appointment Time Offs"
+      ),
       S.documentTypeListItem("workingTime").title("Working Times"),
       S.documentTypeListItem("assignedService").title("Assigned Services"),
       S.documentTypeListItem("user").title("Users"),
@@ -20,11 +22,11 @@ export const structure: StructureResolver = (S) =>
       S.documentTypeListItem("account").title("Accounts"),
       S.documentTypeListItem("verificationToken").title("Verification Tokens"),
       S.documentTypeListItem("passwordResetToken").title(
-        "Password Reset Tokens",
+        "Password Reset Tokens"
       ),
       S.documentTypeListItem("twoFactorToken").title("Two Factor Tokens"),
       S.documentTypeListItem("twoFactorConfirmation").title(
-        "Two Factor Confirmations",
+        "Two Factor Confirmations"
       ),
       S.documentTypeListItem("setting").title("Setting"),
     ]);

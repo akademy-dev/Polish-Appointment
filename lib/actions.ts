@@ -14,10 +14,10 @@ export const createEmployee = async (
   form: FormData,
   workingTimes: WorkingTime[],
   timeOffSchedules: TimeOffSchedule[],
-  assignedServices: AssignedService[],
+  assignedServices: AssignedService[]
 ) => {
   const { firstName, lastName, phone, position, note } = Object.fromEntries(
-    Array.from(form),
+    Array.from(form)
   );
 
   try {
@@ -66,10 +66,10 @@ export const updateEmployee = async (
   form: FormData,
   workingTimes: WorkingTime[],
   timeOffSchedules: TimeOffSchedule[],
-  assignedServices: AssignedService[],
+  assignedServices: AssignedService[]
 ) => {
   const { firstName, lastName, phone, position, note } = Object.fromEntries(
-    Array.from(form),
+    Array.from(form)
   );
 
   try {
@@ -107,7 +107,7 @@ export const updateEmployee = async (
 
 export const createCustomer = async (form: FormData) => {
   const { firstName, lastName, phone, email, note } = Object.fromEntries(
-    Array.from(form),
+    Array.from(form)
   );
 
   try {
@@ -153,7 +153,7 @@ export const createAppointment = async (
   reminder: string[],
   isRecurring?: boolean,
   recurringDuration?: { value: number; unit: "days" | "weeks" | "months" },
-  recurringFrequency?: { value: number; unit: "days" | "weeks" },
+  recurringFrequency?: { value: number; unit: "days" | "weeks" }
 ) => {
   const { time, note, type } = Object.fromEntries(Array.from(form));
 
@@ -238,7 +238,7 @@ export const createAppointment = async (
           // Calculate startTime and endTime for this appointment
           const startTime = currentTime;
           const endTime = new Date(
-            startTime.getTime() + service.duration * 60000,
+            startTime.getTime() + service.duration * 60000
           );
 
           const appointment = {
@@ -315,7 +315,7 @@ export const updateAppointment = async (
   form: FormData,
   customer: { _ref: string; _type: string },
   employee: { _ref: string; _type: string },
-  reminder: string[],
+  reminder: string[]
 ) => {
   const { time, note, status, type } = Object.fromEntries(Array.from(form));
 
@@ -323,7 +323,7 @@ export const updateAppointment = async (
     const appointment = {
       startTime: new Date(time as string).toISOString(),
       endTime: new Date(
-        new Date(time as string).getTime() + duration * 60000,
+        new Date(time as string).getTime() + duration * 60000
       ).toISOString(),
       duration: duration,
       note,
@@ -400,7 +400,7 @@ export const deleteAppointment = async (_id: string) => {
 
 export const updateCustomer = async (_id: string, form: FormData) => {
   const { firstName, lastName, phone, email, note } = Object.fromEntries(
-    Array.from(form),
+    Array.from(form)
   );
 
   try {
@@ -438,18 +438,15 @@ export const createService = async (
   category: {
     _ref: string;
     _type: string;
-  },
+  }
 ) => {
-  const { name, price, duration, showOnline } = Object.fromEntries(
-    Array.from(form),
-  );
+  const { name, price, duration } = Object.fromEntries(Array.from(form));
 
   try {
     const service = {
       name,
       price: parseFloat(price as string),
       duration: parseInt(duration as string, 10),
-      showOnline: showOnline === "true",
       category: category,
     };
 
@@ -474,7 +471,7 @@ export const createService = async (
 
 export const updateService = async (_id: string, form: FormData) => {
   const { name, description, price, duration, category } = Object.fromEntries(
-    Array.from(form),
+    Array.from(form)
   );
 
   try {
@@ -484,7 +481,6 @@ export const updateService = async (_id: string, form: FormData) => {
       price: parseFloat(price as string),
       duration: parseInt(duration as string, 10),
       category,
-      showOnline: form.get("showOnline") === "true",
     };
 
     const result = await writeClient
@@ -513,7 +509,7 @@ export const deleteEmployee = async (_id: string) => {
     // Delete all documents that reference this employee
     const referencingDocs = await writeClient.fetch(
       `*[references($id)]{_id, _type}`,
-      { id: _id },
+      { id: _id }
     );
 
     console.log("Documents referencing employee:", referencingDocs);
@@ -546,7 +542,7 @@ export const deleteCustomer = async (_id: string) => {
     // Delete all documents that reference this customer
     const referencingDocs = await writeClient.fetch(
       `*[references($id)]{_id, _type}`,
-      { id: _id },
+      { id: _id }
     );
 
     console.log("Documents referencing customer:", referencingDocs);
@@ -574,11 +570,70 @@ export const deleteCustomer = async (_id: string) => {
   }
 };
 
+export const deleteAllCustomers = async () => {
+  try {
+    // Fetch all customers
+    const allCustomers = await writeClient.fetch(`*[_type == "customer"]{_id}`);
+
+    if (!allCustomers || allCustomers.length === 0) {
+      return parseServerActionResponse({
+        error: "No customers found",
+        status: "ERROR",
+      });
+    }
+
+    let deletedCount = 0;
+    let errorCount = 0;
+
+    // Delete each customer and their referencing documents
+    for (const customer of allCustomers) {
+      try {
+        // Delete all documents that reference this customer
+        const referencingDocs = await writeClient.fetch(
+          `*[references($id)]{_id, _type}`,
+          { id: customer._id }
+        );
+
+        // Delete all referencing documents
+        for (const refDoc of referencingDocs) {
+          await writeClient.delete(refDoc._id);
+        }
+
+        // Delete the customer
+        await writeClient.delete(customer._id);
+        deletedCount++;
+      } catch (error) {
+        console.error(`Error deleting customer ${customer._id}:`, error);
+        errorCount++;
+      }
+    }
+
+    if (errorCount > 0) {
+      return parseServerActionResponse({
+        error: `Deleted ${deletedCount} customers, but ${errorCount} failed`,
+        status: "ERROR",
+      });
+    }
+
+    return parseServerActionResponse({
+      error: "",
+      status: "SUCCESS",
+      count: deletedCount,
+    });
+  } catch (error) {
+    console.error("Error deleting all customers:", error);
+    return parseServerActionResponse({
+      error: JSON.stringify(error),
+      status: "ERROR",
+    });
+  }
+};
+
 export const deleteService = async (_id: string) => {
   try {
     const referencingDocs = await writeClient.fetch(
       `*[_type == "appointment" && service._ref == $id]{_id}`,
-      { id: _id },
+      { id: _id }
     );
 
     for (const refDoc of referencingDocs) {
@@ -626,7 +681,7 @@ export const updateTimezone = async (_id: string, timezone: string) => {
 export const updateTimeSettings = async (
   _id: string,
   minTime: string,
-  maxTime: string,
+  maxTime: string
 ) => {
   try {
     const result = await writeClient
@@ -651,13 +706,36 @@ export const updateTimeSettings = async (
   }
 };
 
+export const updateHourlyRate = async (_id: string, hourlyRate?: number) => {
+  try {
+    const result = await writeClient
+      .patch(_id)
+      .set({
+        hourlyRate,
+      })
+      .commit();
+
+    return parseServerActionResponse({
+      ...result,
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    console.log(error);
+    return parseServerActionResponse({
+      error: JSON.stringify(error),
+      status: "ERROR",
+    });
+  }
+};
+
 export const checkRecurringConflicts = async (
   employeeId: string,
   startTime: string,
   endTime: string,
   isRecurring: boolean,
   recurringDuration?: { value: number; unit: "days" | "weeks" | "months" },
-  recurringFrequency?: { value: number; unit: "days" | "weeks" },
+  recurringFrequency?: { value: number; unit: "days" | "weeks" }
 ) => {
   try {
     // Get employee working times and time off schedules
@@ -684,13 +762,13 @@ export const checkRecurringConflicts = async (
       const workingTimeConflicts = checkWorkingTimeConflicts(
         employee,
         new Date(startTime),
-        new Date(endTime),
+        new Date(endTime)
       );
 
       const timeOffConflicts = checkTimeOffConflicts(
         employee,
         new Date(startTime),
-        new Date(endTime),
+        new Date(endTime)
       );
 
       const allConflicts = [
@@ -798,20 +876,20 @@ export const checkRecurringConflicts = async (
           employeeId,
           startTime: currentStartTime.toISOString(),
           endTime: currentEndTime.toISOString(),
-        },
+        }
       );
 
       // Check working times and time off for this occurrence
       const workingTimeConflicts = checkWorkingTimeConflicts(
         employee,
         currentStartTime,
-        currentEndTime,
+        currentEndTime
       );
 
       const timeOffConflicts = checkTimeOffConflicts(
         employee,
         currentStartTime,
-        currentEndTime,
+        currentEndTime
       );
 
       const allConflictsForOccurrence = [
@@ -857,7 +935,7 @@ export const checkRecurringConflicts = async (
 const checkWorkingTimeConflicts = (
   employee: any,
   startTime: Date,
-  endTime: Date,
+  endTime: Date
 ) => {
   const conflicts: any[] = [];
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -873,7 +951,7 @@ const checkWorkingTimeConflicts = (
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       duration: Math.round(
-        (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+        (endTime.getTime() - startTime.getTime()) / (1000 * 60)
       ),
       customer: {
         _id: "system",
@@ -885,7 +963,7 @@ const checkWorkingTimeConflicts = (
         _id: "system",
         name: "Employee Not Available",
         duration: Math.round(
-          (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+          (endTime.getTime() - startTime.getTime()) / (1000 * 60)
         ),
       },
       status: "not_working",
@@ -897,11 +975,11 @@ const checkWorkingTimeConflicts = (
   const appointmentDate = moment(startTime).format("YYYY-MM-DD");
   const workStart = moment(
     `${appointmentDate} ${workSchedule.from}`,
-    "YYYY-MM-DD h:mm A",
+    "YYYY-MM-DD h:mm A"
   ).toDate();
   const workEnd = moment(
     `${appointmentDate} ${workSchedule.to}`,
-    "YYYY-MM-DD h:mm A",
+    "YYYY-MM-DD h:mm A"
   ).toDate();
 
   // Only conflict if appointment is completely outside working hours
@@ -911,7 +989,7 @@ const checkWorkingTimeConflicts = (
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       duration: Math.round(
-        (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+        (endTime.getTime() - startTime.getTime()) / (1000 * 60)
       ),
       customer: {
         _id: "system",
@@ -923,7 +1001,7 @@ const checkWorkingTimeConflicts = (
         _id: "system",
         name: `Working Hours: ${workSchedule.from} - ${workSchedule.to}`,
         duration: Math.round(
-          (endTime.getTime() - startTime.getTime()) / (1000 * 60),
+          (endTime.getTime() - startTime.getTime()) / (1000 * 60)
         ),
       },
       status: "outside_working_hours",
@@ -937,7 +1015,7 @@ const checkWorkingTimeConflicts = (
 const checkTimeOffConflicts = (
   employee: any,
   startTime: Date,
-  endTime: Date,
+  endTime: Date
 ) => {
   const conflicts: any[] = [];
   const timeOffSchedules = employee.timeOffSchedules || [];
@@ -990,11 +1068,11 @@ const checkTimeOffConflicts = (
       const appointmentDate = moment(startTime).format("YYYY-MM-DD");
       const timeOffStart = moment(
         `${appointmentDate} ${from}`,
-        "YYYY-MM-DD h:mm A",
+        "YYYY-MM-DD h:mm A"
       ).toDate();
       const timeOffEnd = moment(
         `${appointmentDate} ${to}`,
-        "YYYY-MM-DD h:mm A",
+        "YYYY-MM-DD h:mm A"
       ).toDate();
 
       // Check if appointment overlaps with time off
@@ -1008,7 +1086,7 @@ const checkTimeOffConflicts = (
           startTime: timeOffStart.toISOString(),
           endTime: timeOffEnd.toISOString(),
           duration: Math.round(
-            (timeOffEnd.getTime() - timeOffStart.getTime()) / (1000 * 60),
+            (timeOffEnd.getTime() - timeOffStart.getTime()) / (1000 * 60)
           ),
           customer: {
             _id: "system",
@@ -1020,7 +1098,7 @@ const checkTimeOffConflicts = (
             _id: "system",
             name: `Time Off: ${reason || "Scheduled time off"}`,
             duration: Math.round(
-              (timeOffEnd.getTime() - timeOffStart.getTime()) / (1000 * 60),
+              (timeOffEnd.getTime() - timeOffStart.getTime()) / (1000 * 60)
             ),
           },
           status: "time_off",
@@ -1037,7 +1115,7 @@ export const cancelRecurringAppointments = async (recurringGroupId: string) => {
     // Find all appointments with the same recurringGroupId
     const appointments = await writeClient.fetch(
       `*[_type == "appointment" && recurringGroupId == $recurringGroupId && status == "scheduled"]{_id}`,
-      { recurringGroupId },
+      { recurringGroupId }
     );
 
     // Update all appointments to cancelled status

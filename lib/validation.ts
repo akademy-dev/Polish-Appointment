@@ -18,8 +18,8 @@ export const workingTimeSchema = z
         },
         {
           message: "From time must be before to time",
-        },
-      ),
+        }
+      )
   )
   .min(1, "You have to select at least one day.")
   .max(7);
@@ -31,7 +31,7 @@ export const assignedServicesSchema = z.array(
     duration: z.number().positive("Duration must be a positive number"),
     processTime: z.number().min(0, "Process time must be at least 0 minutes"),
     showOnline: z.boolean(),
-  }),
+  })
 );
 export const timeOffScheduleFormSchema = z.array(
   z
@@ -59,7 +59,7 @@ export const timeOffScheduleFormSchema = z.array(
       {
         message: "Please select at least one day of week",
         path: ["dayOfWeek"],
-      },
+      }
     )
     .refine(
       (data) => {
@@ -76,7 +76,7 @@ export const timeOffScheduleFormSchema = z.array(
       {
         message: "Please select at least one day of month",
         path: ["dayOfMonth"],
-      },
+      }
     )
     .refine(
       (data) => {
@@ -88,38 +88,48 @@ export const timeOffScheduleFormSchema = z.array(
       },
       {
         message: "From time must be before to time",
-      },
-    ),
+      }
+    )
 );
 
 // New simplified time off schema for appointment form
-export const appointmentTimeOffSchema = z.object({
-  employee: z.object({
-    _ref: z.string().min(1, "Employee is required"),
-    _type: z.literal("reference"),
-  }),
-  startTime: z.string().min(1, "Start time is required"),
-  duration: z.union([z.number().min(1), z.literal("to_close")]),
-  reason: z.string().optional(),
-  isRecurring: z.boolean(),
-  recurringDuration: z.object({
-    value: z.number().min(1).max(26),
-    unit: z.enum(["days", "weeks", "months"]),
-  }).optional(),
-  recurringFrequency: z.object({
-    value: z.number().min(1).max(26),
-    unit: z.enum(["days", "weeks"]),
-  }).optional(),
-}).refine((data) => {
-  // If isRecurring is true, recurringDuration and recurringFrequency are required
-  if (data.isRecurring) {
-    return data.recurringDuration && data.recurringFrequency;
-  }
-  return true;
-}, {
-  message: "Recurring duration and frequency are required when recurring is enabled",
-  path: ["isRecurring"],
-});
+export const appointmentTimeOffSchema = z
+  .object({
+    employee: z.object({
+      _ref: z.string().min(1, "Employee is required"),
+      _type: z.literal("reference"),
+    }),
+    startTime: z.string().min(1, "Start time is required"),
+    duration: z.union([z.number().min(1), z.literal("to_close")]),
+    reason: z.string().optional(),
+    isRecurring: z.boolean(),
+    recurringDuration: z
+      .object({
+        value: z.number().min(1).max(26),
+        unit: z.enum(["days", "weeks", "months"]),
+      })
+      .optional(),
+    recurringFrequency: z
+      .object({
+        value: z.number().min(1).max(26),
+        unit: z.enum(["days", "weeks"]),
+      })
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      // If isRecurring is true, recurringDuration and recurringFrequency are required
+      if (data.isRecurring) {
+        return data.recurringDuration && data.recurringFrequency;
+      }
+      return true;
+    },
+    {
+      message:
+        "Recurring duration and frequency are required when recurring is enabled",
+      path: ["isRecurring"],
+    }
+  );
 
 export const employeeFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -161,7 +171,6 @@ export const serviceFormSchema = z.object({
   name: z.string().min(1, "Service name is required"),
   price: z.number().min(0, "Price must be at least 0"),
   duration: z.number().positive("Duration must be a positive number"),
-  showOnline: z.boolean(),
 });
 
 export type ServiceFormValues = z.infer<typeof serviceFormSchema>;
@@ -174,14 +183,18 @@ export const appointmentFormSchema = z.object({
     required_error: "Type is required",
   }),
   isRecurring: z.boolean(),
-  recurringDuration: z.object({
-    value: z.number().min(1).max(26).optional(),
-    unit: z.enum(["days", "weeks", "months"]).optional(),
-  }).optional(),
-  recurringFrequency: z.object({
-    value: z.number().min(1).max(26).optional(),
-    unit: z.enum(["days", "weeks"]).optional(),
-  }).optional(),
+  recurringDuration: z
+    .object({
+      value: z.number().min(1).max(26).optional(),
+      unit: z.enum(["days", "weeks", "months"]).optional(),
+    })
+    .optional(),
+  recurringFrequency: z
+    .object({
+      value: z.number().min(1).max(26).optional(),
+      unit: z.enum(["days", "weeks"]).optional(),
+    })
+    .optional(),
   customer: z.object({
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
@@ -203,7 +216,7 @@ export const appointmentFormSchema = z.object({
           .number()
           .min(1, { message: "Quantity must be at least 1" })
           .max(10, { message: "Quantity cannot exceed 10" }),
-      }),
+      })
     )
     .min(1, { message: "Please select at least one service." }),
   status: z.enum(["scheduled", "cancelled", "completed"], {

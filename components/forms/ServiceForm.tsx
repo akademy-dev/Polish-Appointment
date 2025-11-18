@@ -73,7 +73,6 @@ const ServiceForm = ({
       name: "",
       price: 0,
       duration: 15,
-      showOnline: true,
     },
   });
 
@@ -144,7 +143,7 @@ const ServiceForm = ({
           name="category"
           render={({ field }) => {
             const selectedCategory = categories.find(
-              (cat) => cat._id === field.value?._ref,
+              (cat) => cat._id === field.value?._ref
             );
             return (
               <FormItem>
@@ -188,7 +187,7 @@ const ServiceForm = ({
                                     "mr-2 h-4 w-4",
                                     field.value?._ref === cat._id
                                       ? "opacity-100"
-                                      : "opacity-0",
+                                      : "opacity-0"
                                   )}
                                 />
                                 {cat.name}
@@ -232,7 +231,7 @@ const ServiceForm = ({
                   value={field.value ?? ""}
                   onChange={(e) =>
                     field.onChange(
-                      e.target.value === "" ? "" : Number(e.target.value),
+                      e.target.value === "" ? "" : Number(e.target.value)
                     )
                   }
                   placeholder="Service Price"
@@ -279,23 +278,6 @@ const ServiceForm = ({
               </FormItem>
             );
           }}
-        />
-        <FormField
-          control={form.control}
-          name="showOnline"
-          render={({ field }) => (
-            <FormItem className="flex items-center ">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                  id="showOnline"
-                />
-              </FormControl>
-              <FormLabel htmlFor="showOnline">Show Online</FormLabel>
-              <FormMessage />
-            </FormItem>
-          )}
         />
         {!hideSubmitButton && (
           <div className="flex justify-end pt-4">

@@ -1245,7 +1245,7 @@ const AppointmentScheduleTimezone = ({
   }, []);
 
   const moveEvent = useCallback(
-    (args: {
+    async (args: {
       event: object;
       start: Date | string;
       end: Date | string;
@@ -1262,52 +1262,68 @@ const AppointmentScheduleTimezone = ({
         return;
       }
 
-      setType("edit");
-      setAppointmentId(calendarEvent.data._id);
-      appointmentForm.setValue("time", start.toString());
-      appointmentForm.setValue("employee", {
-        _ref: resourceId?.toString() || calendarEvent.resourceId.toString(),
-        _type: "reference",
-      });
-      appointmentForm.setValue("customer", {
-        firstName: "",
-        lastName: "",
-        phone: "",
-        _ref: calendarEvent.data.customer?._id,
-        _type: "reference",
-      });
-      appointmentForm.setValue("note", calendarEvent.data.note || "");
-      appointmentForm.setValue("reminder", calendarEvent.data.reminder);
-      appointmentForm.setValue("type", calendarEvent.data.type || "walk-in");
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+      setIsLoading(true);
 
-      const newServices = calendarEvent.data.service
-        ? [
-            {
-              _ref: calendarEvent.data.service._id,
-              _type: "reference",
-              duration:
-                calendarEvent.data.duration ||
-                calendarEvent.data.service.duration,
-              quantity: 1,
-            },
-          ]
-        : [];
-      appointmentForm.setValue("services", newServices);
-      appointmentForm.setValue(
-        "status",
-        calendarEvent.data.status || "scheduled"
-      );
+      try {
+        const appointmentId = calendarEvent.data._id;
+        const startDate = typeof start === "string" ? new Date(start) : start;
+        const duration =
+          calendarEvent.data.duration ||
+          calendarEvent.data.service?.duration ||
+          0;
 
-      setDuration(
-        calendarEvent.data.duration || calendarEvent.data.service?.duration || 0
-      );
-      setShowConfirm(true);
+        const formData = new FormData();
+        formData.append("time", startDate.toISOString());
+        formData.append("note", calendarEvent.data.note || "");
+        formData.append("type", calendarEvent.data.type || "walk-in");
+        formData.append("status", calendarEvent.data.status || "scheduled");
+
+        const result = await updateAppointment(
+          appointmentId,
+          duration,
+          formData,
+          {
+            _ref: calendarEvent.data.customer?._id,
+            _type: "reference",
+          },
+          {
+            _ref: resourceId?.toString() || calendarEvent.resourceId.toString(),
+            _type: "reference",
+          },
+          calendarEvent.data.reminder
+        );
+
+        if (result.status === "SUCCESS") {
+          toast.success("Success", {
+            description: `Appointment updated successfully`,
+          });
+          router.refresh();
+        } else {
+          toast.error("Error", {
+            description: result.error,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Error", {
+          description: "An unexpected error occurred",
+        });
+      } finally {
+        setIsSubmitting(false);
+        setIsLoading(false);
+      }
     },
-    []
+    [isSubmitting, router]
   );
 
   const resizeEvent = useCallback(
-    (args: { event: object; start: Date | string; end: Date | string }) => {
+    async (args: {
+      event: object;
+      start: Date | string;
+      end: Date | string;
+    }) => {
       const { event, start, end } = args;
       const calendarEvent = event as CalendarEvent;
 
@@ -1317,51 +1333,61 @@ const AppointmentScheduleTimezone = ({
       ) {
         return;
       }
-      const startDate = typeof start === "string" ? new Date(start) : start;
-      const endDate = typeof end === "string" ? new Date(end) : end;
 
-      setType("edit");
-      setAppointmentId(calendarEvent.data._id);
-      appointmentForm.setValue("time", startDate.toISOString());
-      appointmentForm.setValue("employee", {
-        _ref: calendarEvent.resourceId.toString(),
-        _type: "reference",
-      });
-      appointmentForm.setValue("customer", {
-        firstName: "",
-        lastName: "",
-        phone: "",
-        _ref: calendarEvent.data.customer?._id,
-        _type: "reference",
-      });
-      appointmentForm.setValue("note", calendarEvent.data.note || "");
-      appointmentForm.setValue("reminder", calendarEvent.data.reminder || true);
-      const newServices = calendarEvent.data.service
-        ? [
-            {
-              _ref: calendarEvent.data.service._id,
-              _type: "reference",
-              duration:
-                calendarEvent.data.duration ||
-                calendarEvent.data.service.duration,
-              quantity: 1,
-            },
-          ]
-        : [];
-      appointmentForm.setValue("services", newServices);
-      appointmentForm.setValue(
-        "status",
-        calendarEvent.data.status || "scheduled"
-      );
-      appointmentForm.setValue("type", calendarEvent.data.type || "walk-in");
-      appointmentForm.setValue("note", calendarEvent.data.note || "");
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+      setIsLoading(true);
 
-      setDuration(
-        Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60))
-      );
-      setShowConfirm(true);
+      try {
+        const startDate = typeof start === "string" ? new Date(start) : start;
+        const endDate = typeof end === "string" ? new Date(end) : end;
+        const appointmentId = calendarEvent.data._id;
+        const duration = Math.round(
+          (endDate.getTime() - startDate.getTime()) / (1000 * 60)
+        );
+
+        const formData = new FormData();
+        formData.append("time", startDate.toISOString());
+        formData.append("note", calendarEvent.data.note || "");
+        formData.append("type", calendarEvent.data.type || "walk-in");
+        formData.append("status", calendarEvent.data.status || "scheduled");
+
+        const result = await updateAppointment(
+          appointmentId,
+          duration,
+          formData,
+          {
+            _ref: calendarEvent.data.customer?._id,
+            _type: "reference",
+          },
+          {
+            _ref: calendarEvent.resourceId.toString(),
+            _type: "reference",
+          },
+          calendarEvent.data.reminder || []
+        );
+
+        if (result.status === "SUCCESS") {
+          toast.success("Success", {
+            description: `Appointment updated successfully`,
+          });
+          router.refresh();
+        } else {
+          toast.error("Error", {
+            description: result.error,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Error", {
+          description: "An unexpected error occurred",
+        });
+      } finally {
+        setIsSubmitting(false);
+        setIsLoading(false);
+      }
     },
-    []
+    [isSubmitting, router]
   );
 
   const CustomToolbar = (toolbar: any) => {

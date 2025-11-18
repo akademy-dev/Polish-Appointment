@@ -8,7 +8,6 @@ export const SERVICES_QUERY = defineQuery(`
   name,
   price,
   duration,
-  showOnline,
   category -> {
     _ref,
     _type,
@@ -20,12 +19,11 @@ export const SERVICES_QUERY = defineQuery(`
 `);
 
 export const ALL_SERVICES_QUERY = defineQuery(`
-*[_type == "service" && showOnline == true]{
+*[_type == "service"]{
   _id,
   name,
   price,
   duration,
-  showOnline,
   category -> {
     _id,
     name
@@ -50,7 +48,7 @@ export const EMPLOYEES_QUERY = defineQuery(
       assignedServices,
     } | order(_createdAt desc) [($page - 1) * $limit ... $page * $limit],
     "total": count(*[_type == "employee" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || position match $search || phone match $search)])
-  }`,
+  }`
 );
 
 export const APPOINTMENTS_QUERY = defineQuery(
@@ -87,7 +85,7 @@ export const APPOINTMENTS_QUERY = defineQuery(
     "total": count(*[_type == "appointment" 
      && ($status == "" || status == $status)
      && ($searchTerm == "" || !defined($searchTerm) || customer->firstName match "*" + $searchTerm + "*" || customer->lastName match "*" + $searchTerm + "*" || (customer->firstName + " " + customer->lastName) match "*" + $searchTerm + "*" || employee->firstName match "*" + $searchTerm + "*" || employee->lastName match "*" + $searchTerm + "*" || service->name match "*" + $searchTerm + "*")])
-}`,
+}`
 );
 
 export const ALL_EMPLOYEES_QUERY = defineQuery(
@@ -103,7 +101,7 @@ export const ALL_EMPLOYEES_QUERY = defineQuery(
       workingTimes,
       timeOffSchedules,
       assignedServices
-  }`,
+  }`
 );
 
 export const CUSTOMERS_QUERY = defineQuery(
@@ -118,7 +116,7 @@ export const CUSTOMERS_QUERY = defineQuery(
       note
     } | order(_createdAt desc) [($page - 1) * $limit ... $page * $limit],
     "total": count(*[_type == "customer" && (!defined($search) || firstName match $search || lastName match $search || (firstName + " " + lastName) match $search || phone match $search || email match $search)])
-  }`,
+  }`
 );
 
 export const ALL_CUSTOMERS_QUERY = defineQuery(
@@ -132,7 +130,7 @@ export const ALL_CUSTOMERS_QUERY = defineQuery(
       phone,
       note
     }
-  `,
+  `
 );
 
 export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
@@ -172,7 +170,7 @@ export const APPOINTMENTS_BY_DATE_QUERY = defineQuery(
   note,
   recurringGroupId
 }
-`,
+`
 );
 
 export const APPOINTMENT_TIME_OFF_QUERY = defineQuery(
@@ -192,7 +190,7 @@ export const APPOINTMENT_TIME_OFF_QUERY = defineQuery(
   isRecurring,
   recurringDuration,
   recurringFrequency
-}`,
+}`
 );
 
 export const APPOINTMENTS_BY_EMPLOYEE_QUERY = defineQuery(
@@ -219,7 +217,7 @@ export const APPOINTMENTS_BY_EMPLOYEE_QUERY = defineQuery(
     name,
     duration
   }
-} | order(startTime asc)`,
+} | order(startTime asc)`
 );
 
 export const APPOINTMENTS_BY_CUSTOMER_QUERY = defineQuery(
@@ -248,7 +246,7 @@ export const APPOINTMENTS_BY_CUSTOMER_QUERY = defineQuery(
   },
   status,
   recurringGroupId
-} | order(startTime asc)`,
+} | order(startTime asc)`
 );
 
 export const SEND_SMS_QUERY = defineQuery(
@@ -275,7 +273,7 @@ export const SEND_SMS_QUERY = defineQuery(
     smsMessage,
     "isFirst": startTime == *[_type == "appointment" && status == "scheduled" && customer._ref == ^.customer._ref && array::join(string::split(startTime, "")[0..9], "") == array::join(string::split(^.startTime, "")[0..9], "")] | order(startTime asc)[0].startTime
   }[isFirst == true] | order(startTime asc)
-  `,
+  `
 );
 
 export const UPDATE_APPOINTMENT_STATUS_QUERY = defineQuery(
@@ -283,7 +281,7 @@ export const UPDATE_APPOINTMENT_STATUS_QUERY = defineQuery(
   {     
   _id,     
   status   
-  }`,
+  }`
 );
 
 export const CHECK_CONFLICT_QUERY = defineQuery(
@@ -312,7 +310,7 @@ export const CHECK_CONFLICT_QUERY = defineQuery(
       duration
     },
     status
-  } | order(startTime asc)`,
+  } | order(startTime asc)`
 );
 
 export const EMPLOYEE_WORKING_TIMES_QUERY = defineQuery(
@@ -334,7 +332,7 @@ export const EMPLOYEE_WORKING_TIMES_QUERY = defineQuery(
       dayOfWeek,
       dayOfMonth
     }
-  }[0]`,
+  }[0]`
 );
 
 export const TIMEZONE_QUERY = defineQuery(
@@ -343,8 +341,9 @@ export const TIMEZONE_QUERY = defineQuery(
   timezone,
   "minTime": coalesce(minTime, "8:00 AM"),
   "maxTime": coalesce(maxTime, "6:00 PM"),
-  smsMessage
-}`,
+  smsMessage,
+  hourlyRate
+}`
 );
 
 export const TIME_TRACKING_QUERY = defineQuery(

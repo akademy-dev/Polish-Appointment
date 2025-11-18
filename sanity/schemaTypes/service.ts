@@ -31,12 +31,5 @@ export const serviceType = defineType({
       type: "number",
       validation: (Rule) => Rule.required(),
     }),
-    defineField({
-      name: "showOnline",
-      title: "Show Online",
-      type: "boolean",
-      initialValue: true,
-      validation: (Rule) => Rule.required(),
-    }),
   ],
 });

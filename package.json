@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "sanity": "npx sanity@latest schema extract --path=./sanity/extract.json && npx sanity@latest typegen generate",
-    "cron": "tsx app/scripts/run-cron.ts"
+    "cron": "tsx app/scripts/run-cron.ts",
+    "convert-excel": "node scripts/convert-excel-to-ndjson.cjs",
+    "convert-customers": "node scripts/convert-excel-to-ndjson.cjs utils/customers.xlsx customers.ndjson",
+    "delete-all-customers": "node scripts/delete-all-customers.cjs"
   },
   "type": "module",
   "dependencies": {

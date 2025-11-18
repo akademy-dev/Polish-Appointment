@@ -5,44 +5,71 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { CalendarIcon, Clock, DollarSign, User, Filter, Plus } from "lucide-react";
+import {
+  CalendarIcon,
+  Clock,
+  DollarSign,
+  User,
+  Filter,
+  Plus,
+} from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { 
-  createTimeTracking, 
-  updateTimeTracking, 
+import {
+  createTimeTracking,
+  updateTimeTracking,
   deleteTimeTracking,
   getTimeTrackingByDateRange,
-  calculateTotalPay 
+  calculateTotalPay,
 } from "@/actions/time-tracking";
 import { Employee, TimeTracking } from "@/sanity/types";
 import { client } from "@/sanity/lib/client";
-import { ALL_EMPLOYEES_QUERY, TIME_TRACKING_QUERY } from "@/sanity/lib/queries";
+import {
+  ALL_EMPLOYEES_QUERY,
+  TIME_TRACKING_QUERY,
+  TIMEZONE_QUERY,
+} from "@/sanity/lib/queries";
 
 interface TimeTrackingPageProps {
   initialEmployees: Employee[];
   initialTimeTracking: TimeTracking[];
 }
 
-export default function TimeTrackingPage({ 
-  initialEmployees, 
-  initialTimeTracking 
+export default function TimeTrackingPage({
+  initialEmployees,
+  initialTimeTracking,
 }: TimeTrackingPageProps) {
   console.log("TimeTrackingPage props:", {
     initialEmployees,
     initialTimeTracking,
     employeesLength: initialEmployees?.length,
-    timeTrackingLength: initialTimeTracking?.length
+    timeTrackingLength: initialTimeTracking?.length,
   });
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-  const [timeTracking, setTimeTracking] = useState<TimeTracking[]>(initialTimeTracking);
+  const [timeTracking, setTimeTracking] =
+    useState<TimeTracking[]>(initialTimeTracking);
   const [selectedEmployee, setSelectedEmployee] = useState<string>("");
   const [selectedEmployeeName, setSelectedEmployeeName] = useState<string>("");
   const [dateRange, setDateRange] = useState<{
@@ -52,24 +79,44 @@ export default function TimeTrackingPage({
     from: undefined,
     to: undefined,
   });
-  const [filterType, setFilterType] = useState<"all" | "date" | "employee" | "both">("all");
+  const [filterType, setFilterType] = useState<
+    "all" | "date" | "employee" | "both"
+  >("all");
   const [isLoading, setIsLoading] = useState(false);
+  const [defaultHourlyRate, setDefaultHourlyRate] = useState<
+    number | undefined
+  >(undefined);
 
   // Check in/out form state
   const [showCheckInForm, setShowCheckInForm] = useState(false);
   const [checkInForm, setCheckInForm] = useState({
     employeeId: "",
-    hourlyRate: "",
     note: "",
   });
 
   // Check out form state
   const [showCheckOutConfirm, setShowCheckOutConfirm] = useState(false);
-  const [selectedTimeTracking, setSelectedTimeTracking] = useState<TimeTracking | null>(null);
+  const [selectedTimeTracking, setSelectedTimeTracking] =
+    useState<TimeTracking | null>(null);
 
   // Delete confirmation state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+
+  // Fetch settings to get default hourly rate
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settingData = await client.fetch(TIMEZONE_QUERY);
+        if (settingData?.hourlyRate) {
+          setDefaultHourlyRate(settingData.hourlyRate);
+        }
+      } catch (error) {
+        console.error("Error fetching settings:", error);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   // Fetch time tracking data
   const fetchTimeTracking = useCallback(async () => {
@@ -92,48 +139,59 @@ export default function TimeTrackingPage({
       selectedEmployee,
       dateRange,
       timeTrackingLength: timeTracking.length,
-      sampleRecord: timeTracking[0]
+      sampleRecord: timeTracking[0],
     });
 
     // Filter by employee
-    if ((filterType === "employee" || filterType === "both") && selectedEmployee) {
-      filtered = filtered.filter(record => {
+    if (
+      (filterType === "employee" || filterType === "both") &&
+      selectedEmployee
+    ) {
+      filtered = filtered.filter((record) => {
         const employee = record.employee;
         if (!employee) return false;
-        
+
         // Check if employee is a reference object
-        if ('_ref' in employee) {
+        if ("_ref" in employee) {
           return employee._ref === selectedEmployee;
         }
-        
+
         // Check if employee is a dereferenced object with _id
-        if ('_id' in employee && typeof employee._id === 'string') {
+        if ("_id" in employee && typeof employee._id === "string") {
           return employee._id === selectedEmployee;
         }
-        
+
         // Check if employee is a dereferenced object with firstName/lastName
-        if ('firstName' in employee && 'lastName' in employee && 
-            typeof employee.firstName === 'string' && typeof employee.lastName === 'string') {
+        if (
+          "firstName" in employee &&
+          "lastName" in employee &&
+          typeof employee.firstName === "string" &&
+          typeof employee.lastName === "string"
+        ) {
           const recordEmployeeName = `${employee.firstName} ${employee.lastName}`;
           return recordEmployeeName === selectedEmployeeName;
         }
-        
+
         return false;
       });
-      
+
       console.log("After employee filter:", {
         filteredLength: filtered.length,
         selectedEmployee,
         selectedEmployeeName,
-        sampleFilteredRecord: filtered[0]
+        sampleFilteredRecord: filtered[0],
       });
     }
 
     // Filter by date range
-    if ((filterType === "date" || filterType === "both") && dateRange.from && dateRange.to) {
+    if (
+      (filterType === "date" || filterType === "both") &&
+      dateRange.from &&
+      dateRange.to
+    ) {
       const fromDate = dateRange.from.toISOString();
       const toDate = dateRange.to.toISOString();
-      filtered = filtered.filter(record => {
+      filtered = filtered.filter((record) => {
         const checkInDate = record.checkIn;
         return checkInDate && checkInDate >= fromDate && checkInDate <= toDate;
       });
@@ -144,8 +202,11 @@ export default function TimeTrackingPage({
 
   // Calculate totals
   const totals = useMemo(() => {
-    if (!Array.isArray(filteredTimeTracking)) return { totalPay: 0, totalHours: 0 };
-    const completedRecords = filteredTimeTracking.filter(record => record.status === "checked_out");
+    if (!Array.isArray(filteredTimeTracking))
+      return { totalPay: 0, totalHours: 0 };
+    const completedRecords = filteredTimeTracking.filter(
+      (record) => record.status === "checked_out"
+    );
     let totalPay = 0;
     let totalHours = 0;
 
@@ -182,14 +243,17 @@ export default function TimeTrackingPage({
           _type: "reference",
         },
         checkIn: new Date().toISOString(),
-        hourlyRate: checkInForm.hourlyRate ? parseFloat(checkInForm.hourlyRate) : undefined,
+        hourlyRate: defaultHourlyRate || undefined,
         note: checkInForm.note || undefined,
       });
 
       if (result.status === "SUCCESS") {
         toast.success("Employee checked in successfully");
         setShowCheckInForm(false);
-        setCheckInForm({ employeeId: "", hourlyRate: "", note: "" });
+        setCheckInForm({
+          employeeId: "",
+          note: "",
+        });
         fetchTimeTracking();
       } else {
         toast.error(result.error || "Failed to check in employee");
@@ -271,8 +335,16 @@ export default function TimeTrackingPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-      <h2 className="heading">Time Tracking</h2>
-        <Button onClick={() => setShowCheckInForm(true)}>
+        <h2 className="heading">Time Tracking</h2>
+        <Button
+          onClick={() => {
+            setCheckInForm({
+              employeeId: "",
+              note: "",
+            });
+            setShowCheckInForm(true);
+          }}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Check In Employee
         </Button>
@@ -286,7 +358,9 @@ export default function TimeTrackingPage({
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatDuration(totals.totalHours)}</div>
+            <div className="text-2xl font-bold">
+              {formatDuration(totals.totalHours)}
+            </div>
           </CardContent>
         </Card>
 
@@ -296,18 +370,26 @@ export default function TimeTrackingPage({
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totals.totalPay.toFixed(2)}</div>
+            <div className="text-2xl font-bold">
+              ${totals.totalPay.toFixed(2)}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Active Sessions
+            </CardTitle>
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Array.isArray(timeTracking) ? timeTracking.filter(record => record.status === "checked_in").length : 0}
+              {Array.isArray(timeTracking)
+                ? timeTracking.filter(
+                    (record) => record.status === "checked_in"
+                  ).length
+                : 0}
             </div>
           </CardContent>
         </Card>
@@ -322,10 +404,13 @@ export default function TimeTrackingPage({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Filter Type</Label>
-              <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+              <Select
+                value={filterType}
+                onValueChange={(value: any) => setFilterType(value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -338,68 +423,74 @@ export default function TimeTrackingPage({
               </Select>
             </div>
 
-                         {(filterType === "employee" || filterType === "both") && (
-               <div className="space-y-2">
-                 <Label>Employee</Label>
-                 <Select 
-                   value={selectedEmployee} 
-                   onValueChange={(value) => {
-                     setSelectedEmployee(value);
-                     const employee = employees.find(emp => emp._id === value);
-                     setSelectedEmployeeName(employee ? `${employee.firstName} ${employee.lastName}` : "");
-                   }}
-                 >
-                   <SelectTrigger>
-                     <SelectValue placeholder="Select employee" />
-                   </SelectTrigger>
-                   <SelectContent>
-                     {employees.map((employee) => (
-                       <SelectItem key={employee._id} value={employee._id}>
-                         {employee.firstName} {employee.lastName}
-                       </SelectItem>
-                     ))}
-                   </SelectContent>
-                 </Select>
-               </div>
-             )}
+            {(filterType === "employee" || filterType === "both") && (
+              <div className="space-y-2">
+                <Label>Employee</Label>
+                <Select
+                  value={selectedEmployee}
+                  onValueChange={(value) => {
+                    setSelectedEmployee(value);
+                    const employee = employees.find((emp) => emp._id === value);
+                    setSelectedEmployeeName(
+                      employee
+                        ? `${employee.firstName} ${employee.lastName}`
+                        : ""
+                    );
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((employee) => (
+                      <SelectItem key={employee._id} value={employee._id}>
+                        {employee.firstName} {employee.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-             {(filterType === "date" || filterType === "both") && (
-               <div className="space-y-2">
-                 <Label>Date Range</Label>
-                 <Popover>
-                   <PopoverTrigger asChild>
-                     <Button variant="outline">
-                       <CalendarIcon className="mr-2 h-4 w-4" />
-                       {dateRange.from ? (
-                         dateRange.to ? (
-                           <>
-                             {format(dateRange.from, "LLL dd, y")} -{" "}
-                             {format(dateRange.to, "LLL dd, y")}
-                           </>
-                         ) : (
-                           format(dateRange.from, "LLL dd, y")
-                         )
-                       ) : (
-                         <span>Pick a date range</span>
-                       )}
-                     </Button>
-                   </PopoverTrigger>
-                   <PopoverContent className="w-auto p-0" align="start">
-                     <Calendar
-                       initialFocus
-                       mode="range"
-                       defaultMonth={dateRange.from}
-                       selected={dateRange}
-                       onSelect={(range) => setDateRange({
-                         from: range?.from,
-                         to: range?.to || range?.from
-                       })}
-                       numberOfMonths={2}
-                     />
-                   </PopoverContent>
-                 </Popover>
-               </div>
-             )}
+            {(filterType === "date" || filterType === "both") && (
+              <div className="space-y-2">
+                <Label>Date Range</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "LLL dd, y")} -{" "}
+                            {format(dateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange.from}
+                      selected={dateRange}
+                      onSelect={(range) =>
+                        setDateRange({
+                          from: range?.from,
+                          to: range?.to || range?.from,
+                        })
+                      }
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -422,33 +513,45 @@ export default function TimeTrackingPage({
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div className="flex-1">
-                                         <div className="flex items-center gap-2 mb-2">
-                       <h3 className="font-medium">
-                         {record.employee && 'firstName' in record.employee
-                           ? `${record.employee.firstName} ${record.employee.lastName}`
-                           : 'Unknown Employee'
-                         }
-                       </h3>
-                       <Badge variant={record.status === "checked_in" ? "default" : "secondary"}>
-                         {record.status === "checked_in" ? "Checked In" : "Checked Out"}
-                       </Badge>
-                     </div>
-                                         <div className="text-sm text-muted-foreground space-y-1">
-                       <div>Check In: {formatTime(record.checkIn || "")}</div>
-                       {record.checkOut && <div>Check Out: {formatTime(record.checkOut)}</div>}
-                       {record.totalHours && <div>Duration: {formatDuration(record.totalHours)}</div>}
-                       {record.hourlyRate && <div>Hourly Rate: ${record.hourlyRate}/hr</div>}
-                       {record.totalPay && <div>Total Pay: ${record.totalPay.toFixed(2)}</div>}
-                       {record.note && <div>Note: {record.note}</div>}
-                     </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-medium">
+                        {record.employee && "firstName" in record.employee
+                          ? `${record.employee.firstName} ${record.employee.lastName}`
+                          : "Unknown Employee"}
+                      </h3>
+                      <Badge
+                        variant={
+                          record.status === "checked_in"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {record.status === "checked_in"
+                          ? "Checked In"
+                          : "Checked Out"}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <div>Check In: {formatTime(record.checkIn || "")}</div>
+                      {record.checkOut && (
+                        <div>Check Out: {formatTime(record.checkOut)}</div>
+                      )}
+                      {record.totalHours && (
+                        <div>Duration: {formatDuration(record.totalHours)}</div>
+                      )}
+                      {record.totalPay && (
+                        <div>Total Pay: ${record.totalPay.toFixed(2)}</div>
+                      )}
+                      {record.note && <div>Note: {record.note}</div>}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     {record.status === "checked_in" && (
                       <Button
-                                                 onClick={() => {
-                           setSelectedTimeTracking(record);
-                           setShowCheckOutConfirm(true);
-                         }}
+                        onClick={() => {
+                          setSelectedTimeTracking(record);
+                          setShowCheckOutConfirm(true);
+                        }}
                       >
                         Check Out
                       </Button>
@@ -478,7 +581,9 @@ export default function TimeTrackingPage({
               <Label>Employee</Label>
               <Select
                 value={checkInForm.employeeId}
-                onValueChange={(value) => setCheckInForm({ ...checkInForm, employeeId: value })}
+                onValueChange={(value) =>
+                  setCheckInForm({ ...checkInForm, employeeId: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select employee" />
@@ -494,21 +599,13 @@ export default function TimeTrackingPage({
             </div>
 
             <div className="space-y-2">
-              <Label>Hourly Rate (optional)</Label>
-              <Input
-                type="number"
-                placeholder="Enter hourly rate"
-                value={checkInForm.hourlyRate}
-                onChange={(e) => setCheckInForm({ ...checkInForm, hourlyRate: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label>Note (optional)</Label>
               <Textarea
                 placeholder="Enter note"
                 value={checkInForm.note}
-                onChange={(e) => setCheckInForm({ ...checkInForm, note: e.target.value })}
+                onChange={(e) =>
+                  setCheckInForm({ ...checkInForm, note: e.target.value })
+                }
               />
             </div>
 
@@ -517,7 +614,10 @@ export default function TimeTrackingPage({
                 variant="outline"
                 onClick={() => {
                   setShowCheckInForm(false);
-                  setCheckInForm({ employeeId: "", hourlyRate: "", note: "" });
+                  setCheckInForm({
+                    employeeId: "",
+                    note: "",
+                  });
                 }}
               >
                 Cancel
@@ -529,8 +629,6 @@ export default function TimeTrackingPage({
           </div>
         </DialogContent>
       </Dialog>
-
-      
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog

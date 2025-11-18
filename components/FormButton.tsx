@@ -315,7 +315,6 @@ const FormButton = ({
         _ref: "",
         _type: "reference",
       },
-      showOnline: true,
     },
   });
 
@@ -601,7 +600,6 @@ const FormButton = ({
       formData.append("name", formValues.name);
       formData.append("price", formValues.price.toString());
       formData.append("duration", formValues.duration.toString());
-      formData.append("showOnline", formValues.showOnline.toString());
 
       if (mode === "edit" && service) {
         // Update mode - include _id

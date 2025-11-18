@@ -96,7 +96,7 @@ const AppointmentInfoForm = ({
   if (employeeRef) {
     const selectedEmployee = employees.find(
       (employee: { value: string; label: string }) =>
-        employee.value === employeeRef,
+        employee.value === employeeRef
     );
     if (selectedEmployee && employeeValue !== selectedEmployee.value) {
       setEmployeeValue(selectedEmployee.value);
@@ -108,7 +108,7 @@ const AppointmentInfoForm = ({
   // Filter out cancelled appointments
   const filteredAppointments = useMemo(() => {
     const filtered = appointments.filter(
-      (appointment) => appointment.status !== "cancelled",
+      (appointment) => appointment.status !== "cancelled"
     );
     return filtered;
   }, [appointments]);
@@ -137,7 +137,7 @@ const AppointmentInfoForm = ({
   React.useEffect(() => {
     if (employeeValue && type === "create") {
       const selectedEmployee = employees.find(
-        (emp) => emp.value === employeeValue,
+        (emp) => emp.value === employeeValue
       );
       if (selectedEmployee && selectedEmployee.assignedServices) {
         // Clear current services selection when employee changes
@@ -151,7 +151,7 @@ const AppointmentInfoForm = ({
   const tableData = useMemo(() => {
     // Get the selected employee
     const selectedEmployee = employees.find(
-      (emp) => emp.value === employeeValue,
+      (emp) => emp.value === employeeValue
     );
 
     if (!selectedEmployee || !selectedEmployee.assignedServices) {
@@ -163,17 +163,18 @@ const AppointmentInfoForm = ({
       .filter((as) => as.showOnline === true)
       .map((as) => as.serviceId);
     const filteredServices = services.filter((service) =>
-      assignedServiceIds.includes(service._id),
+      assignedServiceIds.includes(service._id)
     );
 
-    return filteredServices.map((service) => {
+    // Map services with their data
+    const servicesWithData = filteredServices.map((service) => {
       const selectedService = watchedServices.find(
-        (s: any) => s._ref === service._id,
+        (s: any) => s._ref === service._id
       );
 
       // Get assigned service data for this service
       const assignedService = selectedEmployee.assignedServices?.find(
-        (as) => as.serviceId === service._id,
+        (as) => as.serviceId === service._id
       );
 
       return {
@@ -185,8 +186,45 @@ const AppointmentInfoForm = ({
         // Use assigned service price if available, otherwise use service price
         price: assignedService?.price || service.price,
         quantity: 1,
+        rowType: "service" as const,
       };
     });
+
+    // Group services by category
+    const groupedByCategory = servicesWithData.reduce(
+      (acc, service) => {
+        const categoryName = service.category?.name || "Uncategorized";
+        if (!acc[categoryName]) {
+          acc[categoryName] = [];
+        }
+        acc[categoryName].push(service);
+        return acc;
+      },
+      {} as Record<string, typeof servicesWithData>
+    );
+
+    // Flatten grouped data with category headers
+    const groupedData: Array<
+      | ((typeof servicesWithData)[0] & { rowType: "service" })
+      | { rowType: "category"; categoryName: string; _id: string }
+    > = [];
+
+    // Sort categories alphabetically
+    const sortedCategories = Object.keys(groupedByCategory).sort();
+
+    sortedCategories.forEach((categoryName) => {
+      // Add category header row
+      groupedData.push({
+        rowType: "category",
+        categoryName,
+        _id: `category-${categoryName}`,
+      } as any);
+
+      // Add services in this category
+      groupedData.push(...groupedByCategory[categoryName]);
+    });
+
+    return groupedData;
   }, [services, watchedServices, employeeValue, employees]);
 
   return (
@@ -329,8 +367,8 @@ const AppointmentInfoForm = ({
                             } else {
                               field.onChange(
                                 current.filter(
-                                  (v: string) => v !== option.value,
-                                ),
+                                  (v: string) => v !== option.value
+                                )
                               );
                             }
                           }}
@@ -399,7 +437,7 @@ const AppointmentInfoForm = ({
                                 <SelectContent>
                                   {Array.from(
                                     { length: 26 },
-                                    (_, i) => i + 1,
+                                    (_, i) => i + 1
                                   ).map((num) => (
                                     <SelectItem
                                       key={num}
@@ -469,7 +507,7 @@ const AppointmentInfoForm = ({
                                 <SelectContent>
                                   {Array.from(
                                     { length: 26 },
-                                    (_, i) => i + 1,
+                                    (_, i) => i + 1
                                   ).map((num) => (
                                     <SelectItem
                                       key={num}
@@ -571,9 +609,9 @@ const AppointmentInfoForm = ({
                           {format(
                             toZonedTime(
                               new Date(row.original.startTime),
-                              timezone,
+                              timezone
                             ),
-                            "dd/MM/yyyy HH:mm",
+                            "dd/MM/yyyy HH:mm"
                           )}
                         </div>
                       ),
@@ -597,9 +635,9 @@ const AppointmentInfoForm = ({
                           {format(
                             toZonedTime(
                               new Date(row.original.endTime),
-                              timezone,
+                              timezone
                             ),
-                            "dd/MM/yyyy HH:mm",
+                            "dd/MM/yyyy HH:mm"
                           )}
                         </div>
                       ),
@@ -612,9 +650,9 @@ const AppointmentInfoForm = ({
                           {format(
                             fromZonedTime(
                               new Date(row.original._createdAt),
-                              timezone,
+                              timezone
                             ),
-                            "dd/MM/yyyy HH:mm",
+                            "dd/MM/yyyy HH:mm"
                           )}
                         </div>
                       ),
@@ -638,6 +676,10 @@ const AppointmentInfoForm = ({
                       id: "select",
                       header: () => null,
                       cell: ({ row }: { row: any }) => {
+                        // Show category header for category rows
+                        if (row.original.rowType === "category") {
+                          return null;
+                        }
                         // Helper to get ordinal suffix
                         const getOrdinal = (n: number) => {
                           if (n % 10 === 1 && n % 100 !== 11) return `${n}st`;
@@ -658,7 +700,7 @@ const AppointmentInfoForm = ({
                                       const currentServices =
                                         form.getValues("services") || [];
                                       const exists = currentServices.some(
-                                        (s: any) => s._ref === row.original._id,
+                                        (s: any) => s._ref === row.original._id
                                       );
                                       if (!exists) {
                                         const newServiceRef = {
@@ -681,8 +723,8 @@ const AppointmentInfoForm = ({
                                     form.setValue(
                                       "services",
                                       currentServices.filter(
-                                        (s: any) => s._ref !== row.original._id,
-                                      ),
+                                        (s: any) => s._ref !== row.original._id
+                                      )
                                     );
                                     return prev.filter((id) => id !== row.id);
                                   }
@@ -705,10 +747,26 @@ const AppointmentInfoForm = ({
                     {
                       accessorKey: "category.name",
                       header: "Type",
+                      cell: ({ row }: { row: any }) => {
+                        if (row.original.rowType === "category") {
+                          return (
+                            <div className="font-semibold text-primary">
+                              {row.original.categoryName}
+                            </div>
+                          );
+                        }
+                        return row.original.category?.name || "-";
+                      },
                     },
                     {
                       accessorKey: "name",
                       header: "Name",
+                      cell: ({ row }: { row: any }) => {
+                        if (row.original.rowType === "category") {
+                          return null;
+                        }
+                        return row.original.name || "-";
+                      },
                     },
                     {
                       accessorKey: "price",
@@ -724,6 +782,14 @@ const AppointmentInfoForm = ({
                           <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                       ),
+                      cell: ({ row }: { row: any }) => {
+                        if (row.original.rowType === "category") {
+                          return null;
+                        }
+                        return row.original.price
+                          ? `$${row.original.price.toFixed(2)}`
+                          : "-";
+                      },
                     },
                     {
                       accessorKey: "duration",
@@ -739,62 +805,70 @@ const AppointmentInfoForm = ({
                           <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                       ),
-                      cell: ({ row }: { row: any }) => (
-                        <Select
-                          value={row.original.duration?.toString() || "0"}
-                          onValueChange={(value) => {
-                            const newDuration = Number(value);
-                            const currentServices =
-                              form.getValues("services") || [];
-                            const serviceIndex = currentServices.findIndex(
-                              (s: any) => s._ref === row.original._id,
-                            );
-                            if (serviceIndex !== -1) {
-                              // Update existing
-                              const updatedServices = [...currentServices];
-                              updatedServices[serviceIndex] = {
-                                ...updatedServices[serviceIndex],
-                                duration: newDuration,
-                              };
-                              form.setValue("services", updatedServices);
-                            } else {
-                              // Add new
-                              const newServiceRef = {
-                                _ref: row.original._id,
-                                _type: "reference",
-                                duration: newDuration,
-                                quantity: 1,
-                              };
-                              form.setValue("services", [
-                                ...currentServices,
-                                newServiceRef,
-                              ]);
-                              setSelectedOrder((prev) => [...prev, row.id]);
-                            }
-                          }}
-                          disabled={isSubmitting}
-                        >
-                          <SelectTrigger className="w-24">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {intervals.map((min) => (
-                              <SelectItem key={min} value={min.toString()}>
-                                {formatDuration(min)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ),
+                      cell: ({ row }: { row: any }) => {
+                        if (row.original.rowType === "category") {
+                          return null;
+                        }
+                        return (
+                          <Select
+                            value={row.original.duration?.toString() || "0"}
+                            onValueChange={(value) => {
+                              const newDuration = Number(value);
+                              const currentServices =
+                                form.getValues("services") || [];
+                              const serviceIndex = currentServices.findIndex(
+                                (s: any) => s._ref === row.original._id
+                              );
+                              if (serviceIndex !== -1) {
+                                // Update existing
+                                const updatedServices = [...currentServices];
+                                updatedServices[serviceIndex] = {
+                                  ...updatedServices[serviceIndex],
+                                  duration: newDuration,
+                                };
+                                form.setValue("services", updatedServices);
+                              } else {
+                                // Add new
+                                const newServiceRef = {
+                                  _ref: row.original._id,
+                                  _type: "reference",
+                                  duration: newDuration,
+                                  quantity: 1,
+                                };
+                                form.setValue("services", [
+                                  ...currentServices,
+                                  newServiceRef,
+                                ]);
+                                setSelectedOrder((prev) => [...prev, row.id]);
+                              }
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            <SelectTrigger className="w-24">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {intervals.map((min) => (
+                                <SelectItem key={min} value={min.toString()}>
+                                  {formatDuration(min)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      },
                     },
                     {
                       accessorKey: "quantity",
                       header: "Quantity",
                       cell: ({ row }: { row: any }) => {
+                        if (row.original.rowType === "category") {
+                          return null;
+                        }
                         const currentServices =
                           form.getValues("services") || [];
                         const serviceIndex = currentServices.findIndex(
-                          (s: any) => s._ref === row.original._id,
+                          (s: any) => s._ref === row.original._id
                         );
                         const quantity =
                           serviceIndex !== -1
@@ -835,6 +909,12 @@ const AppointmentInfoForm = ({
                   searchColumn="name"
                   isShowPagination={false}
                   getRowId={(row) => row._id}
+                  getRowClassName={(row) => {
+                    if (row.rowType === "category") {
+                      return "bg-muted/50 font-semibold";
+                    }
+                    return "";
+                  }}
                   title={"Services"}
                 />
               </div>

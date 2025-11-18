@@ -14,7 +14,7 @@ import {
   ColumnDef,
   ColumnMeta,
 } from "@tanstack/react-table";
-import { Circle, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -85,7 +85,7 @@ export function ServiceDataTable({
   const [data, setData] = React.useState<Service[]>(initialServices);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    [],
+    []
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
@@ -210,18 +210,10 @@ export function ServiceDataTable({
           className: isMobile ? "min-w-[150px]" : "",
         } as CustomColumnMeta<Service, unknown>,
         cell: ({ row }) => {
-          const showOnline = row.original.showOnline;
           return (
-            <div className="flex items-center gap-2">
-              <Circle
-                color={showOnline ? "#28C840" : "#FF5F57"}
-                size={isMobile ? 10 : 12}
-                fill={showOnline ? "#28C840" : "#FF5F57"}
-              />
-              <span className={`font-medium ${isMobile ? "text-xs" : ""}`}>
-                {row.getValue("name") as string}
-              </span>
-            </div>
+            <span className={`font-medium ${isMobile ? "text-xs" : ""}`}>
+              {row.getValue("name") as string}
+            </span>
           );
         },
       },
@@ -302,7 +294,7 @@ export function ServiceDataTable({
 
   const totalPages = React.useMemo(
     () => Math.max(1, Math.ceil(total / limit)),
-    [total, limit],
+    [total, limit]
   );
 
   React.useEffect(() => {
@@ -312,7 +304,9 @@ export function ServiceDataTable({
   return (
     <>
       <div className="w-full">
-        <div className={`flex items-center justify-between py-4 gap-2 w-full ${isMobile ? 'flex-col sm:flex-row' : ''}`}>
+        <div
+          className={`flex items-center justify-between py-4 gap-2 w-full ${isMobile ? "flex-col sm:flex-row" : ""}`}
+        >
           <Input
             placeholder="Search by service name..."
             value={search}
@@ -323,9 +317,11 @@ export function ServiceDataTable({
             }}
             className={isMobile ? "w-full" : "max-w-sm"}
           />
-          <div className={`flex gap-2 ${isMobile ? 'w-full flex-wrap justify-center sm:justify-end' : ''}`}>
+          <div
+            className={`flex gap-2 ${isMobile ? "w-full flex-wrap justify-center sm:justify-end" : ""}`}
+          >
             <select
-              className={`border rounded px-2 py-1 ${isMobile ? 'text-xs flex-1 sm:flex-none' : ''}`}
+              className={`border rounded px-2 py-1 ${isMobile ? "text-xs flex-1 sm:flex-none" : ""}`}
               value={categoryId}
               onChange={(e) => {
                 const newCategoryId = e.target.value;
@@ -341,8 +337,14 @@ export function ServiceDataTable({
                 </option>
               ))}
             </select>
-            <div className={`flex items-center gap-2 ${isMobile ? 'flex-1 sm:flex-none' : ''}`}>
-              <span className={`text-sm text-muted-foreground ${isMobile ? 'text-xs' : ''}`}>Show:</span>
+            <div
+              className={`flex items-center gap-2 ${isMobile ? "flex-1 sm:flex-none" : ""}`}
+            >
+              <span
+                className={`text-sm text-muted-foreground ${isMobile ? "text-xs" : ""}`}
+              >
+                Show:
+              </span>
               <Select
                 value={String(limit)}
                 onValueChange={(value) => {
@@ -368,7 +370,9 @@ export function ServiceDataTable({
           className={`rounded-md border transition-opacity ${loading ? "opacity-50 pointer-events-none" : ""}`}
         >
           <div className={isMobile ? "overflow-x-auto" : ""}>
-            <Table className={isMobile ? "min-w-[600px]" : "table-fixed w-full"}>
+            <Table
+              className={isMobile ? "min-w-[600px]" : "table-fixed w-full"}
+            >
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -388,7 +392,7 @@ export function ServiceDataTable({
                           ? null
                           : flexRender(
                               header.column.columnDef.header,
-                              header.getContext(),
+                              header.getContext()
                             )}
                       </TableHead>
                     ))}
@@ -397,8 +401,12 @@ export function ServiceDataTable({
               </TableHeader>
             </Table>
           </div>
-          <div className={`${isMobile ? "overflow-x-auto" : ""} h-[calc(100vh-300px)] overflow-y-auto`}>
-            <Table className={isMobile ? "min-w-[600px]" : "table-fixed w-full"}>
+          <div
+            className={`${isMobile ? "overflow-x-auto" : ""} h-[calc(100vh-300px)] overflow-y-auto`}
+          >
+            <Table
+              className={isMobile ? "min-w-[600px]" : "table-fixed w-full"}
+            >
               <TableBody>
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
@@ -420,7 +428,7 @@ export function ServiceDataTable({
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext(),
+                            cell.getContext()
                           )}
                         </TableCell>
                       ))}
@@ -440,11 +448,17 @@ export function ServiceDataTable({
             </Table>
           </div>
         </div>
-        <div className={`flex items-center justify-end space-x-2 py-3 ${isMobile ? 'flex-col gap-2 sm:flex-row sm:gap-0' : ''}`}>
-          <span className={`text-sm text-muted-foreground ${isMobile ? 'text-xs' : 'mr-4'}`}>
+        <div
+          className={`flex items-center justify-end space-x-2 py-3 ${isMobile ? "flex-col gap-2 sm:flex-row sm:gap-0" : ""}`}
+        >
+          <span
+            className={`text-sm text-muted-foreground ${isMobile ? "text-xs" : "mr-4"}`}
+          >
             Page {page} of {totalPages}
           </span>
-          <div className={`flex gap-2 ${isMobile ? 'w-full justify-center sm:w-auto' : ''}`}>
+          <div
+            className={`flex gap-2 ${isMobile ? "w-full justify-center sm:w-auto" : ""}`}
+          >
             <Button
               variant="outline"
               size="default"
