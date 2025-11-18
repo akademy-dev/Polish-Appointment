@@ -12,25 +12,14 @@ const Page = async () => {
     params: {},
   });
   
-  const setting = result.data || null;
-  
-  // If no setting exists, show a message or handle gracefully
-  if (!setting || !setting._id) {
-    return (
-      <div className="space-y-6 sm:space-y-8">
-        <div className="space-y-4 sm:space-y-6">
-          <h2 className="heading text-xl sm:text-2xl">Theme</h2>
-          <ThemeToggle />
-        </div>
-        <div className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-          <p className="text-sm text-yellow-800">
-            No settings document found. Please create a settings document in Sanity Studio to configure timezone, schedule times, and SMS messages.
-          </p>
-        </div>
-        <SanityLive />
-      </div>
-    );
-  }
+  // Set default values if data is null or missing
+  const settingData = result.data || {
+    _id: "",
+    timezone: "UTC-7:00",
+    minTime: "8:00 AM",
+    maxTime: "6:00 PM",
+    smsMessage: "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+  };
   
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -41,23 +30,23 @@ const Page = async () => {
 
       <div className="space-y-4 sm:space-y-6">
         <h2 className="heading text-xl sm:text-2xl">Time Zone</h2>
-        <Timezone _id={setting._id} value={setting.timezone} />
+        <Timezone _id={settingData._id} value={settingData.timezone || "UTC-7:00"} />
       </div>
 
       <div className="space-y-4 sm:space-y-6">
         <h2 className="heading text-xl sm:text-2xl">Schedule Time</h2>
         <TimeSettings 
-          _id={setting._id} 
-          minTime={setting.minTime || "8:00 AM"} 
-          maxTime={setting.maxTime || "6:00 PM"} 
+          _id={settingData._id} 
+          minTime={settingData.minTime || "8:00 AM"} 
+          maxTime={settingData.maxTime || "6:00 PM"} 
         />
       </div>
 
       <div className="space-y-4 sm:space-y-6">
         <h2 className="heading text-xl sm:text-2xl">SMS Message Template</h2>
         <SMSMessageSettings 
-          _id={setting._id} 
-          smsMessage={setting.smsMessage || "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early."} 
+          _id={settingData._id} 
+          smsMessage={settingData.smsMessage || "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early."} 
         />
       </div>
       

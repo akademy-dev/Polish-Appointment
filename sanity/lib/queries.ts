@@ -341,8 +341,8 @@ export const TIMEZONE_QUERY = defineQuery(
   `*[_type == "setting"][0]{
   _id,
   timezone,
-  minTime,
-  maxTime,
+  "minTime": coalesce(minTime, "8:00 AM"),
+  "maxTime": coalesce(maxTime, "6:00 PM"),
   smsMessage
 }`,
 );

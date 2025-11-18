@@ -35,6 +35,15 @@ const page = async ({ searchParams }: PageProps) => {
     query: TIMEZONE_QUERY,
   });
 
+  // Set default values if data is null or missing
+  const settingData = timezone.data || {
+    _id: "",
+    timezone: "UTC-7:00",
+    minTime: "8:00 AM",
+    maxTime: "6:00 PM",
+    smsMessage: "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+  };
+
   return (
     <>
       <h2 className="heading">Appointments</h2>
@@ -46,9 +55,9 @@ const page = async ({ searchParams }: PageProps) => {
           status,
           searchTerm,
           limit,
-          timezone: parseOffset(timezone.data.timezone),
-          minTime: timezone.data.minTime || "8:00 AM",
-          maxTime: timezone.data.maxTime || "6:00 PM",
+          timezone: parseOffset(settingData.timezone || "UTC-7:00"),
+          minTime: settingData.minTime || "8:00 AM",
+          maxTime: settingData.maxTime || "6:00 PM",
         }}
       />
       <SanityLive />

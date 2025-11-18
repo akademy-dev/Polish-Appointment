@@ -25,11 +25,20 @@ const page = async ({ searchParams }: PageProps) => {
     params: {},
   });
 
-  moment.tz.setDefault(getIanaTimezone(parseOffset(timezone.data.timezone)));
+  // Set default values if data is null or missing
+  const settingData = timezone.data || {
+    _id: "",
+    timezone: "UTC-7:00",
+    minTime: "8:00 AM",
+    maxTime: "6:00 PM",
+    smsMessage: "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+  };
+
+  moment.tz.setDefault(getIanaTimezone(parseOffset(settingData.timezone)));
   const date = resolvedSearchParams.date
     ? resolvedSearchParams.date
     : moment
-        .tz(new Date(), getIanaTimezone(parseOffset(timezone.data.timezone)))
+        .tz(new Date(), getIanaTimezone(parseOffset(settingData.timezone)))
         .format("YYYY-MM-DD");
 
   const notWorking = resolvedSearchParams.notWorking === "true";
@@ -63,8 +72,8 @@ const page = async ({ searchParams }: PageProps) => {
         currentDate={date}
         notWorking={notWorking}
         cancelled={cancelled}
-        minTime={timezone.data.minTime || "8:00 AM"}
-        maxTime={timezone.data.maxTime || "6:00 PM"}
+        minTime={settingData.minTime || "8:00 AM"}
+        maxTime={settingData.maxTime || "6:00 PM"}
       />
       <SanityLive />
     </>

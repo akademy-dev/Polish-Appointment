@@ -57,14 +57,22 @@ async function runCronJob() {
 
     const timezone = await client.fetch(TIMEZONE_QUERY);
 
+    // Set default values if data is null or missing
+    const settingData = timezone || {
+      timezone: "UTC-7:00",
+      minTime: "8:00 AM",
+      maxTime: "6:00 PM",
+      smsMessage: "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+    };
+
     console.log("Start Time:", fiveMinutesAgo.toISOString());
     console.log("End Time:", now.toISOString());
     console.log("Appointments to process:", appointments);
-    console.log("Timezone:", timezone);
-    console.log("SMS Message Template:", timezone.smsMessage || "Default message");
+    console.log("Timezone:", settingData);
+    console.log("SMS Message Template:", settingData.smsMessage || "Default message");
 
     for (const appointment of appointments) {
-      let messageBody = timezone.smsMessage || "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.";
+      let messageBody = settingData.smsMessage || "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.";
       VARIABLE_LIST.forEach((variable) => {
         const regex = new RegExp(`{${variable}}`, "g");
         switch (variable) {
@@ -87,7 +95,7 @@ async function runCronJob() {
             // Sử dụng Intl.DateTimeFormat để format theo timezone cụ thể, tránh lệ thuộc timezone cục bộ của server
             const formattedDate = formatInTimeZone(
               new Date(appointment.startTime),
-              parseOffset(timezone.timezone || "UTC-7:00"),
+              parseOffset(settingData.timezone || "UTC-7:00"),
               "yyyy-MM-dd hh:mm a",
             );
             messageBody = messageBody.replace(regex, formattedDate);
