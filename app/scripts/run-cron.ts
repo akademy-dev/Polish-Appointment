@@ -55,23 +55,7 @@ async function runCronJob() {
       endTime: now.toISOString(),
     });
 
-    console.log("[Cron Script] Fetching timezone settings...");
-    let timezone;
-    try {
-      timezone = await client.fetch(TIMEZONE_QUERY);
-      console.log("[Cron Script] Successfully fetched timezone:", {
-        hasTimezone: !!timezone?.timezone,
-        timezone: timezone?.timezone,
-        hasSmsMessage: !!timezone?.smsMessage,
-      });
-    } catch (error: any) {
-      console.error("[Cron Script] Error fetching timezone:", {
-        error: error?.message,
-        stack: error?.stack,
-        name: error?.name,
-      });
-      throw error;
-    }
+    const timezone = await client.fetch(TIMEZONE_QUERY);
 
     console.log("Start Time:", fiveMinutesAgo.toISOString());
     console.log("End Time:", now.toISOString());

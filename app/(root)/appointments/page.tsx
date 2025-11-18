@@ -31,27 +31,9 @@ const page = async ({ searchParams }: PageProps) => {
     },
   });
 
-  console.log("[Appointments Page] Fetching timezone settings...");
-  
-  let timezone;
-  try {
-    timezone = await sanityFetch({
-      query: TIMEZONE_QUERY,
-    });
-    console.log("[Appointments Page] Successfully fetched timezone settings:", {
-      hasId: !!timezone.data._id,
-      timezone: timezone.data.timezone,
-      minTime: timezone.data.minTime,
-      maxTime: timezone.data.maxTime,
-    });
-  } catch (error: any) {
-    console.error("[Appointments Page] Error fetching timezone settings:", {
-      error: error?.message,
-      stack: error?.stack,
-      name: error?.name,
-    });
-    throw error;
-  }
+  const timezone = await sanityFetch({
+    query: TIMEZONE_QUERY,
+  });
 
   return (
     <>

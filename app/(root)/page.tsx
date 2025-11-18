@@ -20,28 +20,10 @@ interface PageProps {
 const page = async ({ searchParams }: PageProps) => {
   const resolvedSearchParams = await searchParams;
 
-  console.log("[Home Page] Fetching timezone settings...");
-  
-  let timezone;
-  try {
-    timezone = await sanityFetch({
-      query: TIMEZONE_QUERY,
-      params: {},
-    });
-    console.log("[Home Page] Successfully fetched timezone settings:", {
-      hasId: !!timezone.data._id,
-      timezone: timezone.data.timezone,
-      minTime: timezone.data.minTime,
-      maxTime: timezone.data.maxTime,
-    });
-  } catch (error: any) {
-    console.error("[Home Page] Error fetching timezone settings:", {
-      error: error?.message,
-      stack: error?.stack,
-      name: error?.name,
-    });
-    throw error;
-  }
+  const timezone = await sanityFetch({
+    query: TIMEZONE_QUERY,
+    params: {},
+  });
 
   moment.tz.setDefault(getIanaTimezone(parseOffset(timezone.data.timezone)));
   const date = resolvedSearchParams.date

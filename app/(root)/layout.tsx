@@ -30,25 +30,23 @@ export default function Layout({
 
   useEffect(() => {
     const fetchSettings = async () => {
-      console.log("[Layout] Fetching timezone settings...");
       try {
         setLoading(true);
         const data = await client.fetch(TIMEZONE_QUERY);
-        console.log("[Layout] Successfully fetched timezone settings:", {
-          hasTimezone: !!data?.timezone,
-          timezone: data?.timezone,
-          minTime: data?.minTime,
-          maxTime: data?.maxTime,
-        });
-        setTimezone(parseOffset(data.timezone));
-        setMinTime(data.minTime || "8:00 AM");
-        setMaxTime(data.maxTime || "6:00 PM");
-      } catch (err: any) {
-        console.error("[Layout] Error fetching settings:", {
-          error: err?.message,
-          stack: err?.stack,
-          name: err?.name,
-        });
+        if (data) {
+          setTimezone(parseOffset(data.timezone || "UTC-7:00"));
+          setMinTime(data.minTime || "8:00 AM");
+          setMaxTime(data.maxTime || "6:00 PM");
+        } else {
+          // No setting document exists, use defaults
+          setTimezone("UTC");
+          setMinTime("8:00 AM");
+          setMaxTime("6:00 PM");
+        }
+      } catch (err) {
+        console.error("Error fetching settings:", err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error("Error details:", errorMessage);
         setError("Failed to fetch settings. Please try again later.");
         setTimezone("UTC"); // Set a default timezone in case of error
       } finally {
