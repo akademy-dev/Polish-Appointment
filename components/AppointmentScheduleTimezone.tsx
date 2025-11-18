@@ -328,113 +328,11 @@ const AppointmentScheduleTimezone = ({
   } = useContext(CalendarContext);
 
   // Use props if provided, otherwise use context values
-  const minTime = propMinTime || contextMinTime || "9:00 AM";
-  const maxTime = propMaxTime || contextMaxTime || "6:00 PM";
+  const minTime = propMinTime || contextMinTime;
+  const maxTime = propMaxTime || contextMaxTime;
 
   moment.tz.setDefault(getIanaTimezone(timezone));
   const localizer = momentLocalizer(moment);
-
-  // Safely calculate min and max dates with validation
-  const { minDate, maxDate, isValidDates } = useMemo(() => {
-    try {
-      // Ensure date is valid
-      if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-        console.error("Invalid date provided:", date);
-        return {
-          minDate: new Date(),
-          maxDate: new Date(),
-          isValidDates: false,
-        };
-      }
-
-      const timezoneStr = getIanaTimezone(timezone);
-      // Use the current date from context, not today's date
-      const baseMoment = moment.tz(date, timezoneStr).startOf("day");
-
-      if (!baseMoment.isValid()) {
-        console.error("Invalid baseMoment created from date:", date);
-        return {
-          minDate: new Date(),
-          maxDate: new Date(),
-          isValidDates: false,
-        };
-      }
-
-      // Parse minTime with validation
-      const minTimeMoment = moment(minTime, "h:mm A");
-      const minHour = minTimeMoment.isValid()
-        ? Math.max(0, Math.min(23, minTimeMoment.hour()))
-        : 9;
-      const minMinute = minTimeMoment.isValid()
-        ? Math.max(0, Math.min(59, minTimeMoment.minute()))
-        : 0;
-
-      // Parse maxTime with validation
-      const maxTimeMoment = moment(maxTime, "h:mm A");
-      const maxHour = maxTimeMoment.isValid()
-        ? Math.max(0, Math.min(23, maxTimeMoment.hour()))
-        : 18;
-      const maxMinute = maxTimeMoment.isValid()
-        ? Math.max(0, Math.min(59, maxTimeMoment.minute()))
-        : 0;
-
-      const min = baseMoment.clone().set({
-        hour: minHour,
-        minute: minMinute,
-        second: 0,
-        millisecond: 0,
-      });
-
-      const max = baseMoment.clone().set({
-        hour: maxHour,
-        minute: maxMinute,
-        second: 0,
-        millisecond: 0,
-      });
-
-      // Ensure min < max, if not, adjust max to be after min
-      if (max.isSameOrBefore(min)) {
-        max.add(1, "hour");
-      }
-
-      // Final validation - ensure dates are valid
-      const minDateObj = min.toDate();
-      const maxDateObj = max.toDate();
-
-      if (isNaN(minDateObj.getTime()) || isNaN(maxDateObj.getTime())) {
-        console.error("Invalid minDate or maxDate calculated");
-        return {
-          minDate: new Date(),
-          maxDate: new Date(),
-          isValidDates: false,
-        };
-      }
-
-      // Ensure max is after min (at least 1 hour difference)
-      if (maxDateObj.getTime() <= minDateObj.getTime()) {
-        const adjustedMax = new Date(minDateObj);
-        adjustedMax.setHours(adjustedMax.getHours() + 1);
-        return {
-          minDate: minDateObj,
-          maxDate: adjustedMax,
-          isValidDates: true,
-        };
-      }
-
-      return {
-        minDate: minDateObj,
-        maxDate: maxDateObj,
-        isValidDates: true,
-      };
-    } catch (error) {
-      console.error("Error calculating min/max dates:", error);
-      return {
-        minDate: new Date(),
-        maxDate: new Date(),
-        isValidDates: false,
-      };
-    }
-  }, [timezone, minTime, maxTime, date]);
 
   const isMobile = useIsMobile();
   const [isPending, startTransition] = useTransition();
@@ -515,104 +413,77 @@ const AppointmentScheduleTimezone = ({
   }, [initialEmployees, currentDate, notWorking, timezone]);
 
   const [resources, setResources] = useState<Resource[]>(() => {
-    try {
-      const savedOrder = localStorage.getItem("resourceOrder");
-      let orderedEmployees = filteredEmployees || [];
-      if (savedOrder) {
-        try {
-          const order: string[] = JSON.parse(savedOrder);
-          // Filter order to only include employees that are currently visible
-          const filteredOrder = order.filter((id) =>
-            orderedEmployees.some((emp) => emp._id === id)
-          );
+    const savedOrder = localStorage.getItem("resourceOrder");
+    let orderedEmployees = filteredEmployees;
+    if (savedOrder) {
+      const order: string[] = JSON.parse(savedOrder);
+      // Filter order to only include employees that are currently visible
+      const filteredOrder = order.filter((id) =>
+        filteredEmployees.some((emp) => emp._id === id)
+      );
 
-          // Sort employees: first by saved order, then add new employees at the end
-          orderedEmployees = [...orderedEmployees].sort((a, b) => {
-            const aIndex = filteredOrder.indexOf(a._id);
-            const bIndex = filteredOrder.indexOf(b._id);
+      // Sort employees: first by saved order, then add new employees at the end
+      orderedEmployees = [...filteredEmployees].sort((a, b) => {
+        const aIndex = filteredOrder.indexOf(a._id);
+        const bIndex = filteredOrder.indexOf(b._id);
 
-            // If both are in saved order, sort by their order
-            if (aIndex !== -1 && bIndex !== -1) {
-              return aIndex - bIndex;
-            }
-            // If only one is in saved order, prioritize the saved one
-            if (aIndex !== -1) return -1;
-            if (bIndex !== -1) return 1;
-            // If neither is in saved order, maintain original order
-            return 0;
-          });
-        } catch (parseError) {
-          console.error(
-            "Error parsing resourceOrder from localStorage:",
-            parseError
-          );
-          // Continue with default order if parsing fails
+        // If both are in saved order, sort by their order
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex;
         }
-      }
-      return orderedEmployees.map((employee: any) => ({
-        resourceId: employee._id,
-        resourceTitle: getProfileName(employee),
-      }));
-    } catch (error) {
-      console.error("Error initializing resources:", error);
-      return [];
+        // If only one is in saved order, prioritize the saved one
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        // If neither is in saved order, maintain original order
+        return 0;
+      });
     }
+    return orderedEmployees.map((employee: any) => ({
+      resourceId: employee._id,
+      resourceTitle: getProfileName(employee),
+    }));
   });
 
   // Track if user has manually reordered resources
   const [hasUserReordered, setHasUserReordered] = useState(false);
 
   useEffect(() => {
-    try {
-      const savedOrder = localStorage.getItem("resourceOrder");
-      let orderedEmployees = filteredEmployees || [];
-      if (savedOrder) {
-        try {
-          const order: string[] = JSON.parse(savedOrder);
-          // Filter order to only include employees that are currently visible
-          const filteredOrder = order.filter((id) =>
-            orderedEmployees.some((emp) => emp._id === id)
-          );
-
-          // Sort employees: first by saved order, then add new employees at the end
-          orderedEmployees = [...orderedEmployees].sort((a, b) => {
-            const aIndex = filteredOrder.indexOf(a._id);
-            const bIndex = filteredOrder.indexOf(b._id);
-
-            // If both are in saved order, sort by their order
-            if (aIndex !== -1 && bIndex !== -1) {
-              return aIndex - bIndex;
-            }
-            // If only one is in saved order, prioritize the saved one
-            if (aIndex !== -1) return -1;
-            if (bIndex !== -1) return 1;
-            // If neither is in saved order, maintain original order
-            return 0;
-          });
-        } catch (parseError) {
-          console.error(
-            "Error parsing resourceOrder from localStorage:",
-            parseError
-          );
-          // Continue with default order if parsing fails
-        }
-      }
-      setResources(
-        orderedEmployees.map((employee: any) => ({
-          resourceId: employee._id,
-          resourceTitle: getProfileName(employee),
-        }))
+    const savedOrder = localStorage.getItem("resourceOrder");
+    let orderedEmployees = filteredEmployees;
+    if (savedOrder) {
+      const order: string[] = JSON.parse(savedOrder);
+      // Filter order to only include employees that are currently visible
+      const filteredOrder = order.filter((id) =>
+        filteredEmployees.some((emp) => emp._id === id)
       );
-      setIsLoading(false);
 
-      // Reset hasUserReordered when filteredEmployees changes (e.g., when notWorking changes)
-      setHasUserReordered(false);
-    } catch (error) {
-      console.error("Error updating resources:", error);
-      setResources([]);
-      setIsLoading(false);
+      // Sort employees: first by saved order, then add new employees at the end
+      orderedEmployees = [...filteredEmployees].sort((a, b) => {
+        const aIndex = filteredOrder.indexOf(a._id);
+        const bIndex = filteredOrder.indexOf(b._id);
+
+        // If both are in saved order, sort by their order
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex;
+        }
+        // If only one is in saved order, prioritize the saved one
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        // If neither is in saved order, maintain original order
+        return 0;
+      });
     }
-  }, [filteredEmployees, setIsLoading]);
+    setResources(
+      orderedEmployees.map((employee: any) => ({
+        resourceId: employee._id,
+        resourceTitle: getProfileName(employee),
+      }))
+    );
+    setIsLoading(false);
+
+    // Reset hasUserReordered when filteredEmployees changes (e.g., when notWorking changes)
+    setHasUserReordered(false);
+  }, [filteredEmployees]);
 
   // Memoize not working events
   const notWorkingEvents = useMemo(() => {
@@ -631,7 +502,7 @@ const AppointmentScheduleTimezone = ({
       dateAtStartOfDay,
       timezone
     );
-  }, [initialEmployees, currentDate, timezone, minTime, maxTime]);
+  }, [initialEmployees, currentDate, timezone]);
 
   // Generate appointment time off events
   const timeOffEvents = useMemo(() => {
@@ -1673,173 +1544,168 @@ const AppointmentScheduleTimezone = ({
           className={`h-full w-full ${isMobile ? "mobile-calendar" : ""} ${processing || isLoading ? "loading" : null}`}
         >
           {resources.length === 0 && <NoEventsOverlay />}
-          {isValidDates &&
-          date &&
-          date instanceof Date &&
-          !isNaN(date.getTime()) &&
-          !isNaN(minDate.getTime()) &&
-          !isNaN(maxDate.getTime()) &&
-          maxDate.getTime() > minDate.getTime() ? (
-            <DragAndDropCalendar
-              selectable
-              defaultDate={date}
-              date={date}
-              defaultView={Views.DAY}
-              events={myEvents}
-              localizer={localizer}
-              min={minDate}
-              max={maxDate}
-              // dayLayoutAlgorithm={"no-overlap"}
-              resources={resources}
-              resourceIdAccessor={(resource) =>
-                (resource as Resource).resourceId
-              }
-              resourceTitleAccessor={(resource) =>
-                (resource as Resource).resourceTitle
-              }
-              resizableAccessor={resizableAccessor}
-              draggableAccessor={draggableAccessor}
-              onSelectSlot={handleSelectSlot}
-              onSelectEvent={handleSelectEvent}
-              onEventDrop={moveEvent}
-              onEventResize={resizeEvent}
-              step={15}
-              timeslots={1}
-              views={[Views.DAY]}
-              components={{
-                toolbar: CustomToolbar,
-                event: ({ event }: EventProps<object>) => {
-                  const calendarEvent = event as CalendarEvent;
-                  if (
-                    calendarEvent.type === "appointment" &&
-                    calendarEvent.data.status === "scheduled"
-                  ) {
-                    // Determine background color based on appointment type
-                    const bgColor =
-                      calendarEvent.data.type === "request"
-                        ? "bg-pink-400"
-                        : "bg-cyan-600";
+          <DragAndDropCalendar
+            selectable
+            defaultDate={date}
+            date={date}
+            defaultView={Views.DAY}
+            events={myEvents}
+            localizer={localizer}
+            min={moment
+              .tz(getIanaTimezone(timezone))
+              .set({
+                hour: moment(minTime, "h:mm A").hour(),
+                minute: moment(minTime, "h:mm A").minute(),
+                second: 0,
+                millisecond: 0,
+              })
+              .toDate()}
+            max={moment
+              .tz(getIanaTimezone(timezone))
+              .set({
+                hour: moment(maxTime, "h:mm A").hour(),
+                minute: moment(maxTime, "h:mm A").minute(),
+                second: 0,
+                millisecond: 0,
+              })
+              .toDate()}
+            // dayLayoutAlgorithm={"no-overlap"}
+            resources={resources}
+            resourceIdAccessor={(resource) => (resource as Resource).resourceId}
+            resourceTitleAccessor={(resource) =>
+              (resource as Resource).resourceTitle
+            }
+            resizableAccessor={resizableAccessor}
+            draggableAccessor={draggableAccessor}
+            onSelectSlot={handleSelectSlot}
+            onSelectEvent={handleSelectEvent}
+            onEventDrop={moveEvent}
+            onEventResize={resizeEvent}
+            step={15}
+            timeslots={1}
+            views={[Views.DAY]}
+            components={{
+              toolbar: CustomToolbar,
+              event: ({ event }: EventProps<object>) => {
+                const calendarEvent = event as CalendarEvent;
+                if (
+                  calendarEvent.type === "appointment" &&
+                  calendarEvent.data.status === "scheduled"
+                ) {
+                  // Determine background color based on appointment type
+                  const bgColor =
+                    calendarEvent.data.type === "request"
+                      ? "bg-pink-400"
+                      : "bg-cyan-600";
 
-                    return (
-                      <div
-                        className={`${bgColor} h-full rounded border border-gray-100 cursor-pointer`}
-                      >
-                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                          <span
-                            className={`${isMobile ? "text-xs" : "text-sm"} text-black font-medium truncate w-full text-center`}
-                          >
-                            {calendarEvent.data?.customer
-                              ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
-                              : "No Customer"}
-                          </span>
-                          <span
-                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
-                          >
-                            {calendarEvent.title}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  } else if (
-                    calendarEvent.type === "appointment" &&
-                    calendarEvent.data.status === "cancelled" &&
-                    cancelled === true
-                  ) {
-                    return (
-                      <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
-                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                          <span
-                            className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
-                          >
-                            {calendarEvent.data?.customer
-                              ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
-                              : "No Customer"}
-                          </span>
-                          <span
-                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
-                          >
-                            {calendarEvent.title}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  } else if (
-                    calendarEvent.type === "appointment" &&
-                    calendarEvent.data.status === "completed"
-                  ) {
-                    return (
-                      <div className="bg-green-700 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
-                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                          <span
-                            className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
-                          >
-                            {calendarEvent.data?.customer
-                              ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
-                              : "No Customer"}
-                          </span>
-                          <span
-                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
-                          >
-                            {calendarEvent.title}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  } else if (calendarEvent.type === "not_working") {
-                    return (
-                      <div className="bg-gray-500 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
-                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                          <span
-                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
-                          >
-                            {calendarEvent.title}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  } else if (calendarEvent.type === "appointmentTimeOff") {
-                    return (
-                      <div className="bg-blue-400 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
-                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                          <span
-                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-black font-medium truncate w-full text-center`}
-                          >
-                            {calendarEvent.title}
-                          </span>
-                          {(calendarEvent.data as any)?.reason && (
-                            <span
-                              className={`${isMobile ? "text-[8px]" : "text-[12px]"} text-black opacity-80 truncate w-full text-center`}
-                            >
-                              {(calendarEvent.data as any).reason}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  }
-                },
-                resourceHeader: (props: any) => {
-                  const index = resources.findIndex(
-                    (r) => r.resourceId === props.resource.resourceId
-                  );
                   return (
-                    <ResourceHeader resource={props.resource} index={index} />
+                    <div
+                      className={`${bgColor} h-full rounded border border-gray-100 cursor-pointer`}
+                    >
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span
+                          className={`${isMobile ? "text-xs" : "text-sm"} text-black font-medium truncate w-full text-center`}
+                        >
+                          {calendarEvent.data?.customer
+                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                            : "No Customer"}
+                        </span>
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                        >
+                          {calendarEvent.title}
+                        </span>
+                      </div>
+                    </div>
                   );
-                },
-              }}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <p className="text-lg font-semibold text-gray-600">
-                  Invalid calendar configuration
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Please check your time settings
-                </p>
-              </div>
-            </div>
-          )}
+                } else if (
+                  calendarEvent.type === "appointment" &&
+                  calendarEvent.data.status === "cancelled" &&
+                  cancelled === true
+                ) {
+                  return (
+                    <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span
+                          className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
+                        >
+                          {calendarEvent.data?.customer
+                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                            : "No Customer"}
+                        </span>
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                        >
+                          {calendarEvent.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                } else if (
+                  calendarEvent.type === "appointment" &&
+                  calendarEvent.data.status === "completed"
+                ) {
+                  return (
+                    <div className="bg-green-700 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span
+                          className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
+                        >
+                          {calendarEvent.data?.customer
+                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                            : "No Customer"}
+                        </span>
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                        >
+                          {calendarEvent.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                } else if (calendarEvent.type === "not_working") {
+                  return (
+                    <div className="bg-gray-500 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                        >
+                          {calendarEvent.title}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                } else if (calendarEvent.type === "appointmentTimeOff") {
+                  return (
+                    <div className="bg-blue-400 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                        <span
+                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-black font-medium truncate w-full text-center`}
+                        >
+                          {calendarEvent.title}
+                        </span>
+                        {(calendarEvent.data as any)?.reason && (
+                          <span
+                            className={`${isMobile ? "text-[8px]" : "text-[12px]"} text-black opacity-80 truncate w-full text-center`}
+                          >
+                            {(calendarEvent.data as any).reason}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+              },
+              resourceHeader: (props: any) => {
+                const index = resources.findIndex(
+                  (r) => r.resourceId === props.resource.resourceId
+                );
+                return (
+                  <ResourceHeader resource={props.resource} index={index} />
+                );
+              },
+            }}
+          />
         </div>
       </DndProvider>
 
