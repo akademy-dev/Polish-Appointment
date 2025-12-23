@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { updateHourlyRate } from "@/lib/actions";
 import { toast } from "sonner";
 
@@ -14,6 +15,7 @@ export function HourlyRateSettings({
   _id: string;
   hourlyRate?: number;
 }) {
+  const router = useRouter();
   const [rate, setRate] = useState(hourlyRate?.toString() || "");
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -27,6 +29,7 @@ export function HourlyRateSettings({
 
       if (result.status === "SUCCESS") {
         toast.success("Hourly rate updated successfully");
+        router.refresh();
       } else {
         toast.error(result.error || "Failed to update hourly rate");
       }

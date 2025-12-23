@@ -1,8 +1,14 @@
 "use server";
 
-import { client } from "@/sanity/lib/client";
+import {
+  createAppointmentTimeOff,
+  createMultipleAppointmentTimeOffs,
+  updateAppointmentTimeOff,
+  deleteAppointmentTimeOff,
+} from "@/data/appointment-time-off";
 import { appointmentTimeOffSchema } from "@/lib/validation";
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 
 export async function createTimeOff(data: z.infer<typeof appointmentTimeOffSchema>) {
   try {
@@ -56,30 +62,41 @@ export async function createTimeOff(data: z.infer<typeof appointmentTimeOffSchem
         timeOffCount++;
       }
       
-      // Create all time offs one by one
-      const results = [];
-      for (const timeOffDoc of timeOffs) {
-        const result = await client.create(timeOffDoc);
-        results.push(result);
-      }
+      // Create all time offs using batch insert
+      const timeOffsToCreate = timeOffs.map((to) => ({
+        employeeId: validatedData.employee._ref,
+        startTime: to.startTime,
+        duration: to.duration,
+        reason: to.reason || null,
+        isRecurring: true,
+        recurringDuration: validatedData.recurringDuration || null,
+        recurringFrequency: validatedData.recurringFrequency || null,
+      }));
+
+      const results = await createMultipleAppointmentTimeOffs(timeOffsToCreate);
+      
+      revalidatePath("/");
+      revalidatePath("/appointments");
       
       return {
         status: "SUCCESS" as const,
         data: results,
-        count: timeOffs.length,
+        count: results.length,
       };
     } else {
       // Create single time off
-      const timeOffDoc = {
-        _type: "appointmentTimeOff",
-        employee: validatedData.employee,
-        startTime: validatedData.startTime,
-        duration: validatedData.duration,
-        reason: validatedData.reason || "",
-        isRecurring: false,
-      };
-
-      const result = await client.create(timeOffDoc);
+      const result = await createAppointmentTimeOff(
+        validatedData.employee._ref,
+        validatedData.startTime,
+        validatedData.duration,
+        validatedData.reason || null,
+        false,
+        null,
+        null
+      );
+      
+      revalidatePath("/");
+      revalidatePath("/appointments");
       
       return {
         status: "SUCCESS" as const,
@@ -100,20 +117,18 @@ export async function updateTimeOff(id: string, data: z.infer<typeof appointment
   try {
     const validatedData = appointmentTimeOffSchema.parse(data);
     
-    const timeOffDoc = {
-      employee: validatedData.employee,
+    const result = await updateAppointmentTimeOff(id, {
+      employeeId: validatedData.employee._ref,
       startTime: validatedData.startTime,
       duration: validatedData.duration,
-      reason: validatedData.reason || "",
+      reason: validatedData.reason || null,
       isRecurring: validatedData.isRecurring,
-      recurringDuration: validatedData.recurringDuration,
-      recurringFrequency: validatedData.recurringFrequency,
-    };
-
-    const result = await client
-      .patch(id)
-      .set(timeOffDoc)
-      .commit();
+      recurringDuration: validatedData.recurringDuration || null,
+      recurringFrequency: validatedData.recurringFrequency || null,
+    });
+    
+    revalidatePath("/");
+    revalidatePath("/appointments");
     
     return {
       status: "SUCCESS" as const,
@@ -130,7 +145,10 @@ export async function updateTimeOff(id: string, data: z.infer<typeof appointment
 
 export async function deleteTimeOff(id: string) {
   try {
-    await client.delete(id);
+    await deleteAppointmentTimeOff(id);
+    
+    revalidatePath("/");
+    revalidatePath("/appointments");
     
     return {
       status: "SUCCESS" as const,

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { writeClient } from "@/sanity/lib/write-client";
+import { createCustomer } from "@/data/customer";
 import * as XLSX from "xlsx";
 
 interface ImportResult {
@@ -175,17 +175,16 @@ export async function importCustomers(formData: FormData): Promise<ImportResult>
       };
     }
 
-    // Import customers to Sanity
+    // Import customers to Supabase
     const importPromises = customers.map(async (customer) => {
       try {
-        const result = await writeClient.create({
-          _type: "customer",
-          firstName: customer.firstName,
-          lastName: customer.lastName,
-          phone: customer.phone,
-          note: customer.note,
-        });
-        return { success: true, id: result._id };
+        const result = await createCustomer(
+          customer.firstName,
+          customer.lastName,
+          customer.phone || null,
+          customer.note || null
+        );
+        return { success: true, id: result?.id };
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
       }

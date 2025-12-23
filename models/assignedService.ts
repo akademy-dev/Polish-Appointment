@@ -3,5 +3,4 @@ export type AssignedService = {
   price: number;
   duration: number;
   processTime: number;
-  showOnline: boolean;
 };

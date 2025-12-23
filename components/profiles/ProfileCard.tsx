@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { History, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { History, Trash2, Pencil } from "lucide-react";
 import {
   Profile,
   getProfileName,
@@ -13,11 +14,12 @@ import { deleteCustomer, deleteEmployee } from "@/lib/actions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-const ProfileCard = ({ 
-  profile
-}: { 
+const ProfileCard = ({
+  profile,
+}: {
   profile: Profile;
 }) => {
+  const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
   const getTitle = () => {
     if (isEmployee(profile)) {
@@ -47,6 +49,8 @@ const ProfileCard = ({
         toast.success("Success", {
           description: "Employee deleted successfully.",
         });
+        // Refetch data from Supabase
+        router.refresh();
       } else {
         toast.error("Error", {
           description: `Failed to delete employee: ${result.error}`,
@@ -60,8 +64,9 @@ const ProfileCard = ({
         toast.success("Success", {
           description: "Customer deleted successfully.",
         });
+        // Refetch data from Supabase
+        router.refresh();
       } else {
-        console.error("Error", result.error);
         toast.error("Error", {
           description: `Failed to delete customer: ${result.error}`,
         });
@@ -71,54 +76,88 @@ const ProfileCard = ({
 
   return (
     <>
-      <li className="flex-between line_card">
+      <li
+        className="flex-between line_card cursor-pointer"
+        onClick={() => {
+          if (isEmployee(profile)) {
+            router.push(`/employees/${profile._id}`);
+          }
+        }}
+      >
         <div className="flex flex-col">
           <p className="text-lg font-bold">{getProfileName(profile)}</p>
           <p className="text-sm font-semibold">{getProfileRole(profile)}</p>
         </div>
         <div className="flex-between h-5 space-x-1">
-          <FormButton
-            mode="edit"
-            type={isEmployee(profile) ? "employees" : "customers"}
-            profile={profile}
-            variant="default"
-            size="icon"
-          >
-            <Pencil className="size-5" aria-hidden="true" />
-          </FormButton>
           {isEmployee(profile) ? (
-            <FormButton
-              mode="history"
-              type="employees"
-              profile={profile}
-              variant="default"
-              size="icon"
-              className="bg-yellow-500 hover:bg-yellow-400"
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
             >
-              <History className="size-5" aria-hidden="true" />
-            </FormButton>
+              <FormButton
+                mode="history"
+                type="employees"
+                profile={profile}
+                variant="default"
+                size="icon"
+                className="bg-yellow-500 hover:bg-yellow-400"
+              >
+                <History className="size-5" aria-hidden="true" />
+              </FormButton>
+            </span>
           ) : (
-            <FormButton
-              mode="history"
-              type="customers"
-              profile={profile}
-              variant="default"
-              size="icon"
-              className="bg-yellow-500 hover:bg-yellow-400"
-            >
-              <History className="size-5" aria-hidden="true" />
-            </FormButton>
+            <>
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <FormButton
+                  mode="edit"
+                  type="customers"
+                  profile={profile}
+                  variant="default"
+                  size="icon"
+                  className="bg-blue-500 hover:bg-blue-400"
+                >
+                  <Pencil className="size-5" aria-hidden="true" />
+                </FormButton>
+              </span>
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <FormButton
+                  mode="history"
+                  type="customers"
+                  profile={profile}
+                  variant="default"
+                  size="icon"
+                  className="bg-yellow-500 hover:bg-yellow-400"
+                >
+                  <History className="size-5" aria-hidden="true" />
+                </FormButton>
+              </span>
+            </>
           )}
-          <Button
-            variant="destructive"
-            size="icon"
-            onClick={() => {
-              // Open confirmation dialog
-              setShowConfirm(true);
+          <span
+            onClick={(e) => {
+              // Chặn nổi bọt để không trigger onClick của <li>
+              e.stopPropagation();
             }}
           >
-            <Trash2 className="size-5" aria-hidden="true" />
-          </Button>
+            <Button
+              variant="destructive"
+              size="icon"
+              onClick={() => {
+                setShowConfirm(true);
+              }}
+            >
+              <Trash2 className="size-5" aria-hidden="true" />
+            </Button>
+          </span>
         </div>
       </li>
 

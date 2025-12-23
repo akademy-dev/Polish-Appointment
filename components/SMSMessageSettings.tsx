@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,7 @@ const VARIABLES = [
 ];
 
 export const SMSMessageSettings = ({ _id, smsMessage }: SMSMessageSettingsProps) => {
+  const router = useRouter();
   const [message, setMessage] = useState(smsMessage);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -36,6 +38,7 @@ export const SMSMessageSettings = ({ _id, smsMessage }: SMSMessageSettingsProps)
       
       if (result.status === "SUCCESS") {
         toast.success("SMS message updated successfully");
+        router.refresh();
       } else {
         toast.error(result.error || "Failed to update SMS message");
       }

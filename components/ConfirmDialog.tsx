@@ -17,6 +17,7 @@ const ConfirmDialog = ({
   title,
   description,
   onConfirm,
+  onCancel,
   confirmText = "Confirm",
   disabled = false,
 }: {
@@ -25,9 +26,17 @@ const ConfirmDialog = ({
   title: string;
   description?: string;
   onConfirm?: () => void;
+  onCancel?: () => void;
   confirmText?: string;
   disabled?: boolean;
 }) => {
+  const handleCancel = () => {
+    onOpenChange(false);
+    if (onCancel) {
+      onCancel();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild></DialogTrigger>
@@ -37,9 +46,9 @@ const ConfirmDialog = ({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" disabled={disabled}>Cancel</Button>
-          </DialogClose>
+          <Button variant="outline" onClick={handleCancel} disabled={disabled}>
+            Cancel
+          </Button>
           <Button type="button" onClick={onConfirm} disabled={disabled} variant="destructive">
             {confirmText}
           </Button>

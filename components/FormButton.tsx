@@ -34,7 +34,9 @@ import {
   employeeFormSchema,
   serviceFormSchema,
 } from "@/lib/validation";
-import { useRef, useState, ReactNode, useEffect } from "react";
+import { useRef, useState, ReactNode, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useSettings } from "@/hooks/use-settings";
 import {
   createEmployee,
   createCustomer,
@@ -60,27 +62,49 @@ import {
 import { getServiceId, Service } from "@/models/service";
 import { AppointmentForm } from "@/components/forms/AppointmentForm";
 import { ConflictDialog } from "@/components/ConflictDialog";
-import { client } from "@/sanity/lib/client";
-import {
-  APPOINTMENTS_BY_CUSTOMER_QUERY,
-  APPOINTMENTS_BY_EMPLOYEE_QUERY,
-  TIMEZONE_QUERY,
-} from "@/sanity/lib/queries";
 import { ColumnDef } from "@tanstack/react-table";
 import ProfileTableLoading from "./ProfileTableLoading";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import * as React from "react";
-import { formatMinuteDuration, parseOffset } from "@/lib/utils";
+import { formatMinuteDuration, parseOffset, cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { AssignedService } from "@/models/assignedService";
 import { Appointment } from "@/models/appointment";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 type FormMode = "create" | "edit" | "history" | "delete";
 type FormType = "employees" | "customers" | "services" | "schedule";
 type EmployeeHistoryRow = {
   startTime: string;
-  customer: { firstName: string; lastName: string; fullName: string };
+  customer: {
+    _id?: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    phone?: string;
+  };
   service: { name: string };
   duration: number;
 };
@@ -122,6 +146,7 @@ interface FormButtonProps {
   profile?: Profile; // For edit mode
   service?: Service;
   onSuccess?: () => void;
+  categories?: { _id: string; name: string }[]; // For services type
   variant?:
     | "default"
     | "outline"
@@ -140,32 +165,214 @@ const FormButton = ({
   profile,
   service,
   onSuccess,
+  categories,
   variant = "default",
   size = "default",
   className = "",
 }: FormButtonProps) => {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMobile = useIsMobile();
   const formRef = useRef<HTMLFormElement>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [employeeHistory, setEmployeeHistory] = useState([]);
-  const [customerHistory, setCustomerHistory] = useState([]);
+  const [employeeHistory, setEmployeeHistory] = useState<EmployeeHistoryRow[]>(
+    []
+  );
+  const [customerHistory, setCustomerHistory] = useState<CustomerHistoryRow[]>(
+    []
+  );
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyPageSize, setHistoryPageSize] = useState(20);
   const [timezone, setTimezone] = useState<string>("");
+  const [historyFilterType, setHistoryFilterType] = useState<
+    "customer" | "date" | "both"
+  >("both");
+  const [historyDateRange, setHistoryDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+  const [selectedHistoryCustomer, setSelectedHistoryCustomer] =
+    useState<string>("");
+  const [selectedHistoryEmployee, setSelectedHistoryEmployee] =
+    useState<string>("");
+  const [historyCustomerOpen, setHistoryCustomerOpen] = useState(false);
+  const [historyCustomerQuery, setHistoryCustomerQuery] = useState("");
+  const [historyCustomerResults, setHistoryCustomerResults] = useState<
+    { id: string; fullName: string; phone?: string }[]
+  >([]);
+  const [historyCustomerSearching, setHistoryCustomerSearching] =
+    useState(false);
+  const [selectedHistoryCustomerInfo, setSelectedHistoryCustomerInfo] =
+    useState<{ id: string; fullName: string; phone?: string } | null>(null);
+  const historyCustomerSearchTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflicts, setConflicts] = useState<any[]>([]);
   const [pendingAppointmentData, setPendingAppointmentData] =
     useState<PendingAppointmentData | null>(null);
 
+  const normalizeNumberArray = (value: unknown): number[] => {
+    if (!Array.isArray(value)) return [];
+    return (value as unknown[])
+      .map((v) => (typeof v === "number" ? v : Number(v)))
+      .filter((n) => Number.isFinite(n));
+  };
+
+  // Search customers for history filter (same UX as Create Appointment)
+  useEffect(() => {
+    if (historyCustomerSearchTimeoutRef.current) {
+      clearTimeout(historyCustomerSearchTimeoutRef.current);
+    }
+
+    const term = historyCustomerQuery.trim();
+    if (!term) {
+      setHistoryCustomerResults([]);
+      setHistoryCustomerSearching(false);
+      return;
+    }
+
+    setHistoryCustomerSearching(true);
+    historyCustomerSearchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/customers?search=${encodeURIComponent(term)}`
+        ).then((r) => r.json());
+
+        setHistoryCustomerResults(
+          (res || []).map((customer: any) => ({
+            id: String(customer.id),
+            fullName:
+              `${customer.first_name || ""} ${customer.last_name || ""}`.trim(),
+            phone: customer.phone ? String(customer.phone) : undefined,
+          }))
+        );
+      } catch {
+        setHistoryCustomerResults([]);
+      } finally {
+        setHistoryCustomerSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      if (historyCustomerSearchTimeoutRef.current) {
+        clearTimeout(historyCustomerSearchTimeoutRef.current);
+      }
+    };
+  }, [historyCustomerQuery]);
+
+  const customerHistoryEmployeeOptions = useMemo(() => {
+    const names = new Set<string>();
+    (customerHistory || []).forEach((row: any) => {
+      const name = row?.employee?.fullName;
+      if (name) names.add(String(name));
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [customerHistory]);
+
+  const filteredEmployeeHistory = useMemo(() => {
+    // Employee history is fetched already filtered via RPC (employee/customer/date range).
+    return (employeeHistory || []) as any[];
+  }, [employeeHistory]);
+
+  const filteredCustomerHistory = useMemo(() => {
+    let rows = (customerHistory || []) as any[];
+
+    // For customer history, "By customer" doesn't make sense (fixed customer),
+    // so we map the person filter to employee instead.
+    if (historyFilterType === "customer" || historyFilterType === "both") {
+      if (selectedHistoryEmployee) {
+        rows = rows.filter(
+          (r) => r?.employee?.fullName === selectedHistoryEmployee
+        );
+      }
+    }
+
+    if (historyFilterType === "date" || historyFilterType === "both") {
+      const from = historyDateRange.from;
+      const to = historyDateRange.to || historyDateRange.from;
+      if (from && to) {
+        const fromStart = new Date(from);
+        fromStart.setHours(0, 0, 0, 0);
+        const toEnd = new Date(to);
+        toEnd.setHours(23, 59, 59, 999);
+
+        rows = rows.filter((r) => {
+          const dt = new Date(r?.startTime);
+          if (isNaN(dt.getTime())) return false;
+          return dt >= fromStart && dt <= toEnd;
+        });
+      }
+    }
+
+    return rows;
+  }, [
+    customerHistory,
+    historyFilterType,
+    historyDateRange,
+    selectedHistoryEmployee,
+  ]);
+
   const fetchEmployeeHistory = async () => {
     if (profile) {
       setLoadingHistory(true);
       try {
-        const result = await client.fetch(APPOINTMENTS_BY_EMPLOYEE_QUERY, {
-          employeeId: getProfileId(profile),
-        });
-        setEmployeeHistory(result || []);
+        const params = new URLSearchParams();
+
+        // Employee filter (required for employee history)
+        const employeeId = getProfileId(profile);
+        if (employeeId) {
+          params.set("employeeId", employeeId);
+        }
+
+        // Customer filter (optional)
+        if (
+          (historyFilterType === "customer" || historyFilterType === "both") &&
+          selectedHistoryCustomer
+        ) {
+          params.set("customerId", selectedHistoryCustomer);
+        }
+
+        // Date range filter (optional)
+        if (historyFilterType === "date" || historyFilterType === "both") {
+          const from = historyDateRange.from;
+          const to = historyDateRange.to || historyDateRange.from;
+          if (from && to) {
+            params.set("startDate", from.toISOString());
+            params.set("endDate", to.toISOString());
+          }
+        }
+
+        // NOTE: API supports pagination; for now fetch a reasonably large page.
+        params.set("limit", String(Math.max(100, historyPageSize)));
+        params.set("offset", "0");
+
+        const response = await fetch(`/api/appointment-history?${params}`);
+        const payload = await response.json();
+
+        const rows = (payload?.data || []) as any[];
+        const transformedResult = rows.map((row: any, idx: number) => ({
+          _id: `${row.Date ?? idx}`,
+          _createdAt: row.Date,
+          startTime: row.Date,
+          duration: row.Duration ?? 0,
+          customer: {
+            _id: selectedHistoryCustomer || undefined,
+            firstName: "",
+            lastName: "",
+            fullName: row.Customer ?? "",
+            phone: undefined,
+          },
+          service: {
+            name: row.Service ?? "",
+          },
+        }));
+
+        setEmployeeHistory(transformedResult);
       } catch {
         setEmployeeHistory([]);
       } finally {
@@ -178,13 +385,50 @@ const FormButton = ({
     if (profile) {
       setLoadingHistory(true);
       try {
-        const result = await client.fetch(APPOINTMENTS_BY_CUSTOMER_QUERY, {
-          customerId: getProfileId(profile),
-        });
-        // Filter out cancelled appointments
-        const filteredResult = (result || []).filter(
-          (appointment: Appointment) => appointment.status !== "cancelled"
+        // Fetch all appointments for this customer
+        const customerId = getProfileId(profile);
+        const response = await fetch(
+          `/api/appointments?customerId=${customerId}`
         );
+        const result = await response.json();
+        // Transform to match expected format and filter out cancelled
+        const filteredResult = (result || [])
+          .filter((appointment: any) => appointment.status !== "cancelled")
+          .map((apt: any) => ({
+            _id: apt.id,
+            _createdAt: apt.created_at,
+            startTime: apt.start_time || apt.startTime,
+            endTime: apt.end_time || apt.endTime,
+            duration: apt.service?.duration || 0,
+            customer: apt.customer
+              ? {
+                  _id: apt.customer.id,
+                  firstName: apt.customer.firstName,
+                  lastName: apt.customer.lastName,
+                  fullName: apt.customer.fullName,
+                }
+              : undefined,
+            employee: apt.employee
+              ? {
+                  _id: apt.employee.id,
+                  firstName: apt.employee.firstName,
+                  lastName: apt.employee.lastName,
+                  fullName: apt.employee.fullName,
+                }
+              : undefined,
+            service: apt.service
+              ? {
+                  _id: apt.service.id,
+                  name: apt.service.name,
+                  duration: apt.service.duration,
+                }
+              : undefined,
+            reminder: apt.reminder || [],
+            type: apt.type,
+            status: apt.status,
+            note: apt.note,
+            recurringGroupId: apt.recurring_group_id,
+          }));
         setCustomerHistory(filteredResult);
       } catch {
         setCustomerHistory([]);
@@ -194,15 +438,65 @@ const FormButton = ({
     }
   };
 
+  // Refetch employee history when filters change (RPC-backed)
   useEffect(() => {
-    // Fetch timezone on mount
+    if (!open) return;
+    if (mode !== "history") return;
+    if (type !== "employees") return;
+    if (!profile) return;
+    fetchEmployeeHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    open,
+    mode,
+    type,
+    profile,
+    historyFilterType,
+    historyDateRange,
+    selectedHistoryCustomer,
+    historyPageSize,
+  ]);
+
+  // Use settings from context if available, otherwise fetch once
+  const { settings: contextSettings } = useSettings();
+
+  useEffect(() => {
+    // Use settings from context if available
+    if (contextSettings?.timezone) {
+      setTimezone(contextSettings.timezone);
+      return;
+    }
+
+    // Fallback: fetch only if context doesn't have settings yet
+    if (timezone) return;
+
+    let isMounted = true;
+
     const fetchTimezone = async () => {
-      const result = await client.fetch(TIMEZONE_QUERY);
-      setTimezone(parseOffset(result.timezone));
+      try {
+        const response = await fetch("/api/settings");
+        if (!isMounted) return;
+
+        const settings = await response.json();
+        if (isMounted) {
+          if (settings && settings.timezone) {
+            setTimezone(parseOffset(settings.timezone));
+          } else {
+            setTimezone(parseOffset("UTC-7:00"));
+          }
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setTimezone(parseOffset("UTC-7:00"));
+      }
     };
 
     fetchTimezone();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [contextSettings?.timezone, timezone]);
 
   // Aggressively fix aria-hidden conflicts using MutationObserver
   useEffect(() => {
@@ -472,8 +766,6 @@ const FormButton = ({
       if (mode === "edit" && profile) {
         // Update mode - include _id
         const profileId = getProfileId(profile);
-        console.log("Updating employee with ID:", profileId);
-        console.log("Form Values:", formValues);
 
         const result = await updateEmployee(
           profileId,
@@ -489,6 +781,8 @@ const FormButton = ({
           toast.success("Success", {
             description: getToastDescription(),
           });
+          // Refetch data from Supabase
+          router.refresh();
         } else {
           toast.error("Error", {
             description: result.error,
@@ -498,6 +792,7 @@ const FormButton = ({
       }
 
       // Create mode
+
       const result = await createEmployee(
         formData,
         formValues.workingTimes as unknown as WorkingTime[],
@@ -511,15 +806,18 @@ const FormButton = ({
         toast.success("Success", {
           description: getToastDescription(),
         });
+        // Refetch data from Supabase
+        router.refresh();
       } else {
         toast.error("Error", {
-          description: result.error,
+          description: result.error || "Failed to create employee",
         });
       }
     } catch (error) {
-      console.log(error);
+      const errorMessage =
+        error instanceof Error ? error.message : "An unexpected error occurred";
       toast.error("Error", {
-        description: "An unexpected error occurred",
+        description: errorMessage,
       });
     } finally {
       setIsSubmitting(false);
@@ -533,7 +831,6 @@ const FormButton = ({
 
     try {
       const formValues = customerForm.getValues();
-      console.log("Customer formValues", formValues);
 
       const formData = new FormData();
       formData.append("firstName", formValues.firstName);
@@ -553,6 +850,8 @@ const FormButton = ({
           toast.success("Success", {
             description: getToastDescription(),
           });
+          // Refetch data from Supabase
+          router.refresh();
         } else {
           toast.error("Error", {
             description: result.error,
@@ -570,17 +869,14 @@ const FormButton = ({
         toast.success("Success", {
           description: getToastDescription(),
         });
-        // Call onSuccess callback to refresh customer list
-        if (onSuccess) {
-          onSuccess();
-        }
+        // Refetch data from Supabase
+        router.refresh();
       } else {
         toast.error("Error", {
           description: result.error,
         });
       }
     } catch (error) {
-      console.log(error);
       toast.error("Error", {
         description: "An unexpected error occurred",
       });
@@ -600,6 +896,10 @@ const FormButton = ({
       formData.append("name", formValues.name);
       formData.append("price", formValues.price.toString());
       formData.append("duration", formValues.duration.toString());
+      // Append category for update
+      if (formValues.category?._ref) {
+        formData.append("category", JSON.stringify(formValues.category));
+      }
 
       if (mode === "edit" && service) {
         // Update mode - include _id
@@ -617,6 +917,8 @@ const FormButton = ({
           toast.success("Success", {
             description: getToastDescription(),
           });
+          // Refetch data from Supabase
+          router.refresh();
         } else {
           toast.error("Error", {
             description: result.error,
@@ -633,6 +935,8 @@ const FormButton = ({
         toast.success("Success", {
           description: getToastDescription(),
         });
+        // Refetch data from Supabase
+        router.refresh();
         return;
       } else {
         toast.error("Error", {
@@ -640,7 +944,6 @@ const FormButton = ({
         });
       }
     } catch (error) {
-      console.log(error);
       toast.error("Error", {
         description: "An unexpected error occurred",
       });
@@ -656,7 +959,6 @@ const FormButton = ({
       const formValues = appointmentForm.getValues();
 
       const formData = new FormData();
-      console.log("Appointment formValues", formValues);
       formData.append("time", formValues.time);
       formData.append("note", formValues.note || "");
       formData.append("type", formValues.type || "walk-in");
@@ -764,6 +1066,8 @@ const FormButton = ({
           toast.success("Success", {
             description: getToastDescription(),
           });
+          // Refetch data from Supabase
+          router.refresh();
         } else {
           toast.error("Error", {
             description: result.error,
@@ -884,6 +1188,8 @@ const FormButton = ({
             toast.success("Success", {
               description: getToastDescription(),
             });
+            // Refetch data from Supabase
+            router.refresh();
           } else {
             toast.error("Error", {
               description: result.error,
@@ -896,7 +1202,6 @@ const FormButton = ({
         }
       }
     } catch (error) {
-      console.log(error);
       toast.error("Error", {
         description: "An unexpected error occurred",
       });
@@ -930,6 +1235,8 @@ const FormButton = ({
           description:
             "Recurring appointments created successfully (with conflicts)",
         });
+        // Refetch data from Supabase
+        router.refresh();
         if (onSuccess) onSuccess();
       } else {
         toast.error("Error", {
@@ -937,7 +1244,6 @@ const FormButton = ({
         });
       }
     } catch (error) {
-      console.error(error);
       toast.error("Error", {
         description: "An unexpected error occurred",
       });
@@ -971,7 +1277,6 @@ const FormButton = ({
         await handleAppointmentSuccess();
         break;
       default:
-        console.log("Unknown form type:", type);
     }
   };
 
@@ -1041,18 +1346,162 @@ const FormButton = ({
         },
       ];
       return (
-        <DataTable
-          columns={columns}
-          data={employeeHistory}
-          height={isMobile ? "calc(100vh - 200px)" : "calc(100vh - 300px)"}
-          title={""}
-          isShowPagination={false}
-          titleEmpty={"No history found"}
-          searchColumn={"customerFullName"}
-          searchName={"Search customer..."}
-          isShowExport={true}
-          timezone={timezone}
-        />
+        <div className="w-full h-full min-h-0 flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[max-content_max-content_1fr] md:items-end">
+            <div className="space-y-2">
+              <Label>Filter Type</Label>
+              <Select
+                value={historyFilterType}
+                onValueChange={(value: any) => setHistoryFilterType(value)}
+              >
+                <SelectTrigger className="w-[240px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="customer">By Customer</SelectItem>
+                  <SelectItem value="date">By Date Range</SelectItem>
+                  <SelectItem value="both">By Customer & Date Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(historyFilterType === "date" || historyFilterType === "both") && (
+              <div className="space-y-2 md:justify-self-center">
+                <Label>Date Range</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-[240px] justify-start"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {historyDateRange.from ? (
+                        historyDateRange.to ? (
+                          <>
+                            {format(historyDateRange.from, "LLL dd, y")} -{" "}
+                            {format(historyDateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(historyDateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={historyDateRange.from}
+                      selected={historyDateRange}
+                      onSelect={(range) =>
+                        setHistoryDateRange({
+                          from: range?.from,
+                          to: range?.to || range?.from,
+                        })
+                      }
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {(historyFilterType === "customer" ||
+              historyFilterType === "both") && (
+              <div className="space-y-2 md:w-fit">
+                <Label>Customer</Label>
+                <Popover
+                  open={historyCustomerOpen}
+                  onOpenChange={(open) => {
+                    setHistoryCustomerOpen(open);
+                    if (!open) setHistoryCustomerQuery("");
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={historyCustomerOpen}
+                      className="w-[320px] justify-between"
+                    >
+                      {selectedHistoryCustomerInfo
+                        ? `${selectedHistoryCustomerInfo.fullName}${selectedHistoryCustomerInfo.phone ? ` - ${selectedHistoryCustomerInfo.phone}` : ""}`
+                        : "Search by name or phone..."}
+                      <ChevronsUpDown className="opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[320px] p-0" align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search by name or phone..."
+                        value={historyCustomerQuery}
+                        onValueChange={setHistoryCustomerQuery}
+                      />
+                      <CommandList>
+                        {historyCustomerSearching ? (
+                          <div className="py-6 text-center text-sm text-muted-foreground">
+                            Searching...
+                          </div>
+                        ) : historyCustomerResults.length === 0 ? (
+                          <CommandEmpty>No customer found.</CommandEmpty>
+                        ) : (
+                          <CommandGroup>
+                            {historyCustomerResults.map((c) => {
+                              const label = `${c.fullName}${c.phone ? ` - ${c.phone}` : ""}`;
+                              return (
+                                <CommandItem
+                                  key={c.id}
+                                  value={c.id}
+                                  onSelect={() => {
+                                    const isSame =
+                                      selectedHistoryCustomer === c.id;
+                                    const nextId = isSame ? "" : c.id;
+                                    setSelectedHistoryCustomer(nextId);
+                                    setSelectedHistoryCustomerInfo(
+                                      isSame ? null : c
+                                    );
+                                    setHistoryCustomerOpen(false);
+                                    setHistoryCustomerQuery("");
+                                  }}
+                                >
+                                  {label}
+                                  <Check
+                                    className={cn(
+                                      "ml-auto",
+                                      selectedHistoryCustomer === c.id
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+          </div>
+
+          <DataTable
+            columns={columns}
+            data={filteredEmployeeHistory}
+            title={""}
+            isShowSearch={false}
+            isShowPagination={true}
+            titleEmpty={"No history found"}
+            isShowExport={true}
+            timezone={timezone}
+            showLimit={historyPageSize}
+            pageSizeOptions={[20, 50, 100]}
+            onPageSizeChange={setHistoryPageSize}
+          />
+        </div>
       );
     } else if (mode === "history" && type === "customers") {
       if (loadingHistory) {
@@ -1118,18 +1567,105 @@ const FormButton = ({
         },
       ];
       return (
-        <DataTable
-          columns={columns}
-          data={customerHistory}
-          height={isMobile ? "calc(100vh - 200px)" : "calc(100vh - 300px)"}
-          title={""}
-          isShowPagination={false}
-          searchColumn={"employeeFullName"}
-          searchName={"Search employee..."}
-          titleEmpty={"No history found"}
-          isShowExport={true}
-          timezone={timezone}
-        />
+        <div className="w-full h-full min-h-0 flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[max-content_max-content_1fr] md:items-end">
+            <div className="space-y-2">
+              <Label>Filter Type</Label>
+              <Select
+                value={historyFilterType}
+                onValueChange={(value: any) => setHistoryFilterType(value)}
+              >
+                <SelectTrigger className="w-[240px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="customer">By Customer</SelectItem>
+                  <SelectItem value="date">By Date Range</SelectItem>
+                  <SelectItem value="both">By Customer & Date Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(historyFilterType === "date" || historyFilterType === "both") && (
+              <div className="space-y-2 md:justify-self-center">
+                <Label>Date Range</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-[240px] justify-start"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {historyDateRange.from ? (
+                        historyDateRange.to ? (
+                          <>
+                            {format(historyDateRange.from, "LLL dd, y")} -{" "}
+                            {format(historyDateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(historyDateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={historyDateRange.from}
+                      selected={historyDateRange}
+                      onSelect={(range) =>
+                        setHistoryDateRange({
+                          from: range?.from,
+                          to: range?.to || range?.from,
+                        })
+                      }
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {(historyFilterType === "customer" ||
+              historyFilterType === "both") && (
+              <div className="space-y-2">
+                <Label>Employee</Label>
+                <Select
+                  value={selectedHistoryEmployee}
+                  onValueChange={(value) => setSelectedHistoryEmployee(value)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customerHistoryEmployeeOptions.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <DataTable
+            columns={columns}
+            data={filteredCustomerHistory}
+            title={""}
+            isShowSearch={false}
+            isShowPagination={true}
+            titleEmpty={"No history found"}
+            isShowExport={true}
+            timezone={timezone}
+            showLimit={historyPageSize}
+            pageSizeOptions={[20, 50, 100]}
+            onPageSizeChange={setHistoryPageSize}
+          />
+        </div>
       );
     }
 
@@ -1170,6 +1706,7 @@ const FormButton = ({
             initialData={
               mode === "edit" && service ? (service as Service) : undefined
             }
+            categories={categories}
           />
         );
       case "schedule":
@@ -1202,6 +1739,16 @@ const FormButton = ({
 
     if (newOpen) {
       setIsSubmitting(false); // Reset submitting state when opening
+      // Reset history filters each time the dialog opens
+      setHistoryFilterType("both");
+      setHistoryDateRange({ from: undefined, to: undefined });
+      setSelectedHistoryCustomer("");
+      setSelectedHistoryCustomerInfo(null);
+      setSelectedHistoryEmployee("");
+      setHistoryCustomerOpen(false);
+      setHistoryCustomerQuery("");
+      setHistoryCustomerResults([]);
+      setHistoryCustomerSearching(false);
       const currentForm = getFormInstance();
 
       if (
@@ -1232,8 +1779,8 @@ const FormButton = ({
                 (to.period as "Exact" | "Daily" | "Weekly" | "Monthly") ||
                 "Exact",
               date: to.date ? new Date(to.date) : undefined,
-              dayOfWeek: to.dayOfWeek || [],
-              dayOfMonth: to.dayOfMonth || [],
+              dayOfWeek: normalizeNumberArray((to as any).dayOfWeek),
+              dayOfMonth: normalizeNumberArray((to as any).dayOfMonth),
             })) || [],
           assignedServices:
             profile.assignedServices?.map((as) => ({
@@ -1241,7 +1788,6 @@ const FormButton = ({
               price: as.price || 0,
               duration: as.duration || 15,
               processTime: as.processTime || 0,
-              showOnline: as.showOnline !== undefined ? as.showOnline : true,
             })) || [],
         };
         employeeForm.reset(formData);
@@ -1279,6 +1825,8 @@ const FormButton = ({
               toast.success("Success", {
                 description: `${getProfileName(profile)} deleted successfully`,
               });
+              // Refetch data from Supabase
+              router.refresh();
             } else {
               toast.error("Error", {
                 description: result.error,
@@ -1313,7 +1861,6 @@ const FormButton = ({
           }
         }
       } catch (error) {
-        console.log(error);
         toast.error("Error", {
           description: "An unexpected error occurred",
         });
@@ -1440,7 +1987,29 @@ const FormButton = ({
           </Button>
         </DialogTrigger>
         <DialogContent
-          className={`sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl max-h-[95vh] h-[95vh] flex flex-col items-start justify-start`}
+          className={cn(
+            // Different sizes based on form type
+            type === "customers" &&
+              mode === "history" &&
+              "w-[95vw] sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col",
+            type === "customers" &&
+              mode !== "history" &&
+              "sm:max-w-md max-h-[90vh]",
+            type === "services" && "sm:max-w-lg max-h-[90vh]",
+            type === "employees" &&
+              mode === "history" &&
+              "w-[95vw] sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col",
+            type === "employees" &&
+              mode !== "history" &&
+              "sm:max-w-2xl max-h-[95vh]",
+            type === "schedule" &&
+              "sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl max-h-[95vh]",
+            // Default for other cases
+            !["customers", "services", "employees", "schedule"].includes(
+              type
+            ) && "sm:max-w-lg max-h-[90vh]",
+            "flex flex-col items-start justify-start overflow-y-auto"
+          )}
           aria-describedby="form-dialog"
         >
           <DialogHeader>

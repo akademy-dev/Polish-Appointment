@@ -8,18 +8,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import React from "react";
+import { useRouter } from "next/navigation";
 import { updateTimeSettings } from "@/lib/actions";
 import { toast } from "sonner";
 
-export function TimeSettings({ 
-  _id, 
-  minTime, 
-  maxTime 
-}: { 
-  _id: string; 
-  minTime: string; 
-  maxTime: string; 
+export function TimeSettings({
+  _id,
+  minTime,
+  maxTime,
+}: {
+  _id: string;
+  minTime: string;
+  maxTime: string;
 }) {
+  const router = useRouter();
   const timeOptions = [
     { value: "6:00 AM", label: "6:00 AM" },
     { value: "6:30 AM", label: "6:30 AM" },
@@ -54,6 +56,8 @@ export function TimeSettings({
     { value: "9:00 PM", label: "9:00 PM" },
     { value: "9:30 PM", label: "9:30 PM" },
     { value: "10:00 PM", label: "10:00 PM" },
+    { value: "10:30 PM", label: "10:30 PM" },
+    { value: "11:00 PM", label: "11:00 PM" },
   ];
 
   const handleMinTimeChange = (newValue: string) => {
@@ -66,6 +70,7 @@ export function TimeSettings({
         toast.success("Success", {
           description: "Minimum time updated successfully.",
         });
+        router.refresh();
       }
     });
   };
@@ -80,6 +85,7 @@ export function TimeSettings({
         toast.success("Success", {
           description: "Maximum time updated successfully.",
         });
+        router.refresh();
       }
     });
   };
@@ -101,7 +107,7 @@ export function TimeSettings({
           </SelectContent>
         </Select>
       </div>
-      
+
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium">Maximum Time</label>
         <Select value={maxTime} onValueChange={handleMaxTimeChange}>

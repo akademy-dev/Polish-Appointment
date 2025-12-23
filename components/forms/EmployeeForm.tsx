@@ -54,8 +54,18 @@ const EmployeeForm = ({
 
 
 
-  function onSubmit() {
-    onSuccess?.();
+  function onSubmit(data: z.infer<typeof employeeFormSchema>) {
+    if (onSuccess) {
+      onSuccess();
+    }
+  }
+
+  function onError(errors: any) {
+    // Show toast for validation errors
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0] as any;
+      const errorMessage = firstError?.message || "Please fix the form errors";
+    }
   }
 
   return (
@@ -104,7 +114,7 @@ const EmployeeForm = ({
       <Form {...form}>
         <form
           ref={formRef}
-          onSubmit={form.handleSubmit(onSubmit)}
+          onSubmit={form.handleSubmit(onSubmit, onError)}
           className={cn("", className)}
         >
           <TabsContent value="info">

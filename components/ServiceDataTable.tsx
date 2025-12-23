@@ -159,10 +159,14 @@ export function ServiceDataTable({
   // Đồng bộ state với debouncedSearch
   React.useEffect(() => {
     const currentQuery = searchParams.get("query") || "";
-    if (debouncedSearch !== currentQuery) {
-      updateQueryParams({ query: debouncedSearch, page: 1 });
+    const normalizedDebounced = debouncedSearch || "";
+    const normalizedCurrent = currentQuery || "";
+    
+    // Only update if they're actually different
+    if (normalizedDebounced !== normalizedCurrent) {
+      updateQueryParams({ query: normalizedDebounced, page: 1 });
     }
-  }, [debouncedSearch, searchParams]);
+  }, [debouncedSearch]);
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [id, setId] = useState<string>("");
@@ -180,6 +184,8 @@ export function ServiceDataTable({
         toast.success("Success", {
           description: "Service deleted successfully.",
         });
+        // Refetch data from Supabase
+        router.refresh();
       } else {
         toast.error("Error", {
           description: result.error,
@@ -259,6 +265,7 @@ export function ServiceDataTable({
                 variant="default"
                 size="icon"
                 service={row.original}
+                categories={categories}
               >
                 <Pencil className="size-5" aria-hidden="true" />
               </FormButton>

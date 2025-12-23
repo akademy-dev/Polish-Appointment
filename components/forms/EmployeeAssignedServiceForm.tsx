@@ -185,10 +185,6 @@ const EmployeeAssignedServiceForm = ({
 
       if (serviceIndex >= 0) {
         form.setValue(`assignedServices.${serviceIndex}.${field}`, value);
-        console.log(
-          `Updated assignedServices.${serviceIndex}.${field} to:`,
-          value,
-        );
       }
     } else {
       // For available services
@@ -303,14 +299,6 @@ const EmployeeAssignedServiceForm = ({
               (assigned: AssignedService) => assigned.serviceId === service._id,
             );
 
-            // Debug: Log assigned data for this service
-            if (isAssignedSection && service._id) {
-              console.log(`Service ${service.name} (${service._id}):`, {
-                assignedData,
-                showOnline: assignedData?.showOnline,
-                allAssignedServices: watchedAssignedServices,
-              });
-            }
             const pendingData = pendingChanges[service._id];
             const draftData = draftValues[service._id];
 
@@ -434,29 +422,15 @@ const EmployeeAssignedServiceForm = ({
                       if (isAssignedSection && assignedData) {
                         // For assigned services, always use the employee's assigned value
                         const value = assignedData.showOnline.toString();
-                        console.log(
-                          `ShowOnline value for ${service.name}:`,
-                          value,
-                          "from assignedData:",
-                          assignedData.showOnline,
-                        );
                         return value;
                       }
                       // For available services or fallback
                       const value = (
                         serviceData?.showOnline ?? service.showOnline
                       ).toString();
-                      console.log(
-                        `ShowOnline value for ${service.name}:`,
-                        value,
-                        "from fallback",
-                      );
                       return value;
                     })()}
                     onValueChange={(value) => {
-                      console.log(
-                        `Changing showOnline for ${service._id} from ${serviceData?.showOnline} to ${value === "true"}`,
-                      );
                       updateServiceField(
                         service._id,
                         "showOnline",

@@ -15,17 +15,18 @@ export const NewVerificationForm = () => {
 
   const searchParams = useSearchParams();
 
-  const token = searchParams.get("token");
+  // Supabase confirmation links use `code` (PKCE). Keep `token` fallback for legacy links.
+  const code = searchParams.get("code") ?? searchParams.get("token");
 
   const onSubmit = useCallback(() => {
     if (success || error) return;
 
-    if (!token) {
-      setError("Missing token!");
+    if (!code) {
+      setError("Missing code!");
       return;
     }
 
-    newVerification(token)
+    newVerification(code)
       .then((data) => {
         setSuccess(data.success);
         setError(data.error);
@@ -33,7 +34,7 @@ export const NewVerificationForm = () => {
       .catch(() => {
         setError("Something went wrong!");
       });
-  }, [token, success, error]);
+  }, [code, success, error]);
 
   useEffect(() => {
     onSubmit();

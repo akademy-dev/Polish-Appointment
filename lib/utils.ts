@@ -79,6 +79,25 @@ export function getIanaTimezone(timezone: string): string {
   // If already a valid IANA name, return as is
   if (moment.tz.zone(timezone)) return timezone;
 
+  // If we get a fixed UTC offset like "-07:00" or "+02:00",
+  // map it to a stable IANA zone under Etc/GMT.
+  // IMPORTANT: the sign is inverted in Etc/GMT (Etc/GMT+7 === UTC-7).
+  const fixedOffsetMatch = timezone.match(/^([+-])(\d{2}):(\d{2})$/);
+  if (fixedOffsetMatch) {
+    const sign = fixedOffsetMatch[1]; // "+" | "-"
+    const hours = Number(fixedOffsetMatch[2]);
+    const minutes = Number(fixedOffsetMatch[3]);
+
+    // Our UI currently only uses whole-hour offsets. If minutes are non-zero,
+    // we can't represent it with Etc/GMT reliably.
+    if (minutes === 0) {
+      if (hours === 0) return "UTC";
+      const invertedSign = sign === "+" ? "-" : "+";
+      // Etc/GMT uses no leading zero (Etc/GMT+7, not Etc/GMT+07)
+      return `Etc/GMT${invertedSign}${hours}`;
+    }
+  }
+
   // Try to convert offset (e.g. "-07:00") to IANA name
   const offsetMinutes = moment.duration(timezone).asMinutes();
   const possibleZones = moment.tz.names().filter((zone) => {
@@ -86,6 +105,60 @@ export function getIanaTimezone(timezone: string): string {
     return moment.tz(zone).utcOffset() === offsetMinutes;
   });
   return possibleZones.length > 0 ? possibleZones[0] : "UTC";
+}
+
+/**
+ * Safely parse a timestamptz string from Supabase to a Date object
+ * Handles null, undefined, and invalid date strings gracefully
+ */
+export function safeParseDate(
+  dateString: string | null | undefined | Date
+): Date | null {
+  // If already a Date object, return it
+  if (dateString instanceof Date) {
+    return isNaN(dateString.getTime()) ? null : dateString;
+  }
+
+  // If null or undefined, return null
+  if (!dateString) {
+    return null;
+  }
+
+  // If empty string, return null
+  if (typeof dateString === "string" && dateString.trim() === "") {
+    return null;
+  }
+
+  // Try to parse the date string
+  try {
+    const date = new Date(dateString);
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    return date;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Calculate duration in minutes from startTime and endTime
+ * Returns 0 if either time is invalid
+ */
+export function calculateDuration(
+  startTime: string | null | undefined,
+  endTime: string | null | undefined
+): number {
+  const start = safeParseDate(startTime);
+  const end = safeParseDate(endTime);
+
+  if (!start || !end) {
+    return 0;
+  }
+
+  const diffMs = end.getTime() - start.getTime();
+  return Math.round(diffMs / (1000 * 60)); // Convert to minutes
 }
 
 // export function formatToISO8601(

@@ -24,7 +24,8 @@ import { newPassword } from "@/actions/new-password";
 
 export const NewPasswordForm = () => {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  // Supabase uses `code` for recovery links (PKCE). Keep `token` fallback for legacy links.
+  const code = searchParams.get("code") ?? searchParams.get("token");
 
   const [error, setError] = useState<string | undefined>("");
   const [success, setSuccess] = useState<string | undefined>("");
@@ -42,7 +43,7 @@ export const NewPasswordForm = () => {
     setSuccess("");
 
     startTransition(() => {
-      newPassword(values, token).then((data) => {
+      newPassword(values, code).then((data) => {
         setError(data?.error);
         setSuccess(data?.success);
       });

@@ -1,7 +1,6 @@
 import ProfileList from "@/components/profiles/ProfileList";
 import CustomerPageHeader from "@/components/CustomerPageHeader";
-import { sanityFetch, SanityLive } from "@/sanity/lib/live";
-import { CUSTOMERS_QUERY } from "@/sanity/lib/queries";
+import { getCustomers } from "@/data/customer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -17,21 +16,25 @@ const Page = async ({
   const currentPage = parseInt(pageString || "1", 10);
   const itemsPerPage = parseInt(
     limitString || String(DEFAULT_ITEMS_PER_PAGE),
-    10,
+    10
   );
 
-  const params = {
-    search: query || null,
+  const customersResult = await getCustomers({
+    search: query || "",
     page: currentPage,
     limit: itemsPerPage,
-  };
-
-  const { data: customersResult } = await sanityFetch({
-    query: CUSTOMERS_QUERY,
-    params,
   });
 
-  console.log("customersResult", customersResult);
+  // Transform customers to match expected format
+  const customersFormatted = customersResult.data.map((cust) => ({
+    _id: cust.id,
+    _type: "customer",
+    firstName: cust.first_name,
+    lastName: cust.last_name,
+    phone: cust.phone,
+    note: cust.note,
+    _createdAt: cust.created_at,
+  }));
 
   return (
     <>
@@ -40,12 +43,10 @@ const Page = async ({
       <CustomerPageHeader />
 
       <ProfileList
-        data={customersResult.data}
+        data={customersFormatted}
         totalItems={customersResult.total}
         itemsPerPage={itemsPerPage}
       />
-
-      <SanityLive />
     </>
   );
 };

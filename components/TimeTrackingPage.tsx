@@ -44,13 +44,7 @@ import {
   getTimeTrackingByDateRange,
   calculateTotalPay,
 } from "@/actions/time-tracking";
-import { Employee, TimeTracking } from "@/sanity/types";
-import { client } from "@/sanity/lib/client";
-import {
-  ALL_EMPLOYEES_QUERY,
-  TIME_TRACKING_QUERY,
-  TIMEZONE_QUERY,
-} from "@/sanity/lib/queries";
+import { useSettings } from "@/hooks/use-settings";
 
 interface TimeTrackingPageProps {
   initialEmployees: Employee[];
@@ -61,12 +55,6 @@ export default function TimeTrackingPage({
   initialEmployees,
   initialTimeTracking,
 }: TimeTrackingPageProps) {
-  console.log("TimeTrackingPage props:", {
-    initialEmployees,
-    initialTimeTracking,
-    employeesLength: initialEmployees?.length,
-    timeTrackingLength: initialTimeTracking?.length,
-  });
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [timeTracking, setTimeTracking] =
     useState<TimeTracking[]>(initialTimeTracking);
@@ -103,26 +91,41 @@ export default function TimeTrackingPage({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
 
-  // Fetch settings to get default hourly rate
-  React.useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const settingData = await client.fetch(TIMEZONE_QUERY);
-        if (settingData?.hourlyRate) {
-          setDefaultHourlyRate(settingData.hourlyRate);
-        }
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-      }
-    };
-    fetchSettings();
-  }, []);
+  // Fetch settings to get default hourly rate from context
+  const { settings } = useSettings();
 
-  // Fetch time tracking data
+  React.useEffect(() => {
+    if (settings?.hourlyRate) {
+      setDefaultHourlyRate(settings.hourlyRate);
+    }
+  }, [settings]);
+
+  // Fetch time tracking data from Supabase
   const fetchTimeTracking = useCallback(async () => {
     try {
-      const result = await client.fetch(TIME_TRACKING_QUERY);
-      setTimeTracking(result);
+      const response = await fetch("/api/time-tracking");
+      const result = await response.json();
+      // Transform to match expected format
+      const transformed = (result || []).map((tt: any) => ({
+        _id: tt.id,
+        _createdAt: tt.created_at,
+        _updatedAt: tt.updated_at || tt.created_at,
+        employee: tt.employee
+          ? {
+              _id: tt.employee.id,
+              firstName: tt.employee.first_name,
+              lastName: tt.employee.last_name,
+            }
+          : undefined,
+        checkIn: tt.check_in,
+        checkOut: tt.check_out,
+        hourlyRate: tt.hourly_rate,
+        totalHours: tt.total_hours,
+        totalPay: tt.total_pay,
+        note: tt.note,
+        status: tt.status,
+      }));
+      setTimeTracking(transformed);
     } catch (error) {
       console.error("Error fetching time tracking:", error);
       toast.error("Failed to fetch time tracking data");
@@ -133,14 +136,6 @@ export default function TimeTrackingPage({
   const filteredTimeTracking = useMemo(() => {
     if (!Array.isArray(timeTracking)) return [];
     let filtered = timeTracking;
-
-    console.log("Filtering with:", {
-      filterType,
-      selectedEmployee,
-      dateRange,
-      timeTrackingLength: timeTracking.length,
-      sampleRecord: timeTracking[0],
-    });
 
     // Filter by employee
     if (
@@ -173,13 +168,6 @@ export default function TimeTrackingPage({
         }
 
         return false;
-      });
-
-      console.log("After employee filter:", {
-        filteredLength: filtered.length,
-        selectedEmployee,
-        selectedEmployeeName,
-        sampleFilteredRecord: filtered[0],
       });
     }
 

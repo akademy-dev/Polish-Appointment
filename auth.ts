@@ -1,14 +1,8 @@
 import NextAuth from "next-auth";
-import { SanityAdapter } from "./adapters/sanity-adapter";
-import { client } from "@/sanity/lib/client";
 import Credentials from "next-auth/providers/credentials";
 import { LoginSchema } from "./form-schemas";
-import bcrypt from "bcryptjs";
-
-import { getUserById } from "./data/user";
-import { getTwoFactorConfirmationByUserId } from "./data/two-factor-confirmation";
-import { getAccountByUserId } from "./data/account";
 import { UserRole } from "./models/typings";
+import { supabaseAuth } from "@/lib/supabase";
 
 export const {
   handlers: { GET, POST },
@@ -29,51 +23,55 @@ export const {
         const validatedFields = LoginSchema.safeParse(credentials);
         if (!validatedFields.success) return null;
 
-        const user_qry = `*[_type == "user" && email== "${credentials?.email}"][0]`;
-        const user = await client.fetch(user_qry);
+        const { email, password } = validatedFields.data;
 
-        if (!user || !user.password) return null;
+        const { data, error } = await supabaseAuth.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-        const passwordsMatch = await bcrypt.compare(
-          credentials?.password as string,
-          user.password,
-        );
-
-        if (passwordsMatch) {
-          return {
-            id: user._id,
-            role: user.role,
-            ...user,
-          };
+        if (error) {
+          console.error("[AUTH] Supabase signInWithPassword failed", {
+            message: error.message,
+            status: error.status,
+            code: (error as any).code,
+          });
+          return null;
         }
 
-        return null;
+        if (!data.user) {
+          console.error("[AUTH] Supabase signInWithPassword returned no user");
+          return null;
+        }
+
+        const meta = (data.user.user_metadata ?? {}) as Record<string, unknown>;
+        const role =
+          meta.role === UserRole.ADMIN || meta.role === UserRole.USER
+            ? (meta.role as UserRole)
+            : UserRole.USER;
+
+        // NextAuth expects an object with an `id` field.
+        // We use Supabase `user.id` to keep it stable across systems.
+        return {
+          id: data.user.id,
+          email: data.user.email,
+          name:
+            typeof meta.name === "string"
+              ? meta.name
+              : (data.user.email ?? "User"),
+          role,
+          isTwoFactorEnabled: Boolean(meta.isTwoFactorEnabled),
+          isOAuth: false,
+        };
       },
     }),
   ],
   session: { strategy: "jwt", maxAge: 604800 },
-  adapter: SanityAdapter(client),
   callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider !== "credentials") return true;
-
-      const existingUser = await getUserById(user.id!);
-
-      // prevent signIn without email verification
-      if (!existingUser?.emailVerified) return false;
-
-      // 2FA CHECK
-      if (existingUser.isTwoFactorEnabled) {
-        const twoFactorConfirmation = await getTwoFactorConfirmationByUserId(
-          existingUser._id,
-        );
-
-        if (!twoFactorConfirmation) return false;
-
-        //Delete 2FA for next signin
-        await client.delete(twoFactorConfirmation._id);
-      }
-
+    async signIn({ account }) {
+      // For now we only support email/password via credentials.
+      // (OAuth providers can be added later.)
+      if (account?.provider && account.provider !== "credentials") return false;
       return true;
     },
     async session({ session, token }) {
@@ -82,7 +80,7 @@ export const {
       }
 
       if (token.role && session.user) {
-        session.user.role = (token.role as UserRole) ?? "user";
+        session.user.role = (token.role as UserRole) ?? UserRole.USER;
       }
 
       if (session.user) {
@@ -99,20 +97,19 @@ export const {
 
       return session;
     },
-    async jwt({ token }) {
-      if (!token.sub) return token;
-
-      const existingUser = await getUserById(token.sub);
-
-      if (!existingUser) return token;
-
-      const existingAccount = await getAccountByUserId(existingUser._id);
-
-      token.isOAuth = !!existingAccount;
-      token.name = existingUser.name;
-      token.email = existingUser.email;
-      token.role = existingUser.role;
-      token.isTwoFactorEnabled = existingUser.isTwoFactorEnabled;
+    async jwt({ token, user }) {
+      // On initial sign in, `user` is present — persist important fields into the JWT.
+      if (user) {
+        token.name = user.name;
+        // @ts-expect-error NextAuth user type is provider-dependent
+        token.email = user.email;
+        // @ts-expect-error NextAuth user type is provider-dependent
+        token.role = user.role ?? UserRole.USER;
+        // @ts-expect-error NextAuth user type is provider-dependent
+        token.isTwoFactorEnabled = Boolean(user.isTwoFactorEnabled);
+        // @ts-expect-error NextAuth user type is provider-dependent
+        token.isOAuth = Boolean(user.isOAuth);
+      }
 
       return token;
     },

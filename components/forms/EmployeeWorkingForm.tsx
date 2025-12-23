@@ -19,7 +19,7 @@ import { employeeFormSchema } from "@/lib/validation";
 import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 
-export const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 export const timeRange = [
   "08:00 AM",
@@ -75,7 +75,6 @@ const EmployeeWorkingForm = ({
 }: {
   form: UseFormReturn<z.infer<typeof employeeFormSchema>>;
 }) => {
-  console.log(form.watch("workingTimes"));
 
   return (
     <>
@@ -113,8 +112,8 @@ const EmployeeWorkingForm = ({
                                         ...field.value,
                                         {
                                           day: item,
-                                          from: "08:00 AM",
-                                          to: "05:45 PM",
+                                          from: "09:30 AM",
+                                          to: "06:00 PM",
                                         },
                                       ])
                                     : field.onChange(

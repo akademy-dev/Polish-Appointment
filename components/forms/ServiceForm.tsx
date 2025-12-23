@@ -6,6 +6,16 @@ import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Service } from "@/models/service";
 import { cn } from "@/lib/utils";
+import { useCategories } from "@/hooks/use-categories";
+import CategoryForm from "@/components/forms/CategoryForm";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Plus } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -21,8 +31,6 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { client } from "@/sanity/lib/client";
-import { CATEGORIES_QUERY } from "@/sanity/lib/queries";
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Command,
@@ -54,6 +62,7 @@ const ServiceForm = ({
   formRef,
   form: externalForm,
   isSubmitting = false,
+  categories: externalCategories,
 }: {
   className?: string;
   initialData?: Service;
@@ -62,6 +71,7 @@ const ServiceForm = ({
   formRef?: React.RefObject<HTMLFormElement | null>;
   form?: UseFormReturn<ServiceFormValues>;
   isSubmitting?: boolean;
+  categories?: { _id: string; name: string }[];
 }) => {
   const internalForm = useForm<ServiceFormValues>({
     resolver: zodResolver(serviceFormSchema),
@@ -80,8 +90,20 @@ const ServiceForm = ({
   React.useEffect(() => {
     // Reset the form with initial data if provided
     if (initialData) {
-      form.reset(initialData);
-      console.log("Resetting form with duration:", initialData.duration);
+      // Transform initialData to match form format
+      // Get category ID from initialData.category._id or initialData.category.id
+      const categoryId =
+        initialData.category?._id || initialData.category?.id || "";
+      const formData = {
+        name: initialData.name,
+        price: initialData.price,
+        duration: initialData.duration,
+        category: {
+          _ref: categoryId,
+          _type: "reference" as const,
+        },
+      };
+      form.reset(formData);
     }
   }, [initialData, form]);
 
@@ -89,27 +111,46 @@ const ServiceForm = ({
     onSuccess?.();
   }
 
-  const [categories, setCategories] = React.useState<
-    { _id: string; name: string }[]
-  >([]);
+  // Use categories from hook for global caching
+  const {
+    categories: cachedCategories,
+    loading: categoriesLoading,
+    refetch,
+  } = useCategories();
 
-  // Lấy tất cả category khi component mount
+  // State for create category dialog
+  const [showCreateCategoryDialog, setShowCreateCategoryDialog] =
+    useState(false);
+
+  // Handle category creation success
+  const handleCategoryCreated = (newCategory: {
+    _id: string;
+    name: string;
+  }) => {
+    // Refetch categories to update cache
+    refetch();
+
+    // Select the newly created category
+    form.setValue("category", {
+      _ref: newCategory._id,
+      _type: "reference",
+    });
+
+    // Close dialog
+    setShowCreateCategoryDialog(false);
+  };
+
+  // Use external categories if provided, otherwise use cached categories
+  const categories = externalCategories || cachedCategories;
+
   React.useEffect(() => {
-    async function fetchCategories() {
-      try {
-        const result = await client.fetch(CATEGORIES_QUERY);
-        setCategories(result || []);
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-      }
-    }
-
-    fetchCategories();
-  }, []);
-
-  React.useEffect(() => {
+    // Only set default category if:
+    // 1. Categories are loaded
+    // 2. No initialData is provided (create mode)
+    // 3. Form doesn't have a category set
     if (
       categories.length &&
+      !initialData &&
       (!form.getValues("category") || !form.getValues("category")._ref)
     ) {
       form.setValue("category", {
@@ -117,7 +158,7 @@ const ServiceForm = ({
         _type: "reference",
       });
     }
-  }, [categories, form]);
+  }, [categories, form, initialData, categoriesLoading]);
 
   const [open, setOpen] = useState(false);
 
@@ -136,7 +177,7 @@ const ServiceForm = ({
       <form
         ref={formRef}
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn("space-y-4 p-1 max-w-3xl", className)}
+        className={cn("space-y-4 w-full", className)}
       >
         <FormField
           control={form.control}
@@ -155,8 +196,9 @@ const ServiceForm = ({
                         variant="outline"
                         role="combobox"
                         aria-expanded={open}
-                        className="w-2xs justify-between"
+                        className="w-full justify-between"
                         id="category"
+                        disabled={isSubmitting}
                       >
                         {selectedCategory
                           ? selectedCategory.name
@@ -164,12 +206,25 @@ const ServiceForm = ({
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-2xs p-0">
+                    <PopoverContent
+                      className="w-[var(--radix-popover-trigger-width)] p-0"
+                      align="start"
+                    >
                       <Command>
                         <CommandInput placeholder="Search category..." />
-                        <CommandList>
+                        <CommandList className="max-h-[200px]">
                           <CommandEmpty>No category found.</CommandEmpty>
                           <CommandGroup>
+                            <CommandItem
+                              onSelect={() => {
+                                setOpen(false);
+                                setShowCreateCategoryDialog(true);
+                              }}
+                              className="border-b mb-1 pb-2"
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add new category
+                            </CommandItem>
                             {categories.map((cat) => (
                               <CommandItem
                                 key={cat._id}
@@ -210,7 +265,14 @@ const ServiceForm = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel htmlFor="name">Name</FormLabel>
-              <Input {...field} placeholder="Service Name" id="name" />
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="Service Name"
+                  id="name"
+                  disabled={isSubmitting}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -221,25 +283,28 @@ const ServiceForm = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel htmlFor="price">Default Price</FormLabel>
-              <div className="relative">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-                  $
-                </span>
-                <Input
-                  type="number"
-                  {...field}
-                  value={field.value ?? ""}
-                  onChange={(e) =>
-                    field.onChange(
-                      e.target.value === "" ? "" : Number(e.target.value)
-                    )
-                  }
-                  placeholder="Service Price"
-                  step="1"
-                  className="pl-6"
-                  id="price"
-                />
-              </div>
+              <FormControl>
+                <div className="relative">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                    $
+                  </span>
+                  <Input
+                    type="number"
+                    {...field}
+                    value={field.value ?? ""}
+                    onChange={(e) =>
+                      field.onChange(
+                        e.target.value === "" ? "" : Number(e.target.value)
+                      )
+                    }
+                    placeholder="Service Price"
+                    step="1"
+                    className="pl-6"
+                    id="price"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -251,29 +316,32 @@ const ServiceForm = ({
             return (
               <FormItem>
                 <FormLabel htmlFor="duration">Default Duration</FormLabel>
-                <Select
-                  onValueChange={(val) => {
-                    if (val && intervals.includes(Number(val))) {
-                      field.onChange(Number(val));
+                <FormControl>
+                  <Select
+                    onValueChange={(val) => {
+                      if (val && intervals.includes(Number(val))) {
+                        field.onChange(Number(val));
+                      }
+                    }}
+                    value={
+                      intervals.includes(field.value)
+                        ? field.value.toString()
+                        : intervals[0].toString()
                     }
-                  }}
-                  value={
-                    intervals.includes(field.value)
-                      ? field.value.toString()
-                      : intervals[0].toString()
-                  }
-                >
-                  <SelectTrigger id="duration">
-                    <SelectValue placeholder="Select duration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {intervals.map((min) => (
-                      <SelectItem key={min} value={min.toString()}>
-                        {formatDuration(min)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger id="duration">
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {intervals.map((min) => (
+                        <SelectItem key={min} value={min.toString()}>
+                          {formatDuration(min)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
                 <FormMessage />
               </FormItem>
             );
@@ -287,6 +355,25 @@ const ServiceForm = ({
           </div>
         )}
       </form>
+
+      {/* Create Category Dialog */}
+      <Dialog
+        open={showCreateCategoryDialog}
+        onOpenChange={setShowCreateCategoryDialog}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Category</DialogTitle>
+            <DialogDescription>
+              Add a new category for organizing your services.
+            </DialogDescription>
+          </DialogHeader>
+          <CategoryForm
+            onSuccess={handleCategoryCreated}
+            onCancel={() => setShowCreateCategoryDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 };

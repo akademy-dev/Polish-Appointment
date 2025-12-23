@@ -8,10 +8,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import React from "react";
+import { useRouter } from "next/navigation";
 import { updateTimezone } from "@/lib/actions";
 import { toast } from "sonner";
 
 export function Timezone({ _id, value }: { _id: string; value: string }) {
+  const router = useRouter();
   const timezones = [
     { value: "UTC-12", label: "UTC-12:00" },
     { value: "UTC-11", label: "UTC-11:00" },
@@ -51,6 +53,7 @@ export function Timezone({ _id, value }: { _id: string; value: string }) {
         toast.success("Success", {
           description: "Timezone updated successfully.",
         });
+        router.refresh();
       }
     });
   };

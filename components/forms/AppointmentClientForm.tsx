@@ -12,7 +12,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import {
   Command,
   CommandEmpty,
@@ -25,10 +25,11 @@ import { cn } from "@/lib/utils";
 import { Appointment } from "@/models/appointment";
 import CreateInfoButton from "@/components/CreateInfoButton";
 import AppointmentTimeOffForm from "./AppointmentTimeOffForm";
+import { getProfileName } from "@/models/profile";
 
 const AppointmentClientForm = ({
   form,
-  customers,
+  customers: initialCustomers,
   customerValue,
   setCustomerValue,
   isSubmitting,
@@ -36,9 +37,10 @@ const AppointmentClientForm = ({
   timeOffForm,
   onTimeOffSubmit,
   selectedEmployee,
+  type,
 }: {
   form: UseFormReturn<z.infer<typeof appointmentFormSchema>>;
-  customers: {
+  customers?: {
     value: string;
     label: string;
     _id: string;
@@ -58,11 +60,104 @@ const AppointmentClientForm = ({
     firstName: string;
     lastName: string;
   };
+  type?: "create" | "edit";
 }) => {
   const [customerOpen, setCustomerOpen] = React.useState(false);
+  const [customers, setCustomers] = React.useState<
+    {
+      value: string;
+      label: string;
+      _id: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+    }[]
+  >(initialCustomers || []);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [isSearching, setIsSearching] = React.useState(false);
+  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch current customer when editing
+  React.useEffect(() => {
+    if (type === "edit" && customerValue && initialCustomers?.length === 0) {
+      const fetchCurrentCustomer = async () => {
+        try {
+          const customerId = form.getValues("customer._ref");
+          if (customerId) {
+            const response = await fetch(`/api/customers?id=${customerId}`);
+            const result = await response.json();
+            if (result && result.id) {
+              setCustomers([
+                {
+                  _id: result.id,
+                  value: result.id,
+                  label:
+                    `${result.first_name || ""} ${result.last_name || ""}`.trim(),
+                  firstName: result.first_name,
+                  lastName: result.last_name,
+                  phone: result.phone || "",
+                },
+              ]);
+            }
+          }
+        } catch (error) {
+        }
+      };
+      fetchCurrentCustomer();
+    } else if (initialCustomers && initialCustomers.length > 0) {
+      setCustomers(initialCustomers);
+    }
+  }, [type, customerValue, form, initialCustomers]);
+
+  // Search customers with debounce
+  React.useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If search query is empty, show initial customers
+    if (searchQuery.trim().length === 0) {
+      setCustomers(initialCustomers || []);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const searchTerm = searchQuery.trim();
+        const customersRes = await fetch(
+          `/api/customers?search=${encodeURIComponent(searchTerm)}`
+        ).then((res) => res.json());
+        // Transform to match Customer type
+        setCustomers(
+          (customersRes || []).map((customer: any) => ({
+            _id: customer.id,
+            value: customer.id,
+            label:
+              `${customer.first_name || ""} ${customer.last_name || ""}`.trim(),
+            firstName: customer.first_name,
+            lastName: customer.last_name,
+            phone: customer.phone || "",
+          }))
+        );
+      } catch (error) {
+        setCustomers([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // 300ms debounce
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
   const selectedCustomer = React.useMemo(
     () => customers.find((c) => c.value === customerValue),
-    [customers, customerValue],
+    [customers, customerValue]
   );
 
   return (
@@ -71,7 +166,16 @@ const AppointmentClientForm = ({
       <div className="w-1/3">
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold">Client search</h2>
-          <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
+          <Popover
+            open={customerOpen}
+            onOpenChange={(open) => {
+              setCustomerOpen(open);
+              if (!open) {
+                // Reset search when closing popover
+                setSearchQuery("");
+              }
+            }}
+          >
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -87,83 +191,73 @@ const AppointmentClientForm = ({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[250px] p-0 ">
-              <Command
-                filter={(value, search) => {
-                  const customer = customers.find((c) => c.value === value);
-                  if (!customer) return 0;
-
-                  const searchLower = search.toLowerCase().trim();
-                  const searchDigits = search.replace(/\D/g, "");
-
-                  const nameLower = (customer.label ?? "").toLowerCase();
-                  const phoneLower = (customer.phone ?? "").toLowerCase();
-                  const phoneDigits = (customer.phone ?? "").replace(/\D/g, "");
-
-                  const matchByName = nameLower.includes(searchLower);
-                  const matchByPhoneText = phoneLower.includes(searchLower);
-                  const matchByPhoneDigits = searchDigits
-                    ? phoneDigits.includes(searchDigits)
-                    : false;
-
-                  return matchByName || matchByPhoneText || matchByPhoneDigits
-                    ? 1
-                    : 0;
-                }}
-              >
+              <Command shouldFilter={false}>
                 <CommandInput
                   placeholder="Search by name or phone..."
                   className="h-9"
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
                 />
                 <CommandList>
-                  <CommandEmpty>No customer found.</CommandEmpty>
-                  <CommandGroup>
-                    {customers.map((customer) => (
-                      <CommandItem
-                        key={customer.value}
-                        value={customer.value}
-                        onSelect={(currentValue) => {
-                          const newValue =
-                            currentValue === customerValue ? "" : currentValue;
-                          setCustomerValue(newValue);
-                          setCustomerOpen(false);
+                  {isSearching ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : customers.length === 0 ? (
+                    <CommandEmpty>No customer found.</CommandEmpty>
+                  ) : (
+                    <CommandGroup>
+                      {customers.map((customer) => (
+                        <CommandItem
+                          key={customer.value}
+                          value={customer.value}
+                          onSelect={(currentValue) => {
+                            const newValue =
+                              currentValue === customerValue
+                                ? ""
+                                : currentValue;
+                            setCustomerValue(newValue);
+                            setCustomerOpen(false);
+                            setSearchQuery("");
 
-                          const selected = customers.find(
-                            (c) => c.value === newValue,
-                          );
-                          if (selected) {
-                            form.setValue("customer", {
-                              firstName: selected.firstName ?? "",
-                              lastName: selected.lastName ?? "",
-                              phone: selected.phone ?? "",
-                              _ref: selected._id,
-                              _type: "reference",
-                            });
-                          } else {
-                            form.reset({
-                              ...form.getValues(),
-                              customer: {
-                                firstName: "",
-                                lastName: "",
-                                phone: "",
-                                _ref: "",
+                            const selected = customers.find(
+                              (c) => c.value === newValue
+                            );
+                            if (selected) {
+                              form.setValue("customer", {
+                                firstName: selected.firstName ?? "",
+                                lastName: selected.lastName ?? "",
+                                phone: selected.phone ?? "",
+                                _ref: selected._id,
                                 _type: "reference",
-                              },
-                            });
-                          }
-                        }}
-                      >
-                        {`${customer.label}${customer.phone ? ` - ${customer.phone}` : ""}`}
-                        <Check
-                          className={cn(
-                            "ml-auto",
-                            customerValue === customer.value
-                              ? "opacity-100"
-                              : "opacity-0",
-                          )}
-                        />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+                              });
+                            } else {
+                              form.reset({
+                                ...form.getValues(),
+                                customer: {
+                                  firstName: "",
+                                  lastName: "",
+                                  phone: "",
+                                  _ref: "",
+                                  _type: "reference",
+                                },
+                              });
+                            }
+                          }}
+                        >
+                          {`${customer.label}${customer.phone ? ` - ${customer.phone}` : ""}`}
+                          <Check
+                            className={cn(
+                              "ml-auto",
+                              customerValue === customer.value
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
                 </CommandList>
               </Command>
             </PopoverContent>

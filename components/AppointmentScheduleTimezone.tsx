@@ -38,10 +38,8 @@ import {
   updateAppointment,
   checkRecurringConflicts,
 } from "@/lib/actions";
-import { APPOINTMENT_TIME_OFF_QUERY } from "@/sanity/lib/queries";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import { client } from "@/sanity/lib/client";
 import {
   Dialog,
   DialogContent,
@@ -52,7 +50,7 @@ import {
 } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ConflictDialog } from "@/components/ConflictDialog";
-import { getIanaTimezone } from "@/lib/utils";
+import { getIanaTimezone, safeParseDate, calculateDuration } from "@/lib/utils";
 import { deleteTimeOff, updateTimeOff } from "@/actions/time-off";
 import {
   Select,
@@ -64,6 +62,11 @@ import {
 import { Label } from "@/components/ui/label";
 
 const DragAndDropCalendar = withDragAndDrop(Calendar);
+
+type AppointmentWithLegacyTimes = Appointment & {
+  start_time?: string;
+  end_time?: string;
+};
 
 interface CalendarEvent {
   id: number | string;
@@ -208,16 +211,12 @@ const setTimeToDate = (
 ): Date | null => {
   timeStr = timeStr.trim();
   if (!isValidTimeString(timeStr)) {
-    console.error(
-      `Invalid time format: ${timeStr}. Expected HH:mm AM/PM (e.g., "10:00 AM").`
-    );
     return null;
   }
 
   const isoTime = formatToISO8601(date, timeStr, timezone);
   const momentTime = moment.tz(isoTime, getIanaTimezone(timezone));
   if (!momentTime.isValid()) {
-    console.error(`Invalid Date created from: ${date}, ${timeStr}`);
     return null;
   }
   return momentTime.toDate();
@@ -232,10 +231,7 @@ const generateAppointmentTimeOffEvents = (
   const events: any[] = [];
 
   appointmentTimeOffs.forEach((timeOff) => {
-    console.log("Processing time off:", timeOff);
-
     if (!timeOff.employee || !timeOff.startTime || !timeOff.duration) {
-      console.log("Skipping time off - missing required fields");
       return;
     }
 
@@ -264,10 +260,7 @@ const generateAppointmentTimeOffEvents = (
       isMatchingDate = timeOffDate.isSame(momentDate, "day");
     }
 
-    console.log("Time off date match result:", isMatchingDate);
-
     if (isMatchingDate) {
-      console.log("Creating event for time off:", timeOff);
       const startTime = moment
         .tz(timeOff.startTime, getIanaTimezone(timezone))
         .toDate();
@@ -347,6 +340,13 @@ const AppointmentScheduleTimezone = ({
   const [conflicts, setConflicts] = useState<any[]>([]);
   const [pendingAppointmentData, setPendingAppointmentData] =
     useState<any>(null);
+  const [showServiceConfirm, setShowServiceConfirm] = useState(false);
+  const [pendingMoveEvent, setPendingMoveEvent] = useState<{
+    event: object;
+    start: Date | string;
+    end: Date | string;
+    resourceId?: number | string;
+  } | null>(null);
   const [appointmentTimeOffs, setAppointmentTimeOffs] = useState<any[]>(
     initialAppointmentTimeOffs
   );
@@ -355,6 +355,19 @@ const AppointmentScheduleTimezone = ({
   const [editingTimeOff, setEditingTimeOff] = useState<any>(null);
   const [isCancellingStanding, setIsCancellingStanding] = useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
+  const [rpcAppointments, setRpcAppointments] = useState<Appointment[]>([]);
+
+  // Local state for optimistic updates
+  const [appointments, setAppointments] = useState<Appointment[]>(
+    initialAppointments || []
+  );
+
+  // Sync with initialAppointments when they change (from server)
+  useEffect(() => {
+    if (initialAppointments) {
+      setAppointments(initialAppointments);
+    }
+  }, [initialAppointments]);
 
   // Chuẩn hóa ngày khi múi giờ thay đổi
   useEffect(() => {
@@ -513,9 +526,6 @@ const AppointmentScheduleTimezone = ({
           .startOf("day")
           .toDate();
 
-    console.log("Time offs data:", appointmentTimeOffs);
-    console.log("Current date:", dateAtStartOfDay);
-
     const events = generateAppointmentTimeOffEvents(
       appointmentTimeOffs,
       dateAtStartOfDay,
@@ -523,28 +533,45 @@ const AppointmentScheduleTimezone = ({
       maxTime || "6:00 PM"
     );
 
-    console.log("Generated time off events:", events);
     return events;
   }, [appointmentTimeOffs, currentDate, timezone, maxTime]);
 
-  // Ánh xạ initialAppointments thành sự kiện lịch
+  // Ánh xạ appointments (local state) thành sự kiện lịch
   const appointmentEvents = useMemo(() => {
-    return (initialAppointments || []).map((appt: Appointment) => {
-      const startMoment = moment.tz(appt.startTime, getIanaTimezone(timezone));
-      const endMoment = appt.endTime
-        ? moment.tz(appt.endTime, getIanaTimezone(timezone))
-        : startMoment.clone().add(appt.duration || 30, "minutes");
-      return {
-        id: appt._id,
-        start: startMoment.toDate(),
-        end: endMoment.toDate(),
-        title: appt.service?.name || "Appointment",
-        resourceId: appt.employee?._id,
-        data: appt,
-        type: "appointment",
-      };
-    });
-  }, [initialAppointments, timezone]);
+    return (appointments || [])
+      .filter((appt: AppointmentWithLegacyTimes) => {
+        // Filter out appointments with invalid startTime
+        const startTime = appt.startTime || appt.start_time;
+        return startTime && safeParseDate(startTime);
+      })
+      .map((appt: AppointmentWithLegacyTimes) => {
+        const startTimeStr = appt.startTime || appt.start_time;
+        const endTimeStr = appt.endTime || appt.end_time;
+
+        const startMoment = moment.tz(startTimeStr, getIanaTimezone(timezone));
+        const endMoment = endTimeStr
+          ? moment.tz(endTimeStr, getIanaTimezone(timezone))
+          : startMoment.clone().add(appt.duration || 30, "minutes");
+
+        // Validate moments
+        if (!startMoment.isValid()) {
+          return null;
+        }
+
+        return {
+          id: appt._id,
+          start: startMoment.toDate(),
+          end: endMoment.isValid()
+            ? endMoment.toDate()
+            : startMoment.clone().add(30, "minutes").toDate(),
+          title: appt.service?.name || "Appointment",
+          resourceId: appt.employee?._id,
+          data: appt,
+          type: "appointment",
+        };
+      })
+      .filter((event) => event !== null);
+  }, [appointments, timezone]);
 
   // State cho sự kiện
   const [myEvents, setEvents] = useState<CalendarEvent[]>([]);
@@ -570,13 +597,14 @@ const AppointmentScheduleTimezone = ({
     setIsLoading(false);
   }, [initialAppointments, setIsLoading]);
 
-  // Fetch appointment time off data
+  // Fetch appointment time off data from Supabase
   const fetchAppointmentTimeOffs = React.useCallback(async () => {
     try {
-      const timeOffs = await client.fetch(APPOINTMENT_TIME_OFF_QUERY);
-      setAppointmentTimeOffs(timeOffs);
+      const response = await fetch("/api/appointment-time-off");
+      const timeOffs = await response.json();
+      setAppointmentTimeOffs(timeOffs || []);
     } catch (error) {
-      console.error("Error fetching appointment time offs:", error);
+      setAppointmentTimeOffs([]);
     }
   }, []);
 
@@ -729,11 +757,77 @@ const AppointmentScheduleTimezone = ({
       if (result.status === "SUCCESS") {
         setOpen(false);
         appointmentForm.reset();
+        // Optimistic update: Add appointments to local state immediately
+        if (result.results && Array.isArray(result.results)) {
+          const newAppointments = result.results.map((createdAppt: any) => {
+            const formValues = pendingAppointmentData;
+            const totalDuration = formValues.services.reduce(
+              (total: number, service: any) =>
+                total + service.duration * service.quantity,
+              0
+            );
+            const startTime = new Date(
+              formValues.formData.get("time") as string
+            );
+            const endTime = new Date(
+              startTime.getTime() + totalDuration * 60000
+            );
+
+            const employee = filteredEmployees.find(
+              (emp) => emp._id === formValues.employee._ref
+            );
+            const firstService = formValues.services[0];
+
+            return {
+              _id: createdAppt._id || `temp-${Date.now()}-${Math.random()}`,
+              _createdAt: new Date().toISOString(),
+              startTime: startTime.toISOString(),
+              endTime: endTime.toISOString(),
+              duration: totalDuration,
+              note: (formValues.formData.get("note") as string) || "",
+              type: ((formValues.formData.get("type") as string) ||
+                "walk-in") as Appointment["type"],
+              status: ((formValues.formData.get("status") as string) ||
+                "scheduled") as Appointment["status"],
+              reminder: (formValues.reminder || []) as Appointment["reminder"],
+              reminderDateTimes: [],
+              smsMessage: "",
+              customer: {
+                _id: formValues.customer._ref || "",
+                _type: "customer",
+                firstName: "",
+                lastName: "",
+                phone: "",
+              },
+              employee: {
+                _id: employee?._id || formValues.employee._ref,
+                _type: "employee",
+                firstName: employee?.firstName || "",
+                lastName: employee?.lastName || "",
+              },
+              service: {
+                _id: firstService?._ref || "",
+                name: "Loading...",
+                price: 0,
+                duration: firstService?.duration || 0,
+                category: { _id: "", name: "" },
+              },
+              recurringGroupId: createdAppt.recurringGroupId,
+            } satisfies Appointment;
+          });
+
+          setAppointments((prev) => [...prev, ...newAppointments]);
+        }
+
         toast.success("Success", {
           description:
             "Recurring appointments created successfully (with conflicts)",
         });
-        router.refresh();
+
+        // Refresh in background without blocking UI
+        startTransition(() => {
+          router.refresh();
+        });
         fetchAppointmentTimeOffs(); // Refresh time off data
       } else {
         toast.error("Error", {
@@ -741,7 +835,6 @@ const AppointmentScheduleTimezone = ({
         });
       }
     } catch (error) {
-      console.error(error);
       toast.error("Error", {
         description: "An unexpected error occurred",
       });
@@ -779,7 +872,6 @@ const AppointmentScheduleTimezone = ({
         });
       }
     } catch (error) {
-      console.error("Error cancelling time off:", error);
       toast.error("Error", {
         description: "An unexpected error occurred",
       });
@@ -807,7 +899,6 @@ const AppointmentScheduleTimezone = ({
         });
       }
     } catch (error) {
-      console.error("Error updating time off:", error);
       toast.error("Error", {
         description: "An unexpected error occurred",
       });
@@ -870,8 +961,8 @@ const AppointmentScheduleTimezone = ({
 
     try {
       const formValues = appointmentForm.getValues();
+
       const formData = new FormData();
-      console.log("Form Values:", formValues);
       formData.append("time", formValues.time);
       formData.append("note", formValues.note || "");
       formData.append("type", formValues.type || "walk-in");
@@ -1004,12 +1095,77 @@ const AppointmentScheduleTimezone = ({
         );
 
         if (result.status === "SUCCESS") {
+          // Optimistic update: Add appointments to local state immediately
+          if (result.results && Array.isArray(result.results)) {
+            const newAppointments = result.results.map((createdAppt: any) => {
+              // Build optimistic appointment from form values and created result
+              const totalDuration = formValues.services.reduce(
+                (total, service) => total + service.duration * service.quantity,
+                0
+              );
+              const startTime = new Date(formValues.time);
+              const endTime = new Date(
+                startTime.getTime() + totalDuration * 60000
+              );
+
+              // Find employee and service info
+              const employee = filteredEmployees.find(
+                (emp) => emp._id === formValues.employee._ref
+              );
+              const firstService = formValues.services[0];
+
+              return {
+                _id: createdAppt._id || `temp-${Date.now()}-${Math.random()}`,
+                _createdAt: new Date().toISOString(),
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString(),
+                duration: totalDuration,
+                note: formValues.note || "",
+                type: (formValues.type || "walk-in") as Appointment["type"],
+                status: (formValues.status ||
+                  "scheduled") as Appointment["status"],
+                reminder: (formValues.reminder ||
+                  []) as Appointment["reminder"],
+                reminderDateTimes: [],
+                smsMessage: "",
+                customer: {
+                  _id: formValues.customer._ref || "",
+                  _type: "customer",
+                  firstName: formValues.customer.firstName,
+                  lastName: formValues.customer.lastName,
+                  phone: formValues.customer.phone,
+                },
+                employee: {
+                  _id: employee?._id || formValues.employee._ref,
+                  _type: "employee",
+                  firstName: employee?.firstName || "",
+                  lastName: employee?.lastName || "",
+                },
+                service: {
+                  _id: firstService?._ref || "",
+                  name: "Loading...",
+                  price: 0,
+                  duration: firstService?.duration || 0,
+                  category: { _id: "", name: "" },
+                },
+                recurringGroupId: createdAppt.recurringGroupId,
+              } satisfies Appointment;
+            });
+
+            // Add to local state immediately
+            setAppointments((prev) => [...prev, ...newAppointments]);
+          }
+
           setOpen(false);
           appointmentForm.reset();
           toast.success("Success", {
             description: `Appointment created successfully`,
           });
-          router.refresh(); // Trigger re-fetch
+
+          // Refresh in background without blocking UI
+          startTransition(() => {
+            router.refresh();
+          });
           fetchAppointmentTimeOffs(); // Refresh time off data
         } else {
           toast.error("Error", {
@@ -1124,12 +1280,78 @@ const AppointmentScheduleTimezone = ({
           );
 
           if (result.status === "SUCCESS") {
+            // Optimistic update: Add appointments to local state immediately
+            if (result.results && Array.isArray(result.results)) {
+              const newAppointments = result.results.map((createdAppt: any) => {
+                // Build optimistic appointment from form values and created result
+                const totalDuration = formValues.services.reduce(
+                  (total, service) =>
+                    total + service.duration * service.quantity,
+                  0
+                );
+                const startTime = new Date(formValues.time);
+                const endTime = new Date(
+                  startTime.getTime() + totalDuration * 60000
+                );
+
+                // Find employee and service info
+                const employee = filteredEmployees.find(
+                  (emp) => emp._id === formValues.employee._ref
+                );
+                const firstService = formValues.services[0];
+
+                return {
+                  _id: createdAppt._id || `temp-${Date.now()}-${Math.random()}`,
+                  _createdAt: new Date().toISOString(),
+                  startTime: startTime.toISOString(),
+                  endTime: endTime.toISOString(),
+                  duration: totalDuration,
+                  note: formValues.note || "",
+                  type: (formValues.type || "walk-in") as Appointment["type"],
+                  status: (formValues.status ||
+                    "scheduled") as Appointment["status"],
+                  reminder: (formValues.reminder ||
+                    []) as Appointment["reminder"],
+                  reminderDateTimes: [],
+                  smsMessage: "",
+                  customer: {
+                    _id: customerId,
+                    _type: "customer",
+                    firstName: formValues.customer.firstName,
+                    lastName: formValues.customer.lastName,
+                    phone: formValues.customer.phone,
+                  },
+                  employee: {
+                    _id: employee?._id || formValues.employee._ref,
+                    _type: "employee",
+                    firstName: employee?.firstName || "",
+                    lastName: employee?.lastName || "",
+                  },
+                  service: {
+                    _id: firstService?._ref || "",
+                    name: "Loading...",
+                    price: 0,
+                    duration: firstService?.duration || 0,
+                    category: { _id: "", name: "" },
+                  },
+                  recurringGroupId: createdAppt.recurringGroupId,
+                } satisfies Appointment;
+              });
+
+              // Add to local state immediately
+              setAppointments((prev) => [...prev, ...newAppointments]);
+            }
+
             setOpen(false);
             appointmentForm.reset();
             toast.success("Success", {
               description: "New Appointment created successfully",
             });
-            router.refresh(); // Trigger re-fetch
+
+            // Refresh in background without blocking UI
+            startTransition(() => {
+              router.refresh();
+            });
             fetchAppointmentTimeOffs(); // Refresh time off data
           } else {
             toast.error("Error", {
@@ -1143,7 +1365,6 @@ const AppointmentScheduleTimezone = ({
         }
       }
     } catch (error) {
-      console.error(error);
       toast.error("Error", {
         description: "An unexpected error occurred",
       });
@@ -1173,7 +1394,6 @@ const AppointmentScheduleTimezone = ({
       };
 
       setType("create");
-      console.log("Selected Slot Start:", start.toISOString());
       appointmentForm.setValue("time", start.toISOString());
       appointmentForm.setValue("employee", {
         _ref: resourceId,
@@ -1185,7 +1405,7 @@ const AppointmentScheduleTimezone = ({
     []
   );
 
-  const handleSelectEvent = useCallback((event: object) => {
+  const handleSelectEvent = useCallback(async (event: object) => {
     const calendarEvent = event as CalendarEvent;
 
     if (calendarEvent.type === "not_working") {
@@ -1198,7 +1418,260 @@ const AppointmentScheduleTimezone = ({
       return;
     }
 
-    console.log("Calendar Event:", calendarEvent.data);
+    // Call SQL function when appointment is clicked to get full data
+    if (calendarEvent.type === "appointment" && calendarEvent.data._id) {
+      try {
+        const response = await fetch(
+          `/api/appointments?appointmentId=${calendarEvent.data._id}`
+        );
+        const rpcResult = await response.json();
+
+        if (process.env.NODE_ENV !== "production") {
+          const sample =
+            Array.isArray(rpcResult) && rpcResult.length > 0
+              ? rpcResult[0]
+              : rpcResult;
+          console.log("[rpc] get_appointment_with_services_same_day response", {
+            appointmentId: calendarEvent.data._id,
+            rpcType: Array.isArray(rpcResult) ? "array" : typeof rpcResult,
+            rpcLength: Array.isArray(rpcResult) ? rpcResult.length : undefined,
+            sample: sample
+              ? {
+                  id: (sample as any).id,
+                  employee_id: (sample as any).employee_id,
+                  employee_first_name: (sample as any).employee_first_name,
+                  employee_last_name: (sample as any).employee_last_name,
+                  services_same_day_count: Array.isArray(
+                    (sample as any).services_same_day
+                  )
+                    ? (sample as any).services_same_day.length
+                    : 0,
+                }
+              : sample,
+          });
+        }
+
+        // Use RPC result to populate form instead of calendarEvent.data
+        if (rpcResult && Array.isArray(rpcResult) && rpcResult.length > 0) {
+          const appointmentData = rpcResult[0];
+
+          setType("edit");
+          setAppointmentId(appointmentData.id);
+
+          // Set customer info from RPC result
+          appointmentForm.setValue("customer", {
+            firstName: appointmentData.customer_first_name || "",
+            lastName: appointmentData.customer_last_name || "",
+            phone: appointmentData.customer_phone || "",
+            _ref: appointmentData.customer_id,
+            _type: "reference",
+          });
+
+          // Set employee from calendarEvent (or from RPC if available)
+          appointmentForm.setValue("employee", {
+            _ref: calendarEvent.resourceId.toString(),
+            _type: "reference",
+          });
+
+          // Set other fields from RPC result
+          appointmentForm.setValue("note", appointmentData.note || "");
+          appointmentForm.setValue("reminder", appointmentData.reminder || []);
+          appointmentForm.setValue("type", appointmentData.type || "walk-in");
+          appointmentForm.setValue(
+            "status",
+            appointmentData.status || "scheduled"
+          );
+
+          // Set recurringGroupId for Cancel Standing functionality
+          if (appointmentData.recurring_group_id) {
+            appointmentForm.setValue(
+              "recurringGroupId",
+              appointmentData.recurring_group_id
+            );
+          }
+
+          // Find the first service from services_same_day to set as the selected service
+          // and set time from the first appointment
+          if (
+            appointmentData.services_same_day &&
+            appointmentData.services_same_day.length > 0
+          ) {
+            const firstService = appointmentData.services_same_day[0];
+
+            const employeeIdFromCalendar =
+              calendarEvent.resourceId?.toString?.() || "";
+            const employeeFromCalendar = (initialEmployees || []).find(
+              (e: any) => e?._id?.toString?.() === employeeIdFromCalendar
+            );
+            const employeeNameFromCalendar = employeeFromCalendar
+              ? getProfileName(employeeFromCalendar as any)
+              : "";
+
+            // Set time from first service
+            if (firstService.start_time) {
+              appointmentForm.setValue("time", firstService.start_time);
+            }
+
+            // Transform services_same_day into appointments format
+            const transformedAppointments: Appointment[] =
+              appointmentData.services_same_day.map((service: any) => ({
+                // IMPORTANT:
+                // Staff in services_same_day can be different or can lag behind in RPC fields.
+                // Prefer staff info on the service row (if present), otherwise fall back to
+                // calendar resource (current staff on UI), then finally fall back to RPC root fields.
+                _id: `${appointmentData.id}_${service.service_id}_${service.start_time}`, // Generate unique ID
+                startTime: service.start_time,
+                endTime: service.end_time,
+                duration: calculateDuration(
+                  service.start_time,
+                  service.end_time
+                ),
+                created_at: service.created_at || appointmentData.created_at,
+                _createdAt: service.created_at || appointmentData.created_at,
+                customer: {
+                  _id: appointmentData.customer_id,
+                  firstName: appointmentData.customer_first_name,
+                  lastName: appointmentData.customer_last_name,
+                  fullName:
+                    `${appointmentData.customer_first_name || ""} ${appointmentData.customer_last_name || ""}`.trim(),
+                },
+                employee: {
+                  _id:
+                    service.employee_id ||
+                    service.employeeId ||
+                    service.staff_id ||
+                    service.staffId ||
+                    appointmentData.employee_id ||
+                    employeeIdFromCalendar,
+                  firstName:
+                    service.employee_first_name ||
+                    service.employeeFirstName ||
+                    service.staff_first_name ||
+                    service.staffFirstName ||
+                    appointmentData.employee_first_name ||
+                    (employeeFromCalendar as any)?.firstName ||
+                    "",
+                  lastName:
+                    service.employee_last_name ||
+                    service.employeeLastName ||
+                    service.staff_last_name ||
+                    service.staffLastName ||
+                    appointmentData.employee_last_name ||
+                    (employeeFromCalendar as any)?.lastName ||
+                    "",
+                  fullName:
+                    service.employee_full_name ||
+                    (service as any).employee_fullname ||
+                    service.employeeFullName ||
+                    service.staff_full_name ||
+                    service.staffFullName ||
+                    service.employee_name ||
+                    service.staff_name ||
+                    employeeNameFromCalendar ||
+                    `${appointmentData.employee_first_name || ""} ${appointmentData.employee_last_name || ""}`.trim(),
+                },
+                service: {
+                  _id: service.service_id,
+                  name: service.name,
+                  duration: calculateDuration(
+                    service.start_time,
+                    service.end_time
+                  ),
+                },
+                reminder: appointmentData.reminder || [],
+                type: appointmentData.type || "walk-in",
+                status: appointmentData.status || "scheduled",
+                note: appointmentData.note || "",
+                recurringGroupId: appointmentData.recurring_group_id,
+              }));
+
+            if (process.env.NODE_ENV !== "production") {
+              console.log("[rpc] transformed today's services (staff)", {
+                appointmentId: appointmentData.id,
+                items: transformedAppointments.map((a: any) => ({
+                  id: a._id,
+                  startTime: a.startTime,
+                  service: a.service?.name || a.service?._id,
+                  staffId: a.employee?._id,
+                  staffName:
+                    (a.employee as any)?.fullName ||
+                    `${a.employee?.firstName || ""} ${a.employee?.lastName || ""}`.trim(),
+                })),
+              });
+            }
+
+            // Store transformed appointments to pass to AppointmentForm
+            setRpcAppointments(transformedAppointments);
+
+            // Set services - use the first service's service_id
+            // Calculate duration for the service
+            const serviceDuration = calculateDuration(
+              firstService.start_time,
+              firstService.end_time
+            );
+            const newServices = [
+              {
+                _ref: firstService.service_id,
+                _type: "reference",
+                duration: serviceDuration,
+                quantity: 1,
+              },
+            ];
+            appointmentForm.setValue("services", newServices);
+
+            // Calculate and set duration from first and last service
+            const lastService =
+              appointmentData.services_same_day[
+                appointmentData.services_same_day.length - 1
+              ];
+            if (firstService.start_time && lastService.end_time) {
+              const totalDuration = calculateDuration(
+                firstService.start_time,
+                lastService.end_time
+              );
+              setDuration(totalDuration);
+            } else {
+              setDuration(calendarEvent.data.duration || 0);
+            }
+          } else {
+            // Reset RPC appointments if no services_same_day
+            setRpcAppointments([]);
+            // Fallback to calendarEvent data if no services_same_day
+            appointmentForm.setValue(
+              "time",
+              calendarEvent.data.startTime.toString()
+            );
+            const newServices = calendarEvent.data.service
+              ? [
+                  {
+                    _ref: calendarEvent.data.service._id,
+                    _type: "reference",
+                    duration:
+                      calendarEvent.data.duration ||
+                      calendarEvent.data.service.duration,
+                    quantity: 1,
+                  },
+                ]
+              : [];
+            appointmentForm.setValue("services", newServices);
+            setDuration(calendarEvent.data.duration || 0);
+            // Reset RPC appointments if fallback
+            setRpcAppointments([]);
+          }
+
+          setOpen(true);
+          return; // Exit early since we've populated from RPC
+        }
+      } catch (error) {
+        console.error(
+          "Error calling get_appointment_with_services_same_day:",
+          error
+        );
+        // Fall through to use calendarEvent.data as fallback
+      }
+    }
+
+    // Fallback: Use calendarEvent.data if RPC call fails or no result
     setType("edit");
     setAppointmentId(calendarEvent.data._id);
     appointmentForm.setValue("time", calendarEvent.data.startTime.toString());
@@ -1241,6 +1714,8 @@ const AppointmentScheduleTimezone = ({
       );
     }
     setDuration(calendarEvent.data.duration || 0);
+    // Reset RPC appointments for fallback
+    setRpcAppointments([]);
     setOpen(true);
   }, []);
 
@@ -1262,18 +1737,97 @@ const AppointmentScheduleTimezone = ({
         return;
       }
 
+      // Check if appointment has a service
+      const appointmentServiceId = calendarEvent.data.service?._id;
+      if (!appointmentServiceId) {
+        // No service to check, proceed with update
+        await performMoveEvent(args);
+        return;
+      }
+
+      // Check if employee changed
+      const newEmployeeId =
+        resourceId?.toString() || calendarEvent.resourceId.toString();
+      const currentEmployeeId = calendarEvent.resourceId.toString();
+
+      // If employee hasn't changed, proceed without confirmation
+      if (newEmployeeId === currentEmployeeId) {
+        await performMoveEvent(args);
+        return;
+      }
+
+      // Find the new employee
+      const newEmployee = filteredEmployees.find(
+        (emp) => emp._id === newEmployeeId
+      );
+
+      if (!newEmployee) {
+        toast.error("Error", {
+          description: "Employee not found",
+        });
+        return;
+      }
+
+      // Check if employee has the service in assignedServices
+      const hasService = newEmployee.assignedServices?.some(
+        (as: any) => as.serviceId === appointmentServiceId
+      );
+
+      // If employee doesn't have the service, show confirm dialog
+      if (!hasService) {
+        setPendingMoveEvent(args);
+        setShowServiceConfirm(true);
+        return;
+      }
+
+      // Employee has the service, proceed with update
+      await performMoveEvent(args);
+    },
+    [filteredEmployees]
+  );
+
+  const performMoveEvent = useCallback(
+    async (args: {
+      event: object;
+      start: Date | string;
+      end: Date | string;
+      resourceId?: number | string;
+    }) => {
+      const { event, start, resourceId } = args;
+      const calendarEvent = event as CalendarEvent;
+
       if (isSubmitting) return;
       setIsSubmitting(true);
-      setIsLoading(true);
+
+      const appointmentId = calendarEvent.data._id;
+      const startDate = typeof start === "string" ? new Date(start) : start;
+      const duration =
+        calendarEvent.data.duration ||
+        calendarEvent.data.service?.duration ||
+        0;
+      const endDate = new Date(startDate.getTime() + duration * 60000);
+      const newEmployeeId =
+        resourceId?.toString() || calendarEvent.resourceId.toString();
+
+      // ⚡ OPTIMISTIC UPDATE: Update local state immediately
+      setAppointments((prev) =>
+        prev.map((appt) => {
+          if (appt._id === appointmentId) {
+            return {
+              ...appt,
+              startTime: startDate.toISOString(),
+              endTime: endDate.toISOString(),
+              employee: {
+                ...appt.employee,
+                _id: newEmployeeId,
+              },
+            };
+          }
+          return appt;
+        })
+      );
 
       try {
-        const appointmentId = calendarEvent.data._id;
-        const startDate = typeof start === "string" ? new Date(start) : start;
-        const duration =
-          calendarEvent.data.duration ||
-          calendarEvent.data.service?.duration ||
-          0;
-
         const formData = new FormData();
         formData.append("time", startDate.toISOString());
         formData.append("note", calendarEvent.data.note || "");
@@ -1289,7 +1843,7 @@ const AppointmentScheduleTimezone = ({
             _type: "reference",
           },
           {
-            _ref: resourceId?.toString() || calendarEvent.resourceId.toString(),
+            _ref: newEmployeeId,
             _type: "reference",
           },
           calendarEvent.data.reminder
@@ -1299,23 +1853,56 @@ const AppointmentScheduleTimezone = ({
           toast.success("Success", {
             description: `Appointment updated successfully`,
           });
-          router.refresh();
+          // Refresh in background without blocking UI
+          startTransition(() => {
+            router.refresh();
+          });
         } else {
+          // Rollback on error
           toast.error("Error", {
             description: result.error,
           });
+          // Refresh to get correct data from server
+          router.refresh();
         }
       } catch (error) {
-        console.error(error);
         toast.error("Error", {
           description: "An unexpected error occurred",
         });
+        // Rollback on error
+        router.refresh();
       } finally {
         setIsSubmitting(false);
-        setIsLoading(false);
       }
     },
     [isSubmitting, router]
+  );
+
+  const handleServiceConfirm = useCallback(async () => {
+    setShowServiceConfirm(false);
+    if (pendingMoveEvent) {
+      await performMoveEvent(pendingMoveEvent);
+      setPendingMoveEvent(null);
+    }
+  }, [pendingMoveEvent, performMoveEvent]);
+
+  const handleServiceCancel = useCallback(() => {
+    setShowServiceConfirm(false);
+    setPendingMoveEvent(null);
+    // Refresh to reset the appointment position
+    router.refresh();
+  }, [router]);
+
+  const handleServiceConfirmDialogChange = useCallback(
+    (open: boolean) => {
+      if (!open && showServiceConfirm) {
+        // If dialog is being closed, cancel the operation
+        handleServiceCancel();
+      } else {
+        setShowServiceConfirm(open);
+      }
+    },
+    [showServiceConfirm, handleServiceCancel]
   );
 
   const resizeEvent = useCallback(
@@ -1336,16 +1923,30 @@ const AppointmentScheduleTimezone = ({
 
       if (isSubmitting) return;
       setIsSubmitting(true);
-      setIsLoading(true);
+
+      const startDate = typeof start === "string" ? new Date(start) : start;
+      const endDate = typeof end === "string" ? new Date(end) : end;
+      const appointmentId = calendarEvent.data._id;
+      const duration = Math.round(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60)
+      );
+
+      // ⚡ OPTIMISTIC UPDATE: Update local state immediately
+      setAppointments((prev) =>
+        prev.map((appt) => {
+          if (appt._id === appointmentId) {
+            return {
+              ...appt,
+              startTime: startDate.toISOString(),
+              endTime: endDate.toISOString(),
+              duration: duration,
+            };
+          }
+          return appt;
+        })
+      );
 
       try {
-        const startDate = typeof start === "string" ? new Date(start) : start;
-        const endDate = typeof end === "string" ? new Date(end) : end;
-        const appointmentId = calendarEvent.data._id;
-        const duration = Math.round(
-          (endDate.getTime() - startDate.getTime()) / (1000 * 60)
-        );
-
         const formData = new FormData();
         formData.append("time", startDate.toISOString());
         formData.append("note", calendarEvent.data.note || "");
@@ -1371,20 +1972,26 @@ const AppointmentScheduleTimezone = ({
           toast.success("Success", {
             description: `Appointment updated successfully`,
           });
-          router.refresh();
+          // Refresh in background without blocking UI
+          startTransition(() => {
+            router.refresh();
+          });
         } else {
+          // Rollback on error
           toast.error("Error", {
             description: result.error,
           });
+          // Refresh to get correct data from server
+          router.refresh();
         }
       } catch (error) {
-        console.error(error);
         toast.error("Error", {
           description: "An unexpected error occurred",
         });
+        // Rollback on error
+        router.refresh();
       } finally {
         setIsSubmitting(false);
-        setIsLoading(false);
       }
     },
     [isSubmitting, router]
@@ -1761,6 +2368,9 @@ const AppointmentScheduleTimezone = ({
             setIsCancellingStanding={setIsCancellingStanding}
             onCancelStandingSuccess={handleCancelStandingSuccess}
             setIsSubmitting={setIsSubmitting}
+            initialAppointments={
+              rpcAppointments.length > 0 ? rpcAppointments : undefined
+            }
           />
         </DialogContent>
       </Dialog>
@@ -1778,6 +2388,33 @@ const AppointmentScheduleTimezone = ({
         timezone={timezone}
         onConfirm={handleConflictConfirm}
         onCancel={handleConflictCancel}
+      />
+      <ConfirmDialog
+        open={showServiceConfirm}
+        onOpenChange={handleServiceConfirmDialogChange}
+        title="Employee doesn't have this service"
+        description={
+          pendingMoveEvent
+            ? (() => {
+                const event = pendingMoveEvent.event as CalendarEvent;
+                const newEmployeeId =
+                  pendingMoveEvent.resourceId?.toString() ||
+                  event.resourceId.toString();
+                const newEmployee = filteredEmployees.find(
+                  (emp) => emp._id === newEmployeeId
+                );
+                const serviceName = event.data.service?.name || "this service";
+                const employeeName = newEmployee
+                  ? getProfileName(newEmployee)
+                  : "this employee";
+                return `The employee "${employeeName}" doesn't have "${serviceName}" in their assigned services. Do you want to continue anyway?`;
+              })()
+            : "This employee doesn't have the required service. Do you want to continue?"
+        }
+        onConfirm={handleServiceConfirm}
+        onCancel={handleServiceCancel}
+        confirmText="Continue"
+        disabled={isSubmitting}
       />
 
       {/* Time Off Dialog */}

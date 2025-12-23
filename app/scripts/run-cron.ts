@@ -62,30 +62,27 @@ async function runCronJob() {
       timezone: "UTC-7:00",
       minTime: "8:00 AM",
       maxTime: "6:00 PM",
-      smsMessage: "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+      smsMessage:
+        "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
     };
 
-    console.log("Start Time:", fiveMinutesAgo.toISOString());
-    console.log("End Time:", now.toISOString());
-    console.log("Appointments to process:", appointments);
-    console.log("Timezone:", settingData);
-    console.log("SMS Message Template:", settingData.smsMessage || "Default message");
-
     for (const appointment of appointments) {
-      let messageBody = settingData.smsMessage || "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.";
+      let messageBody =
+        settingData.smsMessage ||
+        "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.";
       VARIABLE_LIST.forEach((variable) => {
         const regex = new RegExp(`{${variable}}`, "g");
         switch (variable) {
           case "Customer":
             messageBody = messageBody.replace(
               regex,
-              `${appointment.customer.firstName} ${appointment.customer.lastName}`,
+              `${appointment.customer.firstName} ${appointment.customer.lastName}`
             );
             break;
           case "Employee":
             messageBody = messageBody.replace(
               regex,
-              `${appointment.employee.firstName} ${appointment.employee.lastName}`,
+              `${appointment.employee.firstName} ${appointment.employee.lastName}`
             );
             break;
           case "Service":
@@ -96,7 +93,7 @@ async function runCronJob() {
             const formattedDate = formatInTimeZone(
               new Date(appointment.startTime),
               parseOffset(settingData.timezone || "UTC-7:00"),
-              "yyyy-MM-dd hh:mm a",
+              "yyyy-MM-dd hh:mm a"
             );
             messageBody = messageBody.replace(regex, formattedDate);
 
@@ -104,12 +101,15 @@ async function runCronJob() {
         }
       });
 
-      console.log(messageBody);
+      const toPhone = appointment.customer.phone;
+      if (!toPhone) {
+        continue;
+      }
 
       await twilioClient.messages.create({
         body: messageBody,
         from: twilioPhoneNumber,
-        to: appointment.customer.phone,
+        to: toPhone,
       });
     }
 
@@ -119,8 +119,6 @@ async function runCronJob() {
     }[] = await client.fetch(UPDATE_APPOINTMENT_STATUS_QUERY, {
       date: now.toISOString(),
     });
-
-    console.log("Appointments to update:", appointmentScheduled);
 
     for (const appointment of appointmentScheduled) {
       await writeClient

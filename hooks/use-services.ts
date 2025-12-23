@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { client } from "@/sanity/lib/client";
-import { ALL_SERVICES_QUERY, CATEGORIES_QUERY } from "@/sanity/lib/queries";
 import { Service } from "@/models/service";
 import { Category } from "@/models/category";
 
@@ -12,17 +10,42 @@ export const useServices = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [servicesData, categoriesData] = await Promise.all([
-          client.fetch(ALL_SERVICES_QUERY),
-          client.fetch(CATEGORIES_QUERY),
+      const [servicesRes, categoriesRes] = await Promise.all([
+        fetch("/api/services").then((res) => res.json()),
+        fetch("/api/categories").then((res) => res.json()),
         ]);
 
-        setServices(servicesData || []);
-        setCategories(categoriesData || []);
+      const servicesData = servicesRes || [];
+      const categoriesData = categoriesRes || [];
+
+      // Transform services to match Service type
+      const transformedServices: Service[] = servicesData.map((s) => ({
+        _id: s.id,
+        name: s.name,
+        price: s.price,
+        duration: s.duration,
+        category: s.category
+          ? {
+              _id: s.category.id,
+              name: s.category.name,
+            }
+          : {
+              _id: "",
+              name: "",
+            },
+      }));
+
+      // Transform categories to match Category type
+      const transformedCategories: Category[] = categoriesData.map((c) => ({
+        _id: c.id,
+        name: c.name,
+      }));
+
+      setServices(transformedServices);
+      setCategories(transformedCategories);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch data");
       } finally {
@@ -30,6 +53,7 @@ export const useServices = () => {
       }
     };
 
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -38,10 +62,6 @@ export const useServices = () => {
     categories,
     loading,
     error,
-    refetch: () => {
-      setError(null);
-      setLoading(true);
-      // Re-run the fetch logic
-    },
+    refetch: fetchData,
   };
 };

@@ -4,18 +4,7 @@ import * as z from "zod";
 import { LoginSchema } from "@/form-schemas";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
-
-import { getUserByEmail } from "@/data/user";
-import { getTwoFactorTokenByEmail } from "@/data/two-factor-token";
-import { getTwoFactorConfirmationByUserId } from "@/data/two-factor-confirmation";
-
-import { sendVerificationEmail, sendTwoFactorTokenEmail } from "@/lib/mail";
-
-import {
-  generateVerificationToken,
-  generateTwoFactorToken,
-} from "@/lib/tokens";
-import { client } from "@/sanity/lib/client";
+import { supabaseAdmin, supabaseAuth } from "@/lib/supabase";
 
 export const login = async (values: z.infer<typeof LoginSchema>) => {
   const validatedFields = LoginSchema.safeParse(values);
@@ -24,75 +13,55 @@ export const login = async (values: z.infer<typeof LoginSchema>) => {
     return { error: "Invalid Fields!" };
   }
 
-  const { email, password, code } = validatedFields.data;
-
-  const existingUser = await getUserByEmail(email);
-
-  if (!existingUser || !existingUser.email || !existingUser.password) {
-    return { error: "Account does not exist!" };
-  }
-
-  if (!existingUser.emailVerified) {
-    const verificationToken = await generateVerificationToken(
-      existingUser.email,
-    );
-    //SEND EMAIL VERIFICATION TOKEN
-    await sendVerificationEmail(
-      verificationToken.identifier,
-      verificationToken.token,
-    );
-
-    return { success: "Confirmation email sent!" };
-  }
-
-  if (existingUser.isTwoFactorEnabled && existingUser.email) {
-    if (code) {
-      const twoFactorToken = await getTwoFactorTokenByEmail(existingUser.email);
-
-      if (!twoFactorToken) {
-        return { error: "Invalid Code!" };
-      }
-
-      if (twoFactorToken.token !== code) {
-        return { error: "Invalid Code!" };
-      }
-
-      const hasExpired = new Date(twoFactorToken.expires) < new Date();
-
-      if (hasExpired) {
-        return { error: "Code expired!" };
-      }
-
-      await client.delete(twoFactorToken._id);
-
-      const existingConfirmation = await getTwoFactorConfirmationByUserId(
-        existingUser._id,
-      );
-
-      if (existingConfirmation) {
-        await client.delete(existingConfirmation._id);
-      }
-
-      await client.create({
-        _type: "twoFactorConfirmation",
-        userId: existingUser._id,
-        user: {
-          _type: "reference",
-          _ref: existingUser._id,
-        },
-      });
-    } else {
-      const twoFactorToken = await generateTwoFactorToken(existingUser.email);
-      await sendTwoFactorTokenEmail(
-        twoFactorToken.identifier,
-        twoFactorToken.token,
-      );
-
-      return { twoFactor: true };
-    }
-  }
+  const { email, password } = validatedFields.data;
 
   try {
+    // Validate credentials directly against Supabase first
+    // so we can surface the real error message to the UI.
+    const { error: sbError } = await supabaseAuth.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (sbError) {
+      // Don't log passwords; only log error metadata.
+      console.error("[LOGIN] Supabase signInWithPassword failed", {
+        email,
+        message: sbError.message,
+        status: sbError.status,
+        code: (sbError as any).code,
+      });
+
+      // If the credentials are invalid, help the user understand whether the account exists.
+      if ((sbError as any).code === "invalid_credentials") {
+        try {
+          const { data: usersData, error: listErr } =
+            await supabaseAdmin.auth.admin.listUsers({
+              page: 1,
+              perPage: 1000,
+            });
+
+          if (!listErr && usersData?.users) {
+            const exists = usersData.users.some(
+              (u) => (u.email ?? "").toLowerCase() === email.toLowerCase()
+            );
+
+            return exists
+              ? { error: "Wrong password. Please try again or reset password." }
+              : {
+                  error:
+                    "Account not found in Supabase. Please register first (or migrate users).",
+                };
+          }
+        } catch {
+          // ignore – fall back to generic message
+        }
+      }
+
+      return { error: sbError.message || "Invalid credentials!" };
+    }
+
+    // Then let NextAuth establish the app session.
     await signIn("credentials", {
       email,
       password,

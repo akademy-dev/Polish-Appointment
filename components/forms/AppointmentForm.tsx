@@ -16,13 +16,6 @@ import {
 } from "@/lib/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
-import {
-  ALL_CUSTOMERS_QUERY,
-  ALL_EMPLOYEES_QUERY,
-  ALL_SERVICES_QUERY,
-  APPOINTMENTS_BY_DATE_QUERY,
-} from "@/sanity/lib/queries";
-import { client } from "@/sanity/lib/client";
 import { Service } from "@/models/service";
 import AppointmentFormLoading from "@/components/AppointmentFormLoading";
 import AppointmentClientForm from "@/components/forms/AppointmentClientForm";
@@ -34,6 +27,7 @@ import { cancelRecurringAppointments } from "@/lib/actions";
 import { createTimeOff } from "@/actions/time-off";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { safeParseDate, calculateDuration } from "@/lib/utils";
 
 const intervals: number[] = [];
 for (let min = 15; min <= 240; min += 15) {
@@ -52,6 +46,7 @@ export const AppointmentForm = ({
   setIsCancellingStanding,
   onCancelStandingSuccess,
   setIsSubmitting,
+  initialAppointments,
 }: {
   onSuccess?: () => void;
   hideSubmitButton?: boolean;
@@ -64,9 +59,10 @@ export const AppointmentForm = ({
   setIsCancellingStanding?: (value: boolean) => void;
   onCancelStandingSuccess?: () => void;
   setIsSubmitting?: (value: boolean) => void;
+  initialAppointments?: Appointment[];
 }) => {
   const [showAppointmentInfo, setShowAppointmentInfo] = React.useState(
-    type === "edit",
+    type === "edit"
   );
   // Define the form
   const internalForm = useForm<z.infer<typeof appointmentFormSchema>>({
@@ -123,7 +119,9 @@ export const AppointmentForm = ({
   const clientErrors = form.formState.errors.customer;
 
   const [services, setServices] = React.useState<Service[]>([]);
-  const [appointments, setAppointments] = React.useState<Appointment[]>([]);
+  const [appointments, setAppointments] = React.useState<Appointment[]>(
+    initialAppointments || []
+  );
   const [employees, setEmployees] = React.useState<
     {
       value: string;
@@ -149,10 +147,13 @@ export const AppointmentForm = ({
     }[]
   >([]);
   const [customerHistory, setCustomerHistory] = React.useState<Appointment[]>(
-    [],
+    []
   );
 
-  const [loading, setLoading] = React.useState(true);
+  // Separate loading states for better UX
+  const [servicesLoading, setServicesLoading] = React.useState(true);
+  const [employeesLoading, setEmployeesLoading] = React.useState(true);
+  const [customersLoading, setCustomersLoading] = React.useState(false);
   const [showCancelStandingConfirm, setShowCancelStandingConfirm] =
     React.useState(false);
   const [showUpcomingAppointmentsConfirm, setShowUpcomingAppointmentsConfirm] =
@@ -240,8 +241,10 @@ export const AppointmentForm = ({
   // Set default values for recurring fields when isRecurring is enabled
   React.useEffect(() => {
     if (timeOffIsRecurring) {
-      const currentRecurringDuration = timeOffForm.getValues("recurringDuration");
-      const currentRecurringFrequency = timeOffForm.getValues("recurringFrequency");
+      const currentRecurringDuration =
+        timeOffForm.getValues("recurringDuration");
+      const currentRecurringFrequency =
+        timeOffForm.getValues("recurringFrequency");
 
       if (!currentRecurringDuration) {
         timeOffForm.setValue("recurringDuration", {
@@ -280,28 +283,69 @@ export const AppointmentForm = ({
   React.useEffect(() => {
     async function fetchCustomerHistory() {
       if (customerRef) {
-        const customerHistoryRes = await client.fetch(
-          APPOINTMENTS_BY_DATE_QUERY,
-          { date: null, customerId: customerRef },
-        );
-        // Filter out cancelled appointments and map data
-        const filteredAndMappedData = customerHistoryRes
-          .filter(
-            (appointment: Appointment) => appointment.status !== "cancelled",
-          )
-          .map((appointment: Appointment) => {
-            const start = new Date(appointment.startTime);
-            const end = new Date(appointment.endTime);
-            const duration = (end.getTime() - start.getTime()) / 1000 / 60;
-            return {
-              service: appointment.service,
-              customer: appointment.customer,
-              employee: appointment.employee,
-              startTime: start.toISOString(),
-              duration,
-            };
-          });
-        setCustomerHistory([...filteredAndMappedData]); // always new reference
+        try {
+          // Fetch all appointments for this customer from Supabase
+          const customerHistoryRes = await fetch(
+            `/api/appointments?customerId=${customerRef}`
+          ).then((res) => res.json());
+
+          // Filter out cancelled appointments and map data
+          const filteredAndMappedData = (customerHistoryRes || [])
+            .filter((appointment: any) => appointment.status !== "cancelled")
+            .map((appointment: any) => {
+              const start = safeParseDate(
+                appointment.start_time || appointment.startTime
+              );
+              const end = safeParseDate(
+                appointment.end_time || appointment.endTime
+              );
+              const duration =
+                start && end
+                  ? (end.getTime() - start.getTime()) / 1000 / 60
+                  : 0;
+              return {
+                _id: appointment.id || appointment._id,
+                created_at: appointment.created_at,
+                _createdAt: appointment.created_at, // For backward compatibility
+                service: appointment.service
+                  ? {
+                      _id: appointment.service.id || appointment.service._id,
+                      name: appointment.service.name,
+                      duration: appointment.service.duration,
+                    }
+                  : undefined,
+                customer: appointment.customer
+                  ? {
+                      _id: appointment.customer.id || appointment.customer._id,
+                      firstName: appointment.customer.firstName,
+                      lastName: appointment.customer.lastName,
+                      fullName: appointment.customer.fullName,
+                    }
+                  : undefined,
+                employee: appointment.employee
+                  ? {
+                      _id: appointment.employee.id || appointment.employee._id,
+                      firstName: appointment.employee.firstName,
+                      lastName: appointment.employee.lastName,
+                      fullName: appointment.employee.fullName,
+                    }
+                  : undefined,
+                startTime: start
+                  ? start.toISOString()
+                  : appointment.start_time || appointment.startTime,
+                endTime: end
+                  ? end.toISOString()
+                  : appointment.end_time || appointment.endTime,
+                duration: calculateDuration(
+                  appointment.start_time || appointment.startTime,
+                  appointment.end_time || appointment.endTime
+                ),
+              };
+            });
+          setCustomerHistory([...filteredAndMappedData]); // always new reference
+        } catch (error) {
+          setCustomerHistory([]);
+        }
       } else {
         setCustomerHistory([]); // also a new reference
       }
@@ -315,7 +359,7 @@ export const AppointmentForm = ({
   // Set customer if needed
   if (customerRef) {
     const selectedCustomer = customers.find(
-      (customer) => customer._id === customerRef,
+      (customer) => customer._id === customerRef
     );
     if (selectedCustomer && customerValue !== selectedCustomer._id) {
       setCustomerValue(selectedCustomer._id);
@@ -331,18 +375,20 @@ export const AppointmentForm = ({
 
   // Function to refresh customer list
   const refreshCustomers = React.useCallback(async () => {
-    const customersRes = await client.fetch(ALL_CUSTOMERS_QUERY, {
-      search: null,
-    });
+    const customersRes = await fetch("/api/customers").then((res) =>
+      res.json()
+    );
+    // Transform to match Customer type
     setCustomers(
-      customersRes.map((customer: Customer) => ({
-        _id: customer._id,
-        value: customer._id,
-        label: getProfileName(customer),
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        phone: customer.phone,
-      })),
+      (customersRes || []).map((customer: any) => ({
+        _id: customer.id,
+        value: customer.id,
+        label:
+          `${customer.first_name || ""} ${customer.last_name || ""}`.trim(),
+        firstName: customer.first_name,
+        lastName: customer.last_name,
+        phone: customer.phone || "",
+      }))
     );
   }, []);
 
@@ -360,132 +406,314 @@ export const AppointmentForm = ({
     // This will trigger the useEffect to set showAppointmentInfo to false
   }, [form]);
 
+  // Fetch services and employees in parallel - optimized with Promise.all
   React.useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      // Fetch customers
-      const customersRes = await client.fetch(ALL_CUSTOMERS_QUERY, {
-        search: null,
-      });
-      setCustomers(
-        customersRes.map((customer: Customer) => ({
-          _id: customer._id,
-          value: customer._id,
-          label: getProfileName(customer),
-          firstName: customer.firstName,
-          lastName: customer.lastName,
-          phone: customer.phone,
-        })),
-      );
+    let isMounted = true;
 
-      // Fetch services
-      const servicesRes = await client.fetch(ALL_SERVICES_QUERY);
-      setServices(servicesRes);
+    (async () => {
+      try {
+        // Set loading states
+        setServicesLoading(true);
+        setEmployeesLoading(true);
 
-      // Only reset services if not in edit mode and services are empty
-      if (type !== "edit") {
-        const serviceRefs = form
-          .getValues("services")
-          .map((service: { _ref: string }) => service._ref);
-        const selectedServices = servicesRes.filter((service: Service) =>
-          serviceRefs.includes(service._id),
-        );
-        form.setValue(
-          "services",
-          selectedServices.map((service: Service) => ({
-            _ref: service._id,
-            _type: "reference",
-            duration: service.duration,
-          })),
-        );
+        // Fetch services and employees in parallel
+        const [servicesRes, employeesRes] = await Promise.all([
+          fetch("/api/services").then((res) => res.json()),
+          fetch("/api/employees").then((res) => res.json()),
+        ]);
+
+        if (!isMounted) return;
+
+        // Transform services
+        const transformedServices = (servicesRes || []).map((s: any) => ({
+          _id: s.id,
+          name: s.name,
+          price: s.price,
+          duration: s.duration,
+          category: s.category || {
+            _id: "",
+            name: "",
+          },
+        }));
+        setServices(transformedServices);
+
+        // Transform employees
+        const employeeList = (employeesRes || []).map((employee: any) => ({
+          value: employee.id,
+          _id: employee.id,
+          label:
+            `${employee.first_name || ""} ${employee.last_name || ""}`.trim(),
+          assignedServices: (employee.assignedServices || []).map(
+            (as: any) => ({
+              serviceId: as.serviceId || as.service_id,
+              price: as.price || 0,
+              duration: as.duration || 0,
+              processTime: as.processTime || as.process_time || 0,
+            })
+          ),
+        }));
+        setEmployees(employeeList);
+
+        // Only reset services if not in edit mode and services are empty
+        if (type !== "edit") {
+          const serviceRefs = form
+            .getValues("services")
+            .map((service: { _ref: string }) => service._ref);
+          const selectedServices = servicesRes.filter((service: Service) =>
+            serviceRefs.includes(service._id)
+          );
+          form.setValue(
+            "services",
+            selectedServices.map((service: Service) => ({
+              _ref: service._id,
+              _type: "reference",
+              duration: service.duration,
+            }))
+          );
+        }
+      } catch (error) {
+        if (isMounted) {
+          setServices([]);
+          setEmployees([]);
+        }
+      } finally {
+        if (isMounted) {
+          setServicesLoading(false);
+          setEmployeesLoading(false);
+        }
       }
+    })();
 
-      // Fetch employees
-      const employeesRes = await client.fetch(ALL_EMPLOYEES_QUERY, {
-        search: null,
-      });
-      const employeeList = employeesRes.map((employee: any) => ({
-        value: employee._id,
-        label: getProfileName(employee),
-        assignedServices: employee.assignedServices || [],
-      }));
-      setEmployees(employeeList);
+    // Fetch customer and appointments in parallel if in edit mode
+    if (type === "edit" && form.getValues("customer._ref")) {
+      (async () => {
+        try {
+          const customerId = form.getValues("customer._ref");
+          const customerData = form.getValues("customer");
+          const time = form.getValues("time");
 
-      // Fetch appointments if needed
-      if (
-        form.getValues("customer._ref") &&
-        form.getValues("time") &&
-        type === "edit"
-      ) {
-        const customerId = form.getValues("customer._ref");
-        const time = form.getValues("time");
-        const startDate = new Date(time).toISOString().split("T")[0];
-        const appointmentsRes = await client.fetch(APPOINTMENTS_BY_DATE_QUERY, {
-          date: startDate,
-          customerId,
-        });
-        console.log("Appointments fetched:", appointmentsRes);
-        setAppointments([...appointmentsRes]);
-      }
+          // Check if customer already has full info (from RPC result)
+          const hasFullCustomerInfo =
+            customerData.firstName &&
+            customerData.lastName &&
+            customerData.phone;
 
-      setLoading(false);
+          // Only fetch customer if we don't have full info
+          if (!hasFullCustomerInfo) {
+            setCustomersLoading(true);
+            try {
+              const customersRes = await fetch("/api/customers").then((res) =>
+                res.json()
+              );
+
+              if (!isMounted) return;
+
+              // Set customer
+              const customer = customersRes.find(
+                (c: any) => c.id === customerId
+              );
+              if (customer) {
+                setCustomers([
+                  {
+                    _id: customer.id,
+                    value: customer.id,
+                    label:
+                      `${customer.first_name || ""} ${customer.last_name || ""}`.trim(),
+                    firstName: customer.first_name,
+                    lastName: customer.last_name,
+                    phone: customer.phone || "",
+                  },
+                ]);
+              }
+            } catch (error) {
+              console.error("Error fetching customer:", error);
+            } finally {
+              if (isMounted) {
+                setCustomersLoading(false);
+              }
+            }
+          } else {
+            // Customer already has full info from RPC, just set it in customers state
+            if (customerId) {
+              setCustomers([
+                {
+                  _id: customerId,
+                  value: customerId,
+                  label:
+                    `${customerData.firstName || ""} ${customerData.lastName || ""}`.trim(),
+                  firstName: customerData.firstName,
+                  lastName: customerData.lastName,
+                  phone: customerData.phone || "",
+                },
+              ]);
+            }
+          }
+
+          // Only fetch appointments if we have both customer and time
+          // Skip if appointments are already populated from RPC (services_same_day) or initialAppointments
+          if (
+            customerId &&
+            time &&
+            appointments.length === 0 &&
+            !initialAppointments
+          ) {
+            try {
+              const startDate = new Date(time).toISOString().split("T")[0];
+              const appointmentsRes = await fetch(
+                `/api/appointments?date=${startDate}&customerId=${customerId}`
+              ).then((res) => res.json());
+
+              if (!isMounted) return;
+
+              // Set appointments if fetched
+              if (appointmentsRes) {
+                const transformedAppointments = (appointmentsRes || []).map(
+                  (apt: any) => ({
+                    _id: apt.id,
+                    startTime: apt.start_time,
+                    endTime: apt.end_time,
+                    duration: calculateDuration(apt.start_time, apt.end_time),
+                    created_at: apt.created_at,
+                    _createdAt: apt.created_at, // For backward compatibility
+                    customer: apt.customer
+                      ? {
+                          _id: apt.customer.id,
+                          firstName: apt.customer.firstName,
+                          lastName: apt.customer.lastName,
+                          fullName: apt.customer.fullName,
+                        }
+                      : undefined,
+                    employee: apt.employee
+                      ? {
+                          _id: apt.employee.id,
+                          firstName: apt.employee.firstName,
+                          lastName: apt.employee.lastName,
+                          fullName: apt.employee.fullName,
+                        }
+                      : undefined,
+                    service: apt.service
+                      ? {
+                          _id: apt.service.id,
+                          name: apt.service.name,
+                          duration: apt.service.duration,
+                        }
+                      : undefined,
+                    reminder: apt.reminder || [],
+                    type: apt.type,
+                    status: apt.status,
+                    note: apt.note,
+                    recurringGroupId: apt.recurring_group_id,
+                  })
+                );
+                setAppointments(transformedAppointments);
+              }
+            } catch (error) {
+              console.error("Error fetching appointments:", error);
+            }
+          }
+        } catch (error) {
+          console.error("Error in appointment data fetch:", error);
+          if (isMounted) {
+            setCustomers([]);
+          }
+        }
+      })();
+    } else {
+      setCustomers([]);
     }
 
-    fetchData();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [type, form]);
 
   // Check for upcoming appointments in the next 2 weeks
   const checkUpcomingAppointments = async (customerId: string) => {
     try {
       const today = new Date();
       const twoWeeksFromNow = new Date(
-        today.getTime() + 14 * 24 * 60 * 60 * 1000,
+        today.getTime() + 14 * 24 * 60 * 60 * 1000
       );
 
-      // Fetch appointments for the next 2 weeks
-      const upcomingAppointmentsRes = await client.fetch(
-        `
-        *[_type == "appointment" && 
-          customer._ref == $customerId && 
-          startTime >= $startDate && 
-          startTime <= $endDate &&
-          status != "cancelled"
-        ] | order(startTime asc) {
-          _id,
-          startTime,
-          endTime,
-          status,
-          type,
-          note,
-          customer->{
-            _id,
-            firstName,
-            lastName,
-            phone
-          },
-          employee->{
-            _id,
-            firstName,
-            lastName
-          },
-          service->{
-            _id,
-            name,
-            duration,
-            price
-          }
-        }
-      `,
-        {
-          customerId,
-          startDate: today.toISOString(),
-          endDate: twoWeeksFromNow.toISOString(),
-        },
-      );
+      // Use RPC get_appointments_by_14_date to fetch all appointments in 14-day window
+      // This replaces the previous approach of calling API for each day
+      const startDateStr = today.toISOString().split("T")[0];
+
+      // Fetch appointments using RPC (14-day window) - single API call instead of 14 calls
+      const appointmentsRes = await fetch(
+        `/api/appointments?date=${startDateStr}&customerId=${customerId}&use14Day=true`
+      ).then((res) => res.json());
+
+      // Filter appointments to only include those in the 2-week range and not cancelled
+      const upcomingAppointmentsRes = (appointmentsRes || [])
+        .filter((apt: any) => {
+          const aptDate = safeParseDate(apt.start_time || apt.startTime);
+          return (
+            aptDate &&
+            aptDate >= today &&
+            aptDate <= twoWeeksFromNow &&
+            apt.status !== "cancelled"
+          );
+        })
+        .filter((apt: any) => apt.customer && apt.employee && apt.service) // Filter out incomplete appointments
+        .map((apt: any) => {
+          const start = safeParseDate(apt.start_time);
+          const end = safeParseDate(apt.end_time);
+          const duration =
+            start && end ? (end.getTime() - start.getTime()) / 1000 / 60 : 0;
+          return {
+            _id: apt.id,
+            _createdAt: apt.created_at || new Date().toISOString(),
+            startTime: apt.start_time,
+            endTime: apt.end_time,
+            duration: duration,
+            status: apt.status || "scheduled",
+            type: apt.type || "walk-in",
+            note: apt.note || "",
+            reminder: apt.reminder || [],
+            reminderDateTimes: apt.reminder_datetime || [],
+            smsMessage: "",
+            customer: {
+              _id: apt.customer.id,
+              _type: "customer" as const,
+              _createdAt: apt.created_at || new Date().toISOString(),
+              _updatedAt: apt.created_at || new Date().toISOString(),
+              _rev: "",
+              firstName: apt.customer.firstName,
+              lastName: apt.customer.lastName,
+              phone: apt.customer.phone || "",
+            },
+            employee: {
+              _id: apt.employee.id,
+              _type: "employee" as const,
+              _createdAt: apt.created_at || new Date().toISOString(),
+              _updatedAt: apt.created_at || new Date().toISOString(),
+              _rev: "",
+              firstName: apt.employee.firstName,
+              lastName: apt.employee.lastName,
+            },
+            service: {
+              _id: apt.service.id,
+              name: apt.service.name,
+              duration: apt.service.duration,
+              price: apt.service.price || 0,
+              category: {
+                _id: apt.service.category?.id || "",
+                name: apt.service.category?.name || "",
+              },
+            },
+            recurringGroupId: apt.recurring_group_id,
+          };
+        })
+        .sort((a: any, b: any) => {
+          const dateA = safeParseDate(a.startTime);
+          const dateB = safeParseDate(b.startTime);
+          if (!dateA || !dateB) return 0;
+          return dateA.getTime() - dateB.getTime();
+        });
 
       return upcomingAppointmentsRes;
     } catch (error) {
-      console.error("Error checking upcoming appointments:", error);
       return [];
     }
   };
@@ -514,38 +742,47 @@ export const AppointmentForm = ({
     }
 
     const timeOffData = timeOffForm.getValues();
-    
+
     // Validate required fields
     if (!timeOffData.startTime) {
       toast.error("Please select a start time");
       return;
     }
-    
-    if (!timeOffData.duration || 
-        (typeof timeOffData.duration !== "number" && timeOffData.duration !== "to_close")) {
+
+    if (
+      !timeOffData.duration ||
+      (typeof timeOffData.duration !== "number" &&
+        timeOffData.duration !== "to_close")
+    ) {
       toast.error("Please select duration");
       return;
     }
 
     // Validate recurring fields if isRecurring is true
     if (timeOffData.isRecurring) {
-      if (!timeOffData.recurringDuration?.value || !timeOffData.recurringDuration?.unit) {
+      if (
+        !timeOffData.recurringDuration?.value ||
+        !timeOffData.recurringDuration?.unit
+      ) {
         toast.error("Please set recurring duration");
         return;
       }
-      if (!timeOffData.recurringFrequency?.value || !timeOffData.recurringFrequency?.unit) {
+      if (
+        !timeOffData.recurringFrequency?.value ||
+        !timeOffData.recurringFrequency?.unit
+      ) {
         toast.error("Please set recurring frequency");
         return;
       }
     }
 
-    console.log("Time Off Data:", timeOffData);
     try {
       const result = await createTimeOff(timeOffData);
       if (result.status === "SUCCESS") {
-        const message = result.count > 1 
-          ? `${result.count} recurring time offs scheduled successfully`
-          : "Time off scheduled successfully";
+        const message =
+          result.count > 1
+            ? `${result.count} recurring time offs scheduled successfully`
+            : "Time off scheduled successfully";
         toast.success(message);
         // Reset form after successful submission
         timeOffForm.reset({
@@ -568,7 +805,6 @@ export const AppointmentForm = ({
         });
       }
     } catch (error) {
-      console.error("Error creating time off:", error);
       toast.error("Error scheduling time off", {
         description: "An unexpected error occurred",
       });
@@ -632,9 +868,7 @@ export const AppointmentForm = ({
     setUpcomingAppointments([]);
   };
 
-  if (loading) {
-    return <AppointmentFormLoading />;
-  }
+  // Show UI immediately, use skeleton loading for individual sections
   return (
     <div className="relative flex-1 w-full h-full min-h-0 flex flex-col">
       <Form {...form}>
@@ -656,6 +890,7 @@ export const AppointmentForm = ({
                 timeOffForm={timeOffForm}
                 onTimeOffSubmit={onTimeOffSubmit}
                 selectedEmployee={selectedEmployee}
+                type={type}
               />
             </div>
           )}
@@ -671,6 +906,8 @@ export const AppointmentForm = ({
                 type={type}
                 isSubmitting={isSubmitting}
                 onBackToCustomer={handleBackToCustomer}
+                servicesLoading={servicesLoading}
+                employeesLoading={employeesLoading}
               />
               <div className="flex justify-between pt-2">
                 {type === "edit" ? (
@@ -744,11 +981,19 @@ export const AppointmentForm = ({
                   className="p-3 bg-gray-50 rounded text-sm"
                 >
                   <div className="font-medium">
-                    {new Date(appointment.startTime).toLocaleDateString()} at{" "}
-                    {new Date(appointment.startTime).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {(() => {
+                      const startDate = safeParseDate(appointment.startTime);
+                      if (!startDate) return "-";
+                      return (
+                        <>
+                          {startDate.toLocaleDateString()} at{" "}
+                          {startDate.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </>
+                      );
+                    })()}
                   </div>
                   <div className="text-gray-600">
                     {appointment.employee?.firstName}{" "}

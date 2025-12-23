@@ -1,21 +1,36 @@
 import React from "react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { TIMEZONE_QUERY } from "@/sanity/lib/queries";
 import { Timezone } from "@/components/Timezone";
 import { TimeSettings } from "@/components/TimeSettings";
 import { SMSMessageSettings } from "@/components/SMSMessageSettings";
 import { HourlyRateSettings } from "@/components/HourlyRateSettings";
-import { sanityFetch, SanityLive } from "@/sanity/lib/live";
+import { getSettings } from "@/data/settings";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const Page = async () => {
-  const result = await sanityFetch({
-    query: TIMEZONE_QUERY,
-    params: {},
-  });
+  // Fetch settings from Supabase
+  const settings = await getSettings();
+
+  // Log settings to console
+  console.log("=== SETTINGS FROM SUPABASE ===");
+  console.log(JSON.stringify(settings, null, 2));
+  console.log("=============================");
 
   // Set default values if data is null or missing
-  const settingData = result.data || {
+  const settingData = settings
+    ? {
+        id: settings.id,
+        _id: settings.id, // Keep _id for backward compatibility with components
+        timezone: settings.timezone || "UTC-7:00",
+        minTime: settings.min_time || "8:00 AM",
+        maxTime: settings.max_time || "6:00 PM",
+        smsMessage:
+          settings.sms_message ||
+          "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+        hourlyRate: settings.hourly_rate,
+      }
+    : {
+        id: "",
     _id: "",
     timezone: "UTC-7:00",
     minTime: "8:00 AM",
@@ -108,8 +123,6 @@ const Page = async () => {
           </div>
         </TabsContent>
       </Tabs>
-
-      <SanityLive />
     </div>
   );
 };

@@ -26,7 +26,6 @@ export class OptimisticStorage {
       const key = this.getStorageKey(type);
       localStorage.setItem(key, JSON.stringify(changes));
     } catch (error) {
-      console.error(`Error saving optimistic changes for ${type}:`, error);
     }
   }
 
@@ -36,7 +35,6 @@ export class OptimisticStorage {
       const stored = localStorage.getItem(key);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error(`Error loading optimistic changes for ${type}:`, error);
       return [];
     }
   }
@@ -46,7 +44,6 @@ export class OptimisticStorage {
       const key = this.getStorageKey(type);
       localStorage.removeItem(key);
     } catch (error) {
-      console.error(`Error clearing optimistic changes for ${type}:`, error);
     }
   }
 
@@ -56,7 +53,6 @@ export class OptimisticStorage {
         localStorage.removeItem(key);
       });
     } catch (error) {
-      console.error("Error clearing all optimistic changes:", error);
     }
   }
 
@@ -74,7 +70,6 @@ export class OptimisticStorage {
         }
       });
     } catch (error) {
-      console.error("Error getting changes summary:", error);
     }
     
     return summary;
@@ -91,7 +86,6 @@ export class OptimisticStorage {
         return false;
       });
     } catch (error) {
-      console.error("Error checking pending changes:", error);
       return false;
     }
   }
@@ -108,7 +102,6 @@ export class OptimisticStorage {
       });
       return total;
     } catch (error) {
-      console.error("Error getting total pending changes:", error);
       return 0;
     }
   }

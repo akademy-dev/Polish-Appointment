@@ -1,15 +1,49 @@
-// Import types from Sanity
-import type {
-  Employee as SanityEmployee,
-  Customer as SanityCustomer,
-  WorkingTime,
-  TimeOffSchedule,
-} from "../sanity/types";
+// Define types locally (no longer using Sanity for business entities)
+export type WorkingTime = {
+  _type?: "workingTime";
+  from: string;
+  to: string;
+  day?: string;
+};
 
-// Re-export Sanity types for easier usage
-export type Employee = SanityEmployee;
-export type Customer = SanityCustomer;
-export type { WorkingTime, TimeOffSchedule };
+export type TimeOffSchedule = {
+  _type?: "timeOffSchedule";
+  date?: string;
+  from: string;
+  to: string;
+  reason: string;
+  period?: string;
+  dayOfWeek?: string;
+  dayOfMonth?: string;
+};
+
+export type Employee = {
+  _id: string;
+  _type?: "employee";
+  _createdAt?: string;
+  _updatedAt?: string;
+  _rev?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  position?: "owner" | "serviceProvider" | "backRoom";
+  note?: string;
+  workingTimes?: WorkingTime[];
+  timeOffSchedules?: TimeOffSchedule[];
+  assignedServices?: any[];
+};
+
+export type Customer = {
+  _id: string;
+  _type?: "customer";
+  _createdAt?: string;
+  _updatedAt?: string;
+  _rev?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  note?: string;
+};
 
 // Union type cho ProfileCard và ProfileList
 export type Profile = Employee | Customer;

@@ -3,9 +3,7 @@
 import * as z from "zod";
 
 import { ResetSchema } from "@/form-schemas";
-import { getUserByEmail } from "@/data/user";
-import { sendPasswordResetEmail } from "@/lib/mail";
-import { generatePasswordResetToken } from "@/lib/tokens";
+import { supabaseAuth } from "@/lib/supabase";
 
 export const reset = async (values: z.infer<typeof ResetSchema>) => {
   const validatedFields = ResetSchema.safeParse(values);
@@ -16,18 +14,14 @@ export const reset = async (values: z.infer<typeof ResetSchema>) => {
 
   const { email } = validatedFields.data;
 
-  const existingUser = await getUserByEmail(email);
+  const domain = process.env.NEXT_PUBLIC_DOMAIN || "http://localhost:3000";
+  const { error } = await supabaseAuth.auth.resetPasswordForEmail(email, {
+    redirectTo: `${domain}/auth/new-password`,
+  });
 
-  if (!existingUser) {
-    return { error: "Email not found!" };
+  if (error) {
+    return { error: error.message };
   }
-
-  const passwordResetToken = await generatePasswordResetToken(email);
-
-  await sendPasswordResetEmail(
-    passwordResetToken.identifier,
-    passwordResetToken.token,
-  );
 
   return { success: "Reset password email sent!" };
 };

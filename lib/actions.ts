@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { writeClient } from "@/sanity/lib/write-client";
 import { parseServerActionResponse } from "./utils";
 import { TimeOffSchedule, WorkingTime } from "@/models/profile";
 import { AssignedService } from "@/models/assignedService";
+import { getEmployeeById } from "@/data/employee";
 import {
-  CHECK_CONFLICT_QUERY,
-  EMPLOYEE_WORKING_TIMES_QUERY,
-} from "@/sanity/lib/queries";
+  checkAppointmentConflicts,
+  getAppointmentsBy14Date,
+} from "@/data/appointment";
 import moment from "moment-timezone";
 
 export const createEmployee = async (
@@ -22,41 +22,40 @@ export const createEmployee = async (
   );
 
   try {
-    const employee = {
-      firstName,
-      lastName,
-      phone,
-      position,
-      note,
+    const { createEmployee: createEmployeeSupabase } = await import(
+      "@/data/employee"
+    );
+    const result = await createEmployeeSupabase(
+      firstName as string,
+      lastName as string,
+      (phone as string) || null,
+      position as string,
+      (note as string) || null,
       workingTimes,
       timeOffSchedules,
-      assignedServices,
-    };
+      assignedServices
+    );
 
-    //add _key for each item in workingTimes and timeOffSchedules
-    employee.workingTimes = employee.workingTimes.map((time) => ({
-      ...time,
-      _key: crypto.randomUUID(),
-    }));
-    employee.timeOffSchedules = employee.timeOffSchedules.map((time) => ({
-      ...time,
-      _key: crypto.randomUUID(),
-    }));
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to create employee: No result returned",
+        status: "ERROR",
+      });
+    }
 
-    const result = await writeClient.create({
-      _type: "employee",
-      ...employee,
-    });
+    revalidatePath("/employees");
 
     return parseServerActionResponse({
       ...result,
+      _id: result.id, // For backward compatibility
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
     return parseServerActionResponse({
-      error: JSON.stringify(error),
+      error: errorMessage,
       status: "ERROR",
     });
   }
@@ -74,31 +73,39 @@ export const updateEmployee = async (
   );
 
   try {
-    const employee = {
-      firstName,
-      lastName,
-      phone,
-      position,
-      note,
+    const { updateEmployee: updateEmployeeSupabase } = await import(
+      "@/data/employee"
+    );
+    const result = await updateEmployeeSupabase(
+      _id,
+      {
+        firstName: firstName as string,
+        lastName: lastName as string,
+        phone: (phone as string) || null,
+        position: position as string,
+        note: (note as string) || null,
+      },
       workingTimes,
       timeOffSchedules,
-      assignedServices,
-    };
+      assignedServices
+    );
 
-    const result = await writeClient
-      .patch(_id)
-      .set({
-        ...employee,
-      })
-      .commit();
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to update employee",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/employees");
 
     return parseServerActionResponse({
       ...result,
+      _id: result.id, // For backward compatibility
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -107,37 +114,41 @@ export const updateEmployee = async (
 };
 
 export const createCustomer = async (form: FormData) => {
-  const { firstName, lastName, phone, email, note } = Object.fromEntries(
+  const { firstName, lastName, phone, note } = Object.fromEntries(
     Array.from(form)
   );
 
   try {
-    const customer = {
-      firstName,
-      lastName,
-      phone,
-      email,
-      note,
-    };
+    const { createCustomer: createCustomerSupabase } = await import(
+      "@/data/customer"
+    );
+    const result = await createCustomerSupabase(
+      firstName as string,
+      lastName as string,
+      (phone as string) || null,
+      (note as string) || null
+    );
 
-    const result = await writeClient.create({
-      _type: "customer",
-      ...customer,
-    });
-
-    console.log("Customer created successfully", result);
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to create customer: No result returned",
+        status: "ERROR",
+      });
+    }
 
     revalidatePath("/customers");
 
     return parseServerActionResponse({
       ...result,
+      _id: result.id, // For backward compatibility
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
     return parseServerActionResponse({
-      error: JSON.stringify(error),
+      error: errorMessage,
       status: "ERROR",
     });
   }
@@ -161,13 +172,16 @@ export const createAppointment = async (
   const { time, note, type } = Object.fromEntries(Array.from(form));
 
   try {
+    const { createAppointment: createAppointmentSupabase } = await import(
+      "@/data/appointment"
+    );
     const results = [];
     let currentTime = new Date(time as string);
 
     // Generate recurring group ID if this is a recurring appointment
-    const recurringGroupId = isRecurring
-      ? `recurring_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      : undefined;
+    // Use UUID format for Supabase
+    const crypto = await import("crypto");
+    const recurringGroupId = isRecurring ? crypto.randomUUID() : undefined;
 
     // Calculate how many recurring appointments to create
     let totalAppointments = 1; // Start with 1 (the original appointment)
@@ -244,53 +258,53 @@ export const createAppointment = async (
             startTime.getTime() + service.duration * 60000
           );
 
-          const appointment = {
-            _type: "appointment",
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            duration: service.duration,
-            note,
-            type: type || "walk-in",
-            reminder: reminder || [],
-            customer,
-            employee,
-            service: {
-              _ref: service._ref,
-              _type: service._type,
-            },
-            status: "scheduled",
-            recurringGroupId,
-            // calculate Reminder Date Times based on reminder array and startTime
-            reminderDateTimes: reminder
-              .map((reminderTime) => {
-                const reminderDate = new Date(startTime);
-                switch (reminderTime) {
-                  case "1h":
-                    reminderDate.setHours(reminderDate.getHours() - 1);
-                    break;
-                  case "2h":
-                    reminderDate.setHours(reminderDate.getHours() - 2);
-                    break;
-                  case "12h":
-                    reminderDate.setHours(reminderDate.getHours() - 12);
-                    break;
-                  case "24h":
-                    reminderDate.setDate(reminderDate.getDate() - 1);
-                    break;
-                  case "2d":
-                    reminderDate.setDate(reminderDate.getDate() - 2);
-                    break;
-                  default:
-                    return null; // Skip invalid reminders
-                }
-                return reminderDate.toISOString();
-              })
-              .filter(Boolean), // Filter out any null values
-          };
+          // Calculate reminder_datetime based on reminder array and startTime
+          const reminderDatetime = reminder
+            .map((reminderTime) => {
+              const reminderDate = new Date(startTime);
+              switch (reminderTime) {
+                case "1h":
+                  reminderDate.setHours(reminderDate.getHours() - 1);
+                  break;
+                case "2h":
+                  reminderDate.setHours(reminderDate.getHours() - 2);
+                  break;
+                case "12h":
+                  reminderDate.setHours(reminderDate.getHours() - 12);
+                  break;
+                case "24h":
+                  reminderDate.setDate(reminderDate.getDate() - 1);
+                  break;
+                case "2d":
+                  reminderDate.setDate(reminderDate.getDate() - 2);
+                  break;
+                default:
+                  return null; // Skip invalid reminders
+              }
+              return reminderDate.toISOString();
+            })
+            .filter(Boolean) as string[]; // Filter out any null values
 
-          // Create the appointment
-          const result = await writeClient.create(appointment);
-          results.push(result);
+          // Create the appointment using Supabase
+          const result = await createAppointmentSupabase(
+            startTime.toISOString(),
+            endTime.toISOString(),
+            customer._ref, // customerId
+            employee._ref, // employeeId
+            service._ref, // serviceId
+            "scheduled", // status
+            type || "walk-in", // type
+            (note as string) || null, // note
+            reminder || [], // reminder
+            recurringGroupId || undefined, // recurringGroupId
+            reminderDatetime.length > 0 ? reminderDatetime : undefined // reminderDatetime
+          );
+
+          if (result) {
+            results.push(result);
+          } else {
+            console.error("[CREATE APP] ❌ Failed to create appointment");
+          }
 
           // Update currentTime for the next appointment (same service or next service)
           currentTime = endTime;
@@ -307,9 +321,14 @@ export const createAppointment = async (
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
+    console.error("[CREATE APP] ❌ Error in createAppointment:", {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return parseServerActionResponse({
-      error: JSON.stringify(error),
+      error: errorMessage,
       status: "ERROR",
     });
   }
@@ -326,65 +345,76 @@ export const updateAppointment = async (
   const { time, note, status, type } = Object.fromEntries(Array.from(form));
 
   try {
-    const appointment = {
-      startTime: new Date(time as string).toISOString(),
-      endTime: new Date(
-        new Date(time as string).getTime() + duration * 60000
-      ).toISOString(),
-      duration: duration,
-      note,
-      type: type || "walk-in",
-      reminder,
-      customer,
-      employee,
-      status,
-      // calculate Reminder Date Times base on reminder array and startTime
-      reminderDateTimes: reminder
-        .map((reminderTime) => {
-          const reminderDate = new Date(time as string);
-          switch (reminderTime) {
-            case "1h":
-              reminderDate.setHours(reminderDate.getHours() - 1);
-              break;
-            case "2h":
-              reminderDate.setHours(reminderDate.getHours() - 2);
-              break;
-            case "12h":
-              reminderDate.setHours(reminderDate.getHours() - 12);
-              break;
-            case "24h":
-              reminderDate.setDate(reminderDate.getDate() - 1);
-              break;
-            case "2d":
-              reminderDate.setDate(reminderDate.getDate() - 2);
-              break;
-            default:
-              return null; // Skip invalid reminders
-          }
-          return reminderDate.toISOString();
-        })
-        .filter(Boolean), // Filter out any null values
-    };
+    const { updateAppointment: updateAppointmentSupabase } = await import(
+      "@/data/appointment"
+    );
 
-    const result = await writeClient
-      .patch(_id)
-      .set({
-        ...appointment,
+    const startTime = new Date(time as string).toISOString();
+    const endTime = new Date(
+      new Date(time as string).getTime() + duration * 60000
+    ).toISOString();
+
+    // Calculate reminder_datetime based on reminder array and startTime
+    const reminderDatetime = reminder
+      .map((reminderTime) => {
+        const reminderDate = new Date(time as string);
+        switch (reminderTime) {
+          case "1h":
+            reminderDate.setHours(reminderDate.getHours() - 1);
+            break;
+          case "2h":
+            reminderDate.setHours(reminderDate.getHours() - 2);
+            break;
+          case "12h":
+            reminderDate.setHours(reminderDate.getHours() - 12);
+            break;
+          case "24h":
+            reminderDate.setDate(reminderDate.getDate() - 1);
+            break;
+          case "2d":
+            reminderDate.setDate(reminderDate.getDate() - 2);
+            break;
+          default:
+            return null; // Skip invalid reminders
+        }
+        return reminderDate.toISOString();
       })
-      .commit();
+      .filter(Boolean) as string[]; // Filter out any null values
+
+    const result = await updateAppointmentSupabase(_id, {
+      startTime,
+      endTime,
+      customerId: customer._ref,
+      employeeId: employee._ref,
+      status: status as string,
+      type: type || "walk-in",
+      note: (note as string) || null,
+      reminder: reminder || [],
+      reminderDatetime:
+        reminderDatetime.length > 0 ? reminderDatetime : undefined,
+    });
+
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to update appointment",
+        status: "ERROR",
+      });
+    }
 
     revalidatePath("/appointments");
     revalidatePath("/");
 
     return parseServerActionResponse({
       ...result,
+      _id: result.id, // For backward compatibility
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
     return parseServerActionResponse({
-      error: JSON.stringify(error),
+      error: errorMessage,
       status: "ERROR",
     });
   }
@@ -392,13 +422,22 @@ export const updateAppointment = async (
 
 export const deleteAppointment = async (_id: string) => {
   try {
-    const result = await writeClient.delete(_id);
+    const { deleteAppointment: deleteAppointmentSupabase } = await import(
+      "@/data/appointment"
+    );
+    const success = await deleteAppointmentSupabase(_id);
+
+    if (!success) {
+      return parseServerActionResponse({
+        error: "Failed to delete appointment",
+        status: "ERROR",
+      });
+    }
 
     revalidatePath("/appointments");
     revalidatePath("/");
 
     return parseServerActionResponse({
-      ...result,
       error: "",
       status: "SUCCESS",
     });
@@ -411,37 +450,41 @@ export const deleteAppointment = async (_id: string) => {
 };
 
 export const updateCustomer = async (_id: string, form: FormData) => {
-  const { firstName, lastName, phone, email, note } = Object.fromEntries(
+  const { firstName, lastName, phone, note } = Object.fromEntries(
     Array.from(form)
   );
 
   try {
-    const customer = {
-      firstName,
-      lastName,
-      phone,
-      email,
-      note,
-    };
+    const { updateCustomer: updateCustomerSupabase } = await import(
+      "@/data/customer"
+    );
+    const result = await updateCustomerSupabase(_id, {
+      firstName: firstName as string,
+      lastName: lastName as string,
+      phone: (phone as string) || null,
+      note: (note as string) || null,
+    });
 
-    const result = await writeClient
-      .patch(_id)
-      .set({
-        ...customer,
-      })
-      .commit();
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to update customer",
+        status: "ERROR",
+      });
+    }
 
     revalidatePath("/customers");
 
     return parseServerActionResponse({
       ...result,
+      _id: result.id, // For backward compatibility
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
     return parseServerActionResponse({
-      error: JSON.stringify(error),
+      error: errorMessage,
       status: "ERROR",
     });
   }
@@ -457,25 +500,32 @@ export const createService = async (
   const { name, price, duration } = Object.fromEntries(Array.from(form));
 
   try {
-    const service = {
-      name,
-      price: parseFloat(price as string),
-      duration: parseInt(duration as string, 10),
-      category: category,
-    };
+    const { createService: createServiceSupabase } = await import(
+      "@/data/service"
+    );
+    const result = await createServiceSupabase(
+      name as string,
+      parseFloat(price as string),
+      parseInt(duration as string, 10),
+      category._ref || null
+    );
 
-    const result = await writeClient.create({
-      _type: "service",
-      ...service,
-    });
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to create service",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/services");
 
     return parseServerActionResponse({
       ...result,
+      _id: result.id, // For backward compatibility
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -489,28 +539,49 @@ export const updateService = async (_id: string, form: FormData) => {
   );
 
   try {
-    const service = {
-      name,
-      description,
-      price: parseFloat(price as string),
-      duration: parseInt(duration as string, 10),
-      category,
-    };
+    const { updateService: updateServiceSupabase } = await import(
+      "@/data/service"
+    );
 
-    const result = await writeClient
-      .patch(_id)
-      .set({
-        ...service,
-      })
-      .commit();
+    // Parse category if it's a string (could be JSON or just ID)
+    let categoryId: string | null = null;
+    if (category) {
+      try {
+        const categoryObj =
+          typeof category === "string" ? JSON.parse(category) : category;
+        categoryId = categoryObj._ref || categoryObj.id || category || null;
+      } catch {
+        categoryId = (category as string) || null;
+      }
+    }
+    // If category is empty string or undefined, set to null
+    if (categoryId === "" || categoryId === undefined) {
+      categoryId = null;
+    }
+
+    const result = await updateServiceSupabase(_id, {
+      name: name as string,
+      price: price ? parseFloat(price as string) : undefined,
+      duration: duration ? parseInt(duration as string, 10) : undefined,
+      categoryId: categoryId || null, // Ensure null if empty
+    });
+
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to update service",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/services");
 
     return parseServerActionResponse({
       ...result,
+      _id: result.id, // For backward compatibility
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -520,30 +591,28 @@ export const updateService = async (_id: string, form: FormData) => {
 
 export const deleteEmployee = async (_id: string) => {
   try {
-    // Delete all documents that reference this employee
-    const referencingDocs = await writeClient.fetch(
-      `*[references($id)]{_id, _type}`,
-      { id: _id }
+    // Note: With CASCADE delete in Supabase, related records will be automatically deleted
+    // TODO: Add appointment reference check when appointments are migrated to Supabase
+
+    const { deleteEmployee: deleteEmployeeSupabase } = await import(
+      "@/data/employee"
     );
+    const success = await deleteEmployeeSupabase(_id);
 
-    console.log("Documents referencing employee:", referencingDocs);
-
-    // Delete all referencing documents
-    for (const refDoc of referencingDocs) {
-      console.log(`Deleting ${refDoc._type} with id: ${refDoc._id}`);
-      await writeClient.delete(refDoc._id);
+    if (!success) {
+      return parseServerActionResponse({
+        error: "Failed to delete employee",
+        status: "ERROR",
+      });
     }
 
-    // Finally delete the employee
-    const result = await writeClient.delete(_id);
+    revalidatePath("/employees");
 
     return parseServerActionResponse({
-      ...result,
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.error("Error deleting employee:", error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -553,33 +622,29 @@ export const deleteEmployee = async (_id: string) => {
 
 export const deleteCustomer = async (_id: string) => {
   try {
-    // Delete all documents that reference this customer
-    const referencingDocs = await writeClient.fetch(
-      `*[references($id)]{_id, _type}`,
-      { id: _id }
+    // Note: With CASCADE delete in Supabase, related records will be automatically deleted
+    // TODO: Add appointment reference check when appointments are migrated to Supabase
+
+    const { deleteCustomer: deleteCustomerSupabase } = await import(
+      "@/data/customer"
     );
+    const success = await deleteCustomerSupabase(_id);
 
-    console.log("Documents referencing customer:", referencingDocs);
-
-    // Delete all referencing documents
-    for (const refDoc of referencingDocs) {
-      console.log(`Deleting ${refDoc._type} with id: ${refDoc._id}`);
-      await writeClient.delete(refDoc._id);
+    if (!success) {
+      return parseServerActionResponse({
+        error: "Failed to delete customer",
+        status: "ERROR",
+      });
     }
-
-    // Finally delete the customer
-    const result = await writeClient.delete(_id);
 
     revalidatePath("/customers");
     revalidatePath("/appointments");
 
     return parseServerActionResponse({
-      ...result,
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.error("Error deleting customer:", error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -589,8 +654,11 @@ export const deleteCustomer = async (_id: string) => {
 
 export const deleteAllCustomers = async () => {
   try {
+    const { getAllCustomers } = await import("@/data/customer");
+    const { supabase } = await import("@/lib/supabase");
+
     // Fetch all customers
-    const allCustomers = await writeClient.fetch(`*[_type == "customer"]{_id}`);
+    const allCustomers = await getAllCustomers();
 
     if (!allCustomers || allCustomers.length === 0) {
       return parseServerActionResponse({
@@ -602,25 +670,20 @@ export const deleteAllCustomers = async () => {
     let deletedCount = 0;
     let errorCount = 0;
 
-    // Delete each customer and their referencing documents
+    // Delete each customer (CASCADE will handle related appointments)
     for (const customer of allCustomers) {
       try {
-        // Delete all documents that reference this customer
-        const referencingDocs = await writeClient.fetch(
-          `*[references($id)]{_id, _type}`,
-          { id: customer._id }
-        );
+        // Delete the customer (appointments will be deleted via CASCADE)
+        const { error } = await supabase
+          .from("customers")
+          .delete()
+          .eq("id", customer.id);
 
-        // Delete all referencing documents
-        for (const refDoc of referencingDocs) {
-          await writeClient.delete(refDoc._id);
+        if (error) {
+          throw error;
         }
-
-        // Delete the customer
-        await writeClient.delete(customer._id);
         deletedCount++;
       } catch (error) {
-        console.error(`Error deleting customer ${customer._id}:`, error);
         errorCount++;
       }
     }
@@ -643,7 +706,6 @@ export const deleteAllCustomers = async () => {
       count: deletedCount,
     });
   } catch (error) {
-    console.error("Error deleting all customers:", error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -653,19 +715,26 @@ export const deleteAllCustomers = async () => {
 
 export const deleteService = async (_id: string) => {
   try {
-    const referencingDocs = await writeClient.fetch(
-      `*[_type == "appointment" && service._ref == $id]{_id}`,
-      { id: _id }
-    );
+    // Check for referencing appointments
+    // Note: This would need to be handled separately if appointments are still in Sanity
+    // For now, we'll just delete the service
+    // TODO: Add appointment reference check when appointments are migrated to Supabase
 
-    for (const refDoc of referencingDocs) {
-      await writeClient.delete(refDoc._id);
+    const { deleteService: deleteServiceSupabase } = await import(
+      "@/data/service"
+    );
+    const success = await deleteServiceSupabase(_id);
+
+    if (!success) {
+      return parseServerActionResponse({
+        error: "Failed to delete service",
+        status: "ERROR",
+      });
     }
 
-    const result = await writeClient.delete(_id);
+    revalidatePath("/services");
 
     return parseServerActionResponse({
-      ...result,
       error: "",
       status: "SUCCESS",
     });
@@ -677,14 +746,19 @@ export const deleteService = async (_id: string) => {
   }
 };
 
-export const updateTimezone = async (_id: string, timezone: string) => {
+export const updateTimezone = async (id: string, timezone: string) => {
   try {
-    const result = await writeClient
-      .patch(_id)
-      .set({
-        timezone,
-      })
-      .commit();
+    const { updateSettings } = await import("@/data/settings");
+    const result = await updateSettings(id, { timezone });
+
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to update timezone",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/settings");
 
     return parseServerActionResponse({
       ...result,
@@ -692,7 +766,6 @@ export const updateTimezone = async (_id: string, timezone: string) => {
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -701,18 +774,25 @@ export const updateTimezone = async (_id: string, timezone: string) => {
 };
 
 export const updateTimeSettings = async (
-  _id: string,
+  id: string,
   minTime: string,
   maxTime: string
 ) => {
   try {
-    const result = await writeClient
-      .patch(_id)
-      .set({
-        minTime,
-        maxTime,
-      })
-      .commit();
+    const { updateSettings } = await import("@/data/settings");
+    const result = await updateSettings(id, {
+      min_time: minTime,
+      max_time: maxTime,
+    });
+
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to update time settings",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/settings");
 
     return parseServerActionResponse({
       ...result,
@@ -720,7 +800,6 @@ export const updateTimeSettings = async (
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -728,14 +807,19 @@ export const updateTimeSettings = async (
   }
 };
 
-export const updateHourlyRate = async (_id: string, hourlyRate?: number) => {
+export const updateHourlyRate = async (id: string, hourlyRate?: number) => {
   try {
-    const result = await writeClient
-      .patch(_id)
-      .set({
-        hourlyRate,
-      })
-      .commit();
+    const { updateSettings } = await import("@/data/settings");
+    const result = await updateSettings(id, { hourly_rate: hourlyRate });
+
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to update hourly rate",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/settings");
 
     return parseServerActionResponse({
       ...result,
@@ -743,7 +827,6 @@ export const updateHourlyRate = async (_id: string, hourlyRate?: number) => {
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -760,10 +843,8 @@ export const checkRecurringConflicts = async (
   recurringFrequency?: { value: number; unit: "days" | "weeks" }
 ) => {
   try {
-    // Get employee working times and time off schedules
-    const employee = await writeClient.fetch(EMPLOYEE_WORKING_TIMES_QUERY, {
-      employeeId,
-    });
+    // Get employee with working times and time off schedules
+    const employee = await getEmployeeById(employeeId);
 
     if (!employee) {
       return parseServerActionResponse({
@@ -774,11 +855,11 @@ export const checkRecurringConflicts = async (
 
     if (!isRecurring) {
       // For non-recurring appointments, just check the single time slot
-      const conflicts = await writeClient.fetch(CHECK_CONFLICT_QUERY, {
+      const conflicts = await checkAppointmentConflicts(
         employeeId,
         startTime,
-        endTime,
-      });
+        endTime
+      );
 
       // Check working times and time off for single appointment
       const workingTimeConflicts = checkWorkingTimeConflicts(
@@ -827,8 +908,6 @@ export const checkRecurringConflicts = async (
 
     // For recurring appointments, check all occurrences
     const allConflicts: any[] = [];
-    let currentStartTime = new Date(startTime);
-    let currentEndTime = new Date(endTime);
 
     // Calculate how many recurring appointments to check
     let totalAppointments = 1;
@@ -862,44 +941,59 @@ export const checkRecurringConflicts = async (
       }
     }
 
+    // Get the first date of the recurring appointments
+    const firstDate = new Date(startTime);
+    const firstDateStr = firstDate.toISOString().split("T")[0];
+
+    // Fetch all appointments in 14-day window using RPC
+    const existingAppointments = await getAppointmentsBy14Date(firstDateStr);
+
+    // Filter appointments for the specific employee and status = "scheduled"
+    const employeeAppointments = existingAppointments.filter(
+      (apt) => apt.employee_id === employeeId && apt.status === "scheduled"
+    );
+
     // Check each occurrence for conflicts
     for (let occurrence = 0; occurrence < totalAppointments; occurrence++) {
-      if (occurrence > 0) {
-        // Calculate next occurrence time
-        const originalDate = new Date(startTime);
-        const originalHour = originalDate.getHours();
-        const originalMinute = originalDate.getMinutes();
+      // Calculate occurrence time
+      const originalDate = new Date(startTime);
+      const originalHour = originalDate.getHours();
+      const originalMinute = originalDate.getMinutes();
 
-        let daysToAdd = 0;
-        if (recurringFrequency) {
-          switch (recurringFrequency.unit) {
-            case "days":
-              daysToAdd = recurringFrequency.value * occurrence;
-              break;
-            case "weeks":
-              daysToAdd = recurringFrequency.value * 7 * occurrence;
-              break;
-          }
+      let daysToAdd = 0;
+      if (occurrence > 0 && recurringFrequency) {
+        switch (recurringFrequency.unit) {
+          case "days":
+            daysToAdd = recurringFrequency.value * occurrence;
+            break;
+          case "weeks":
+            daysToAdd = recurringFrequency.value * 7 * occurrence;
+            break;
         }
-
-        const occurrenceTime = new Date(originalDate);
-        occurrenceTime.setDate(originalDate.getDate() + daysToAdd);
-        occurrenceTime.setHours(originalHour, originalMinute, 0, 0);
-
-        const durationMs =
-          new Date(endTime).getTime() - new Date(startTime).getTime();
-        currentStartTime = occurrenceTime;
-        currentEndTime = new Date(occurrenceTime.getTime() + durationMs);
       }
 
-      const appointmentConflicts = await writeClient.fetch(
-        CHECK_CONFLICT_QUERY,
-        {
-          employeeId,
-          startTime: currentStartTime.toISOString(),
-          endTime: currentEndTime.toISOString(),
-        }
-      );
+      const occurrenceTime = new Date(originalDate);
+      occurrenceTime.setDate(originalDate.getDate() + daysToAdd);
+      occurrenceTime.setHours(originalHour, originalMinute, 0, 0);
+
+      const durationMs =
+        new Date(endTime).getTime() - new Date(startTime).getTime();
+      const currentStartTime = occurrenceTime;
+      const currentEndTime = new Date(occurrenceTime.getTime() + durationMs);
+
+      // Check for overlapping appointments in the fetched data
+      const appointmentConflicts = employeeAppointments.filter((apt) => {
+        const aptStart = new Date(apt.start_time || apt.startTime || "");
+        const aptEnd = new Date(apt.end_time || apt.endTime || "");
+
+        // Check if appointments overlap
+        return (
+          (aptStart < currentEndTime && aptEnd > currentStartTime) ||
+          (aptStart >= currentStartTime && aptStart < currentEndTime) ||
+          (aptEnd > currentStartTime && aptEnd <= currentEndTime) ||
+          (aptStart <= currentStartTime && aptEnd >= currentEndTime)
+        );
+      });
 
       // Check working times and time off for this occurrence
       const workingTimeConflicts = checkWorkingTimeConflicts(
@@ -945,7 +1039,6 @@ export const checkRecurringConflicts = async (
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
       status: "ERROR",
@@ -1134,33 +1227,120 @@ const checkTimeOffConflicts = (
 
 export const cancelRecurringAppointments = async (recurringGroupId: string) => {
   try {
-    // Find all appointments with the same recurringGroupId
-    const appointments = await writeClient.fetch(
-      `*[_type == "appointment" && recurringGroupId == $recurringGroupId && status == "scheduled"]{_id}`,
-      { recurringGroupId }
-    );
+    const { cancelRecurringAppointments: cancelRecurringAppointmentsSupabase } =
+      await import("@/data/appointment");
+    const result = await cancelRecurringAppointmentsSupabase(recurringGroupId);
 
-    // Update all appointments to cancelled status
-    const results = [];
-    for (const appointment of appointments) {
-      const result = await writeClient
-        .patch(appointment._id)
-        .set({
-          status: "cancelled",
-        })
-        .commit();
-      results.push(result);
-    }
+    revalidatePath("/appointments");
+    revalidatePath("/");
 
     return parseServerActionResponse({
-      results,
+      results: [],
+      count: result.count,
       error: "",
       status: "SUCCESS",
     });
   } catch (error) {
-    console.log(error);
     return parseServerActionResponse({
       error: JSON.stringify(error),
+      status: "ERROR",
+    });
+  }
+};
+
+export const createCategory = async (form: FormData) => {
+  const { name } = Object.fromEntries(Array.from(form));
+
+  try {
+    const { createCategory: createCategorySupabase } = await import(
+      "@/data/category"
+    );
+    const result = await createCategorySupabase(name as string);
+
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to create category: No result returned",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/services");
+
+    return parseServerActionResponse({
+      ...result,
+      _id: result.id, // For backward compatibility
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
+    return parseServerActionResponse({
+      error: errorMessage,
+      status: "ERROR",
+    });
+  }
+};
+
+export const updateCategory = async (_id: string, form: FormData) => {
+  const { name } = Object.fromEntries(Array.from(form));
+
+  try {
+    const { updateCategory: updateCategorySupabase } = await import(
+      "@/data/category"
+    );
+    const result = await updateCategorySupabase(_id, name as string);
+
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to update category",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/services");
+
+    return parseServerActionResponse({
+      ...result,
+      _id: result.id, // For backward compatibility
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
+    return parseServerActionResponse({
+      error: errorMessage,
+      status: "ERROR",
+    });
+  }
+};
+
+export const deleteCategory = async (_id: string) => {
+  try {
+    const { deleteCategory: deleteCategorySupabase } = await import(
+      "@/data/category"
+    );
+    const result = await deleteCategorySupabase(_id);
+
+    if (!result) {
+      return parseServerActionResponse({
+        error: "Failed to delete category",
+        status: "ERROR",
+      });
+    }
+
+    revalidatePath("/services");
+
+    return parseServerActionResponse({
+      error: "",
+      status: "SUCCESS",
+    });
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
+    return parseServerActionResponse({
+      error: errorMessage,
       status: "ERROR",
     });
   }

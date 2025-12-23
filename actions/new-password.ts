@@ -1,19 +1,16 @@
 "use server";
 
 import * as z from "zod";
-import bcrypt from "bcryptjs";
 
 import { NewPasswordSchema } from "@/form-schemas";
-import { getPasswordResetTokenByToken } from "@/data/password-reset-token";
-import { getUserByEmail } from "@/data/user";
-import { client } from "@/sanity/lib/client";
+import { supabaseAdmin, supabaseAuth } from "@/lib/supabase";
 
 export const newPassword = async (
   values: z.infer<typeof NewPasswordSchema>,
-  token?: string | null,
+  code?: string | null
 ) => {
-  if (!token) {
-    return { error: "Missing token!" };
+  if (!code) {
+    return { error: "Missing code!" };
   }
 
   const validatedFields = NewPasswordSchema.safeParse(values);
@@ -24,33 +21,20 @@ export const newPassword = async (
 
   const { password } = validatedFields.data;
 
-  const existingToken = await getPasswordResetTokenByToken(token);
-
-  if (!existingToken) {
-    return { error: "Invalid token!" };
+  // Supabase sends recovery links that include an OAuth-style `code` (PKCE flow).
+  // We exchange the code to validate it and retrieve the user, then update the password via admin API.
+  const { data, error } = await supabaseAuth.auth.exchangeCodeForSession(code);
+  if (error || !data.user) {
+    return { error: "Invalid or expired link!" };
   }
 
-  const hasExpired = new Date(existingToken.expires) < new Date();
-
-  if (hasExpired) {
-    return { error: "Token has expired!" };
+  const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
+    data.user.id,
+    { password }
+  );
+  if (updateErr) {
+    return { error: updateErr.message };
   }
 
-  const existingUser = await getUserByEmail(existingToken.identifier);
-
-  if (!existingUser) {
-    return { error: "Email does not exist!" };
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  await client
-    .patch(existingUser._id)
-    .set({
-      password: hashedPassword,
-    })
-    .commit();
-
-  await client.delete(existingToken._id);
   return { success: "Password updated!" };
 };

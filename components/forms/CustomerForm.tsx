@@ -63,7 +63,7 @@ const CustomerForm = ({
       <form
         ref={formRef}
         onSubmit={form.handleSubmit(onSubmit)}
-        className={cn("space-y-4 p-1 max-w-3xl", className)}
+        className={cn("space-y-4 w-full", className)}
       >
         <FormField
           control={form.control}
@@ -128,6 +128,7 @@ const CustomerForm = ({
                   disabled={isSubmitting}
                   {...field}
                   value={field.value || ""}
+                  className="max-h-32 resize-y"
                 />
               </FormControl>
               <FormMessage />
@@ -137,7 +138,13 @@ const CustomerForm = ({
         {!hideSubmitButton && (
           <div className="flex justify-end pt-4">
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : "Save"}
+              {isSubmitting
+                ? initialData
+                  ? "Saving..."
+                  : "Creating..."
+                : initialData
+                  ? "Save"
+                  : "Create"}
             </Button>
           </div>
         )}

@@ -21,7 +21,6 @@ export const workingTimeSchema = z
         }
       )
   )
-  .min(1, "You have to select at least one day.")
   .max(7);
 
 export const assignedServicesSchema = z.array(
@@ -30,7 +29,6 @@ export const assignedServicesSchema = z.array(
     price: z.number().min(0, "Price must be at least 0"),
     duration: z.number().positive("Duration must be a positive number"),
     processTime: z.number().min(0, "Process time must be at least 0 minutes"),
-    showOnline: z.boolean(),
   })
 );
 export const timeOffScheduleFormSchema = z.array(
@@ -134,7 +132,7 @@ export const appointmentTimeOffSchema = z
 export const employeeFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  phone: z.string().optional(),
+  phone: z.string().min(1, "Phone is required"),
   position: z.string({
     required_error: "Please select a position",
   }),
@@ -149,7 +147,7 @@ export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
 export const customerFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  phone: z.string().optional(),
+  phone: z.string().min(1, "Phone is required"),
   note: z.string().optional(),
 });
 
@@ -174,6 +172,12 @@ export const serviceFormSchema = z.object({
 });
 
 export type ServiceFormValues = z.infer<typeof serviceFormSchema>;
+
+export const categoryFormSchema = z.object({
+  name: z.string().min(1, "Category name is required"),
+});
+
+export type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
 export const appointmentFormSchema = z.object({
   time: z.string().min(1, { message: "Time is required" }),

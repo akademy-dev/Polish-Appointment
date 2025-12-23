@@ -1,37 +1,14 @@
 "use server";
 
-import { client } from "@/sanity/lib/client";
-import { getUserByEmail } from "@/data/user";
-import { getVerificationTokenByToken } from "@/data/verification-token";
+import { supabaseAuth } from "@/lib/supabase";
 
-export const newVerification = async (token: string) => {
-  const existingToken = await getVerificationTokenByToken(token);
+export const newVerification = async (code: string) => {
+  // Supabase email confirmation links include a `code` that can be exchanged.
+  const { data, error } = await supabaseAuth.auth.exchangeCodeForSession(code);
 
-  if (!existingToken) {
-    return { error: "Token does not exist!" };
+  if (error || !data.user) {
+    return { error: "Invalid or expired verification link!" };
   }
-
-  const hasExpired = new Date(existingToken.expires) < new Date();
-
-  if (hasExpired) {
-    return { error: "Token has expired!" };
-  }
-
-  const existingUser = await getUserByEmail(existingToken.identifier);
-
-  if (!existingUser) {
-    return { error: "Email does not exist!" };
-  }
-
-  await client
-    .patch(existingUser._id)
-    .set({
-      emailVerified: new Date().toISOString(),
-      email: existingToken.identifier,
-    })
-    .commit();
-
-  await client.delete(existingToken._id);
 
   return { success: "Email verified!" };
 };

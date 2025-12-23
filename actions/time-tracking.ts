@@ -1,8 +1,14 @@
 "use server";
 
-import { client } from "@/sanity/lib/client";
-import { writeClient } from "@/sanity/lib/write-client";
-import { TimeTracking } from "@/sanity/types";
+import {
+  createTimeTracking as createTimeTrackingSupabase,
+  updateTimeTracking as updateTimeTrackingSupabase,
+  deleteTimeTracking as deleteTimeTrackingSupabase,
+  getTimeTrackingById,
+  getTimeTrackingByDateRange as getTimeTrackingByDateRangeSupabase,
+  getTimeTrackingByEmployee as getTimeTrackingByEmployeeSupabase,
+} from "@/data/time-tracking";
+import { revalidatePath } from "next/cache";
 
 export async function createTimeTracking(data: {
   employee: { _ref: string; _type: "reference" };
@@ -11,14 +17,14 @@ export async function createTimeTracking(data: {
   note?: string;
 }) {
   try {
-    const timeTracking = await writeClient.create({
-      _type: "timeTracking",
-      employee: data.employee,
-      checkIn: data.checkIn,
-      hourlyRate: data.hourlyRate,
-      note: data.note,
-      status: "checked_in",
-    });
+    const timeTracking = await createTimeTrackingSupabase(
+      data.employee._ref,
+      data.checkIn,
+      data.hourlyRate,
+      data.note
+    );
+
+    revalidatePath("/time-tracking");
 
     return {
       status: "SUCCESS" as const,
@@ -28,7 +34,10 @@ export async function createTimeTracking(data: {
     console.error("Error creating time tracking:", error);
     return {
       status: "ERROR" as const,
-      error: "Failed to create time tracking",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create time tracking",
     };
   }
 }
@@ -48,15 +57,13 @@ export async function updateTimeTracking(
     let totalPay: number | undefined;
 
     if (data.checkOut) {
-      const existingRecord = await client.fetch(
-        `*[_type == "timeTracking" && _id == $id][0]`,
-        { id }
-      );
+      const existingRecord = await getTimeTrackingById(id);
 
       if (existingRecord?.checkIn) {
         const checkIn = new Date(existingRecord.checkIn);
         const checkOut = new Date(data.checkOut);
-        totalHours = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60); // Convert to hours
+        totalHours =
+          (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60); // Convert to hours
 
         if (data.hourlyRate || existingRecord.hourlyRate) {
           const rate = data.hourlyRate || existingRecord.hourlyRate;
@@ -65,14 +72,13 @@ export async function updateTimeTracking(
       }
     }
 
-    const timeTracking = await writeClient
-      .patch(id)
-      .set({
-        ...data,
-        ...(totalHours !== undefined && { totalHours }),
-        ...(totalPay !== undefined && { totalPay }),
-      })
-      .commit();
+    const timeTracking = await updateTimeTrackingSupabase(id, {
+      ...data,
+      ...(totalHours !== undefined && { totalHours }),
+      ...(totalPay !== undefined && { totalPay }),
+    });
+
+    revalidatePath("/time-tracking");
 
     return {
       status: "SUCCESS" as const,
@@ -82,14 +88,20 @@ export async function updateTimeTracking(
     console.error("Error updating time tracking:", error);
     return {
       status: "ERROR" as const,
-      error: "Failed to update time tracking",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update time tracking",
     };
   }
 }
 
 export async function deleteTimeTracking(id: string) {
   try {
-    await writeClient.delete(id);
+    await deleteTimeTrackingSupabase(id);
+
+    revalidatePath("/time-tracking");
+
     return {
       status: "SUCCESS" as const,
     };
@@ -97,7 +109,10 @@ export async function deleteTimeTracking(id: string) {
     console.error("Error deleting time tracking:", error);
     return {
       status: "ERROR" as const,
-      error: "Failed to delete time tracking",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to delete time tracking",
     };
   }
 }
@@ -107,28 +122,9 @@ export async function getTimeTrackingByDateRange(
   endDate: string
 ) {
   try {
-    const timeTracking = await client.fetch(
-      `*[_type == "timeTracking" && 
-        checkIn >= $startDate && 
-        checkIn <= $endDate
-      ] | order(checkIn desc) {
-        _id,
-        employee->{
-          _id,
-          firstName,
-          lastName
-        },
-        checkIn,
-        checkOut,
-        hourlyRate,
-        totalHours,
-        totalPay,
-        note,
-        status,
-        _createdAt,
-        _updatedAt
-      }`,
-      { startDate, endDate }
+    const timeTracking = await getTimeTrackingByDateRangeSupabase(
+      startDate,
+      endDate
     );
 
     return {
@@ -139,35 +135,17 @@ export async function getTimeTrackingByDateRange(
     console.error("Error fetching time tracking:", error);
     return {
       status: "ERROR" as const,
-      error: "Failed to fetch time tracking",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch time tracking",
     };
   }
 }
 
 export async function getTimeTrackingByEmployee(employeeId: string) {
   try {
-    const timeTracking = await client.fetch(
-      `*[_type == "timeTracking" && 
-        employee._ref == $employeeId
-      ] | order(checkIn desc) {
-        _id,
-        employee->{
-          _id,
-          firstName,
-          lastName
-        },
-        checkIn,
-        checkOut,
-        hourlyRate,
-        totalHours,
-        totalPay,
-        note,
-        status,
-        _createdAt,
-        _updatedAt
-      }`,
-      { employeeId }
-    );
+    const timeTracking = await getTimeTrackingByEmployeeSupabase(employeeId);
 
     return {
       status: "SUCCESS" as const,
@@ -177,7 +155,10 @@ export async function getTimeTrackingByEmployee(employeeId: string) {
     console.error("Error fetching time tracking:", error);
     return {
       status: "ERROR" as const,
-      error: "Failed to fetch time tracking",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch time tracking",
     };
   }
 }

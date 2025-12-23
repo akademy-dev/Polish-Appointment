@@ -1,7 +1,7 @@
 import React from "react";
-import { ServiceDataTable } from "@/components/ServiceDataTable";
-import { CATEGORIES_QUERY, SERVICES_QUERY } from "@/sanity/lib/queries";
-import { sanityFetch, SanityLive } from "@/sanity/lib/live";
+import { getServices } from "@/data/service";
+import { getCategories } from "@/data/category";
+import ServicesPageClient from "@/components/ServicesPageClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,37 +23,35 @@ const page = async ({ searchParams }: PageProps) => {
   const searchTerm = resolvedSearchParams.query || "";
   const limit = parseInt(resolvedSearchParams.limit || "20", 10);
 
-  const [services, categories] = await Promise.all([
-    sanityFetch({
-      query: SERVICES_QUERY,
-      params: {
-        page,
-        limit,
-        categoryId,
-        searchTerm,
-      },
+  const [servicesResponse, categories] = await Promise.all([
+    getServices({
+      page,
+      limit,
+      categoryId,
+      searchTerm,
     }),
-    sanityFetch({
-      query: CATEGORIES_QUERY,
-    }),
+    getCategories(),
   ]);
 
+  // Transform categories to match expected format
+  const categoriesFormatted = categories.map((cat) => ({
+    _id: cat.id,
+    id: cat.id,
+    name: cat.name,
+  }));
+
   return (
-    <>
-      <h2 className="heading">Services</h2>
-      <ServiceDataTable
-        initialServices={services.data.data || []}
-        categories={categories?.data || []}
-        total={services.data.total || 0}
-        initialParams={{
-          page,
-          categoryId,
-          searchTerm,
-          limit,
-        }}
-      />
-      <SanityLive />
-    </>
+    <ServicesPageClient
+      initialServices={servicesResponse.data || []}
+      categories={categoriesFormatted}
+      total={servicesResponse.total || 0}
+      initialParams={{
+        page,
+        categoryId,
+        searchTerm,
+        limit,
+      }}
+    />
   );
 };
 

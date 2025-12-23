@@ -1,16 +1,13 @@
 "use server";
 
 import * as z from "zod";
-import bcrypt from "bcryptjs";
+import { revalidatePath } from "next/cache";
 
 import { unstable_update } from "@/auth";
-import { client } from "@/sanity/lib/client";
 import { SettingsSchema } from "@/form-schemas";
-import { getUserByEmail, getUserById } from "@/data/user";
 import { currentUser } from "@/lib/auth";
-import { generateVerificationToken } from "@/lib/tokens";
-import { sendVerificationEmail } from "@/lib/mail";
-import { writeClient } from "@/sanity/lib/write-client";
+import { supabaseAdmin, supabaseAuth } from "@/lib/supabase";
+import { UserRole } from "@/models/typings";
 
 export const settings = async (values: z.infer<typeof SettingsSchema>) => {
   const user = await currentUser();
@@ -19,78 +16,99 @@ export const settings = async (values: z.infer<typeof SettingsSchema>) => {
     return { error: "Unauthorized" };
   }
 
-  const dbUser = await getUserById(user.id!);
-
-  if (!dbUser) {
+  // Fetch current Supabase user (source of truth)
+  const { data: current, error: currentErr } =
+    await supabaseAdmin.auth.admin.getUserById(user.id!);
+  if (currentErr || !current.user) {
     return { error: "Unauthorized" };
   }
 
+  // If user logged in via OAuth, keep the old behavior (disable email/password updates)
   if (user.isOAuth) {
     values.email = undefined;
     values.password = undefined;
     values.newPassword = undefined;
-    values.isTwoFactorEnabled = undefined;
   }
 
+  // 1) Update email (Supabase will handle confirmation email if enabled in project settings)
   if (values.email && values.email !== user.email) {
-    const existingUser = await getUserByEmail(values.email);
-
-    if (existingUser && existingUser.id !== user.id) {
-      return { error: "Email already in use!" };
-    }
-
-    const verificationToken = await generateVerificationToken(values.email);
-
-    await sendVerificationEmail(
-      verificationToken.identifier,
-      verificationToken.token,
-    );
-
-    return { success: "Verification email sent!" };
+    const { error: updateEmailErr } =
+      await supabaseAdmin.auth.admin.updateUserById(user.id!, {
+        email: values.email,
+      });
+    if (updateEmailErr) return { error: updateEmailErr.message };
   }
 
-  if (values.password && values.newPassword && dbUser.password) {
-    const passwordsMatch = await bcrypt.compare(
-      values.password,
-      dbUser.password,
-    );
+  // 2) Update password (require current password by re-authenticating)
+  if (values.password && values.newPassword) {
+    const currentEmail = current.user.email;
+    if (!currentEmail) return { error: "Missing email" };
 
-    if (!passwordsMatch) {
+    const { error: reauthErr } = await supabaseAuth.auth.signInWithPassword({
+      email: currentEmail,
+      password: values.password,
+    });
+    if (reauthErr) {
       return { error: "Incorrect password!" };
     }
 
-    const hashedPassword = await bcrypt.hash(values.newPassword, 10);
-    values.password = hashedPassword;
-    values.newPassword = undefined;
+    const { error: updatePassErr } =
+      await supabaseAdmin.auth.admin.updateUserById(user.id!, {
+        password: values.newPassword,
+      });
+    if (updatePassErr) return { error: updatePassErr.message };
   }
 
-  const updatedUser = await client
-    .patch(dbUser._id)
-    .set({
-      ...values,
-    })
-    .commit();
+  // 3) Update metadata (name/role/isTwoFactorEnabled)
+  const nextMeta: Record<string, unknown> = {
+    ...(current.user.user_metadata ?? {}),
+  };
+  if (values.name !== undefined) nextMeta.name = values.name;
+  if (values.isTwoFactorEnabled !== undefined)
+    nextMeta.isTwoFactorEnabled = values.isTwoFactorEnabled;
+  if (values.role) nextMeta.role = values.role;
+
+  const { data: updated, error: updateMetaErr } =
+    await supabaseAdmin.auth.admin.updateUserById(user.id!, {
+      user_metadata: nextMeta,
+    });
+  if (updateMetaErr) return { error: updateMetaErr.message };
+
+  const updatedUser = updated.user ?? current.user;
 
   //unstable update in Beta version
   unstable_update({
     user: {
-      name: updatedUser.name,
-      email: updatedUser.email,
-      isTwoFactorEnabled: updatedUser.isTwoFactorEnabled,
-      role: updatedUser.role,
+      name:
+        (updatedUser.user_metadata?.name as string | undefined) ??
+        values.name ??
+        user.name,
+      email: updatedUser.email ?? values.email ?? user.email,
+      isTwoFactorEnabled: Boolean(
+        updatedUser.user_metadata?.isTwoFactorEnabled
+      ),
+      role:
+        (updatedUser.user_metadata?.role as UserRole | undefined) ??
+        values.role ??
+        user.role,
     },
   });
 
+  revalidatePath("/settings");
   return { success: "Settings Updated!" };
 };
 
 export async function updateSMSMessage(settingId: string, smsMessage: string) {
   try {
-    await writeClient
-      .patch(settingId)
-      .set({ smsMessage })
-      .commit();
-    
+    const { updateSettings } = await import("@/data/settings");
+    const result = await updateSettings(settingId, { sms_message: smsMessage });
+
+    if (!result) {
+      return { status: "ERROR", error: "Failed to update SMS message" };
+    }
+
+    revalidatePath("/settings");
+
     return { status: "SUCCESS" };
   } catch (error) {
     console.error("Error updating SMS message:", error);

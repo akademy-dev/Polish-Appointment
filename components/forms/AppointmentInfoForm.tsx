@@ -31,6 +31,8 @@ import { Service } from "@/models/service";
 import { CalendarContext } from "@/hooks/context";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import FormButton from "@/components/FormButton";
+import { Skeleton } from "@/components/ui/skeleton";
+import { safeParseDate } from "@/lib/utils";
 
 const intervals: number[] = [];
 for (let min = 15; min <= 240; min += 15) {
@@ -47,6 +49,8 @@ const AppointmentInfoForm = ({
   customerHistory,
   isSubmitting,
   onBackToCustomer,
+  servicesLoading = false,
+  employeesLoading = false,
 }: {
   form: UseFormReturn<z.infer<typeof appointmentFormSchema>>;
   services: Service[];
@@ -58,7 +62,6 @@ const AppointmentInfoForm = ({
       price: number;
       duration: number;
       processTime: number;
-      showOnline: boolean;
     }>;
   }[];
   appointments: Appointment[];
@@ -67,6 +70,8 @@ const AppointmentInfoForm = ({
   customerHistory: Appointment[];
   isSubmitting: boolean;
   onBackToCustomer?: () => void;
+  servicesLoading?: boolean;
+  employeesLoading?: boolean;
 }) => {
   const { timezone } = useContext(CalendarContext);
 
@@ -141,7 +146,6 @@ const AppointmentInfoForm = ({
       );
       if (selectedEmployee && selectedEmployee.assignedServices) {
         // Clear current services selection when employee changes
-        console.log("Clearing services due to employee change in create mode");
         form.setValue("services", []);
         setSelectedOrder([]);
       }
@@ -158,10 +162,11 @@ const AppointmentInfoForm = ({
       return [];
     }
 
-    // Filter services based on assignedServices of the selected employee that have showOnline: true
-    const assignedServiceIds = selectedEmployee.assignedServices
-      .filter((as) => as.showOnline === true)
-      .map((as) => as.serviceId);
+    // Filter services based on assignedServices of the selected employee
+    // Note: showOnline field has been removed, so we show all assigned services
+    const assignedServiceIds = selectedEmployee.assignedServices.map(
+      (as) => as.serviceId
+    );
     const filteredServices = services.filter((service) =>
       assignedServiceIds.includes(service._id)
     );
@@ -562,8 +567,15 @@ const AppointmentInfoForm = ({
                       header: "Customer",
                     },
                     {
-                      accessorKey: "employee.fullName",
+                      id: "staff",
                       header: "Staff",
+                      accessorFn: (row) => {
+                        const emp: any = (row as any)?.employee;
+                        const fullName =
+                          emp?.fullName ||
+                          `${emp?.firstName || ""} ${emp?.lastName || ""}`.trim();
+                        return fullName || "";
+                      },
                     },
                     {
                       accessorFn: (row) => row.service?.name ?? "",
@@ -604,17 +616,22 @@ const AppointmentInfoForm = ({
                           <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                       ),
-                      cell: ({ row }: { row: any }) => (
-                        <div>
-                          {format(
-                            toZonedTime(
-                              new Date(row.original.startTime),
-                              timezone
-                            ),
-                            "dd/MM/yyyy HH:mm"
-                          )}
-                        </div>
-                      ),
+                      cell: ({ row }: { row: any }) => {
+                        const startDate = safeParseDate(
+                          row.original.startTime || row.original.start_time
+                        );
+                        if (!startDate) {
+                          return <div>-</div>;
+                        }
+                        return (
+                          <div>
+                            {format(
+                              toZonedTime(startDate, timezone),
+                              "dd/MM/yyyy HH:mm"
+                            )}
+                          </div>
+                        );
+                      },
                     },
                     {
                       accessorKey: "endTime",
@@ -630,32 +647,42 @@ const AppointmentInfoForm = ({
                           <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                       ),
-                      cell: ({ row }: { row: any }) => (
-                        <div>
-                          {format(
-                            toZonedTime(
-                              new Date(row.original.endTime),
-                              timezone
-                            ),
-                            "dd/MM/yyyy HH:mm"
-                          )}
-                        </div>
-                      ),
+                      cell: ({ row }: { row: any }) => {
+                        const endDate = safeParseDate(
+                          row.original.endTime || row.original.end_time
+                        );
+                        if (!endDate) {
+                          return <div>-</div>;
+                        }
+                        return (
+                          <div>
+                            {format(
+                              toZonedTime(endDate, timezone),
+                              "dd/MM/yyyy HH:mm"
+                            )}
+                          </div>
+                        );
+                      },
                     },
                     {
                       accessorKey: "_createdAt",
                       header: "Created At",
-                      cell: ({ row }: { row: any }) => (
-                        <div>
-                          {format(
-                            fromZonedTime(
-                              new Date(row.original._createdAt),
-                              timezone
-                            ),
-                            "dd/MM/yyyy HH:mm"
-                          )}
-                        </div>
-                      ),
+                      cell: ({ row }: { row: any }) => {
+                        const createdAt = safeParseDate(
+                          row.original._createdAt || row.original.created_at
+                        );
+                        if (!createdAt) {
+                          return <div>-</div>;
+                        }
+                        return (
+                          <div>
+                            {format(
+                              toZonedTime(createdAt, timezone),
+                              "dd/MM/yyyy HH:mm"
+                            )}
+                          </div>
+                        );
+                      },
                     },
                   ]}
                   data={filteredAppointments}
@@ -694,41 +721,44 @@ const AppointmentInfoForm = ({
                             <Checkbox
                               checked={isChecked}
                               onCheckedChange={(value) => {
-                                setSelectedOrder((prev) => {
-                                  if (value) {
+                                const currentServices =
+                                  form.getValues("services") || [];
+
+                                if (value) {
+                                  // Add service
+                                  const exists = currentServices.some(
+                                    (s: any) => s._ref === row.original._id
+                                  );
+                                  if (!exists) {
+                                    const newServiceRef = {
+                                      _ref: row.original._id,
+                                      _type: "reference",
+                                      duration: row.original.duration || 0,
+                                      quantity: 1,
+                                    };
+                                    form.setValue("services", [
+                                      ...currentServices,
+                                      newServiceRef,
+                                    ]);
+                                  }
+                                  setSelectedOrder((prev) => {
                                     if (!prev.includes(row.id)) {
-                                      const currentServices =
-                                        form.getValues("services") || [];
-                                      const exists = currentServices.some(
-                                        (s: any) => s._ref === row.original._id
-                                      );
-                                      if (!exists) {
-                                        const newServiceRef = {
-                                          _ref: row.original._id,
-                                          _type: "reference",
-                                          duration: row.original.duration || 0,
-                                          quantity: 1,
-                                        };
-                                        form.setValue("services", [
-                                          ...currentServices,
-                                          newServiceRef,
-                                        ]);
-                                      }
                                       return [...prev, row.id];
                                     }
                                     return prev;
-                                  } else {
-                                    const currentServices =
-                                      form.getValues("services") || [];
-                                    form.setValue(
-                                      "services",
-                                      currentServices.filter(
-                                        (s: any) => s._ref !== row.original._id
-                                      )
-                                    );
-                                    return prev.filter((id) => id !== row.id);
-                                  }
-                                });
+                                  });
+                                } else {
+                                  // Remove service
+                                  form.setValue(
+                                    "services",
+                                    currentServices.filter(
+                                      (s: any) => s._ref !== row.original._id
+                                    )
+                                  );
+                                  setSelectedOrder((prev) =>
+                                    prev.filter((id) => id !== row.id)
+                                  );
+                                }
                               }}
                               aria-label="Select row"
                               disabled={isSubmitting}

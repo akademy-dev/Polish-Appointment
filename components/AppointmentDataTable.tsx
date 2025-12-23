@@ -41,6 +41,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { deleteAppointment } from "@/lib/actions";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { safeParseDate } from "@/lib/utils";
 
 // Define a custom meta interface to include className
 interface CustomColumnMeta<TData, TValue> extends ColumnMeta<TData, TValue> {
@@ -85,7 +86,7 @@ export function AppointmentDataTable({
   const [data, setData] = React.useState<Appointment[]>(initialAppointments);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    [],
+    []
   );
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
@@ -180,13 +181,14 @@ export function AppointmentDataTable({
         toast.success("Success", {
           description: "Appointment deleted successfully.",
         });
+        // Refetch data from Supabase
+        router.refresh();
       } else {
         toast.error("Error", {
           description: result.error,
         });
       }
     } catch (error) {
-      console.error("Error deleting appointment:", error);
       toast.error("Error", {
         description: "Failed to delete appointment. Please try again.",
       });
@@ -223,17 +225,22 @@ export function AppointmentDataTable({
         meta: {
           className: isMobile ? "min-w-[140px]" : "",
         } as CustomColumnMeta<Appointment, unknown>,
-        cell: ({ row }: { row: { original: Appointment } }) => (
-          <div className={isMobile ? "text-xs" : ""}>
-            {format(
-              toZonedTime(
-                new Date(row.original.startTime),
-                initialParams.timezone,
-              ),
-              isMobile ? "dd/MM HH:mm" : "dd/MM/yyyy HH:mm",
-            )}
-          </div>
-        ),
+        cell: ({ row }: { row: { original: Appointment } }) => {
+          const startDate = safeParseDate(
+            row.original.startTime || row.original.start_time
+          );
+          if (!startDate) {
+            return <div className={isMobile ? "text-xs" : ""}>-</div>;
+          }
+          return (
+            <div className={isMobile ? "text-xs" : ""}>
+              {format(
+                toZonedTime(startDate, initialParams.timezone),
+                isMobile ? "dd/MM HH:mm" : "dd/MM/yyyy HH:mm"
+              )}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "endTime",
@@ -241,17 +248,22 @@ export function AppointmentDataTable({
         meta: {
           className: isMobile ? "min-w-[140px]" : "",
         } as CustomColumnMeta<Appointment, unknown>,
-        cell: ({ row }: { row: { original: Appointment } }) => (
-          <div className={isMobile ? "text-xs" : ""}>
-            {format(
-              toZonedTime(
-                new Date(row.original.endTime),
-                initialParams.timezone,
-              ),
-              isMobile ? "dd/MM HH:mm" : "dd/MM/yyyy HH:mm",
-            )}
-          </div>
-        ),
+        cell: ({ row }: { row: { original: Appointment } }) => {
+          const endDate = safeParseDate(
+            row.original.endTime || row.original.end_time
+          );
+          if (!endDate) {
+            return <div className={isMobile ? "text-xs" : ""}>-</div>;
+          }
+          return (
+            <div className={isMobile ? "text-xs" : ""}>
+              {format(
+                toZonedTime(endDate, initialParams.timezone),
+                isMobile ? "dd/MM HH:mm" : "dd/MM/yyyy HH:mm"
+              )}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "duration",
@@ -331,7 +343,7 @@ export function AppointmentDataTable({
 
   const totalPages = React.useMemo(
     () => Math.max(1, Math.ceil(total / limit)),
-    [total, limit],
+    [total, limit]
   );
 
   React.useEffect(() => {
@@ -343,14 +355,14 @@ export function AppointmentDataTable({
       table
         .getHeaderGroups()
         .map((header) =>
-          header.headers.map((h) => h.column.columnDef.header).join(","),
+          header.headers.map((h) => h.column.columnDef.header).join(",")
         )
         .join("\n"),
       ...table.getRowModel().rows.map((row) =>
         row
           .getVisibleCells()
           .map((cell) => cell.getValue())
-          .join(","),
+          .join(",")
       ),
     ].join("\n");
 
@@ -369,18 +381,18 @@ export function AppointmentDataTable({
         if (columns.length < 5) return row; // Ensure there are enough columns
 
         // Only format if valid date
-        const startTime = new Date(columns[3]);
-        const endTime = new Date(columns[4]);
-        columns[3] = !isNaN(startTime.getTime())
+        const startTime = safeParseDate(columns[3]);
+        const endTime = safeParseDate(columns[4]);
+        columns[3] = startTime
           ? format(
               toZonedTime(startTime, initialParams.timezone),
-              "dd/MM/yyyy HH:mm",
+              "dd/MM/yyyy HH:mm"
             )
           : columns[3];
-        columns[4] = !isNaN(endTime.getTime())
+        columns[4] = endTime
           ? format(
               toZonedTime(endTime, initialParams.timezone),
-              "dd/MM/yyyy HH:mm",
+              "dd/MM/yyyy HH:mm"
             )
           : columns[4];
         return columns.join(",");
@@ -402,7 +414,9 @@ export function AppointmentDataTable({
   return (
     <>
       <div className="w-full">
-        <div className={`flex items-center justify-between py-4 gap-2 w-full ${isMobile ? 'flex-col sm:flex-row' : ''}`}>
+        <div
+          className={`flex items-center justify-between py-4 gap-2 w-full ${isMobile ? "flex-col sm:flex-row" : ""}`}
+        >
           <Input
             placeholder="Search "
             value={search}
@@ -413,9 +427,17 @@ export function AppointmentDataTable({
             }}
             className={isMobile ? "w-full" : "max-w-sm"}
           />
-          <div className={`flex gap-2 ${isMobile ? 'w-full flex-wrap justify-center sm:justify-end' : ''}`}>
-            <div className={`flex items-center gap-2 ${isMobile ? 'flex-1 sm:flex-none' : ''}`}>
-              <span className={`text-sm text-muted-foreground ${isMobile ? 'text-xs' : ''}`}>Status:</span>
+          <div
+            className={`flex gap-2 ${isMobile ? "w-full flex-wrap justify-center sm:justify-end" : ""}`}
+          >
+            <div
+              className={`flex items-center gap-2 ${isMobile ? "flex-1 sm:flex-none" : ""}`}
+            >
+              <span
+                className={`text-sm text-muted-foreground ${isMobile ? "text-xs" : ""}`}
+              >
+                Status:
+              </span>
               <Select
                 value={status || "all"}
                 onValueChange={(value) => {
@@ -439,8 +461,14 @@ export function AppointmentDataTable({
               </Select>
             </div>
 
-            <div className={`flex items-center gap-2 ${isMobile ? 'flex-1 sm:flex-none' : ''}`}>
-              <span className={`text-sm text-muted-foreground ${isMobile ? 'text-xs' : ''}`}>Show:</span>
+            <div
+              className={`flex items-center gap-2 ${isMobile ? "flex-1 sm:flex-none" : ""}`}
+            >
+              <span
+                className={`text-sm text-muted-foreground ${isMobile ? "text-xs" : ""}`}
+              >
+                Show:
+              </span>
               <Select
                 value={String(limit)}
                 onValueChange={(value) => {
@@ -471,7 +499,9 @@ export function AppointmentDataTable({
           className={`rounded-md border transition-opacity ${loading ? "opacity-50 pointer-events-none" : ""}`}
         >
           <div className={isMobile ? "overflow-x-auto" : ""}>
-            <Table className={isMobile ? "min-w-[800px]" : "table-fixed w-full"}>
+            <Table
+              className={isMobile ? "min-w-[800px]" : "table-fixed w-full"}
+            >
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -491,7 +521,7 @@ export function AppointmentDataTable({
                           ? null
                           : flexRender(
                               header.column.columnDef.header,
-                              header.getContext(),
+                              header.getContext()
                             )}
                       </TableHead>
                     ))}
@@ -500,8 +530,10 @@ export function AppointmentDataTable({
               </TableHeader>
             </Table>
           </div>
-          <div className={`${isMobile ? "overflow-x-auto" : ""} h-[calc(100vh-300px)] overflow-y-auto`}>
-            <Table className={isMobile ? "min-w-[800px]" : "table-fixed w-full"}>
+          <div className={isMobile ? "overflow-x-auto" : ""}>
+            <Table
+              className={isMobile ? "min-w-[800px]" : "table-fixed w-full"}
+            >
               <TableBody>
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
@@ -523,7 +555,7 @@ export function AppointmentDataTable({
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext(),
+                            cell.getContext()
                           )}
                         </TableCell>
                       ))}
@@ -543,35 +575,41 @@ export function AppointmentDataTable({
             </Table>
           </div>
         </div>
-        <div className={`flex items-center justify-end space-x-2 py-3 ${isMobile ? 'flex-col gap-2 sm:flex-row sm:gap-0' : ''}`}>
-          <span className={`text-sm text-muted-foreground ${isMobile ? 'text-xs' : 'mr-4'}`}>
+        <div
+          className={`flex items-center justify-end space-x-2 py-3 ${isMobile ? "flex-col gap-2 sm:flex-row sm:gap-0" : ""}`}
+        >
+          <span
+            className={`text-sm text-muted-foreground ${isMobile ? "text-xs" : "mr-4"}`}
+          >
             Page {page} of {totalPages}
           </span>
-          <div className={`flex gap-2 ${isMobile ? 'w-full justify-center sm:w-auto' : ''}`}>
-                         <Button
-               variant="outline"
-               size="default"
-               onClick={() => {
-                 const newPage = Math.max(1, page - 1);
-                 setPage(newPage);
-                 updateQueryParams({ page: newPage });
-               }}
-               disabled={page <= 1}
-             >
-               Previous
-             </Button>
-             <Button
-               variant="outline"
-               size="default"
-               onClick={() => {
-                 const newPage = Math.min(totalPages, page + 1);
-                 setPage(newPage);
-                 updateQueryParams({ page: newPage });
-               }}
-               disabled={page >= totalPages}
-             >
-               Next
-             </Button>
+          <div
+            className={`flex gap-2 ${isMobile ? "w-full justify-center sm:w-auto" : ""}`}
+          >
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => {
+                const newPage = Math.max(1, page - 1);
+                setPage(newPage);
+                updateQueryParams({ page: newPage });
+              }}
+              disabled={page <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => {
+                const newPage = Math.min(totalPages, page + 1);
+                setPage(newPage);
+                updateQueryParams({ page: newPage });
+              }}
+              disabled={page >= totalPages}
+            >
+              Next
+            </Button>
           </div>
         </div>
       </div>

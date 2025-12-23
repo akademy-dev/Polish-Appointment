@@ -43,9 +43,6 @@ const TimeOffScheduleForm = ({
   form: UseFormReturn<z.infer<typeof employeeFormSchema>>;
   selectedTimeOffScheduleIndex: number;
 }) => {
-  console.log("selectedTimeOffScheduleIndex", selectedTimeOffScheduleIndex);
-  console.log("form", form.getValues("timeOffSchedules"));
-
   const handleTabChange = (tab: string) => {
     switch (tab) {
       case "Exact":

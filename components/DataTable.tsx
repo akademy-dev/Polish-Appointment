@@ -25,6 +25,13 @@ import { Button } from "./ui/button";
 import { ArrowUpDown, ArrowUpFromLine, Search } from "lucide-react";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import * as React from "react";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
@@ -43,11 +50,15 @@ interface DataTableProps<TData, TValue> {
   height?: string; // Optional height prop
   titleEmpty?: string; // Optional title for empty state
   searchColumn?: string; // Optional search column
+  isShowSearch?: boolean; // Optional prop to show search input
   isShowPagination?: boolean; // Optional prop to show pagination
   getRowId?: (row: TData, index: number) => string; // <-- Add this line
   searchName?: string; // Optional search name
   isShowExport?: boolean; // Optional prop to show export button
   timezone?: string; // Optional timezone prop
+  showLimit?: number; // Optional initial page size
+  pageSizeOptions?: number[]; // Optional page size options
+  onPageSizeChange?: (pageSize: number) => void; // Optional callback when page size changes
   getRowClassName?: (row: TData) => string; // Optional function to get row className
 }
 
@@ -103,11 +114,15 @@ const DataTable = <TData, TValue>({
   height,
   titleEmpty,
   searchColumn = "customer",
+  isShowSearch = true,
   searchName = "Search",
   isShowPagination = true,
   getRowId,
   isShowExport = false,
   timezone = "",
+  showLimit,
+  pageSizeOptions = [10, 20, 50, 100],
+  onPageSizeChange,
   getRowClassName,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -135,11 +150,19 @@ const DataTable = <TData, TValue>({
     onColumnVisibilityChange: setColumnVisibility,
     initialState: {
       pagination: {
-        pageSize: data.length,
+        pageSize: showLimit ?? data.length,
       },
     },
     getRowId,
   });
+
+  React.useEffect(() => {
+    if (!isShowPagination) return;
+    if (!showLimit) return;
+    if (table.getState().pagination.pageSize === showLimit) return;
+    table.setPageSize(showLimit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLimit, isShowPagination]);
 
   const exportData = () => {
     // Helper to escape CSV values
@@ -207,21 +230,52 @@ const DataTable = <TData, TValue>({
           {title}
         </Label>
 
-        <div className="relative max-w-sm">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-            <Search className="w-4 h-4 text-black" />
-          </span>
-          <Input
-            id="history-search"
-            placeholder={searchName}
-            value={
-              (table.getColumn(searchColumn)?.getFilterValue() as string) ?? ""
-            }
-            onChange={(event) =>
-              table.getColumn(searchColumn)?.setFilterValue(event.target.value)
-            }
-            className="max-w-sm pl-10 "
-          />
+        <div className="flex items-center gap-2">
+          {isShowSearch && searchColumn ? (
+            <div className="relative max-w-sm">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                <Search className="w-4 h-4 text-black" />
+              </span>
+              <Input
+                id="history-search"
+                placeholder={searchName}
+                value={
+                  (table.getColumn(searchColumn)?.getFilterValue() as string) ??
+                  ""
+                }
+                onChange={(event) =>
+                  table
+                    .getColumn(searchColumn)
+                    ?.setFilterValue(event.target.value)
+                }
+                className="max-w-sm pl-10 "
+              />
+            </div>
+          ) : null}
+          {isShowPagination && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show:</span>
+              <Select
+                value={String(table.getState().pagination.pageSize)}
+                onValueChange={(value) => {
+                  const newLimit = parseInt(value, 10);
+                  table.setPageSize(newLimit);
+                  onPageSizeChange?.(newLimit);
+                }}
+              >
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizeOptions.map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -286,23 +340,29 @@ const DataTable = <TData, TValue>({
         </div>
       </div>
       {isShowPagination && (
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <Button
-            variant="outline"
-            size="default"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="default"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+        <div className="flex items-center justify-between space-x-2 py-4">
+          <span className="text-sm text-muted-foreground">
+            Page {table.getState().pagination.pageIndex + 1} of{" "}
+            {table.getPageCount()}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       )}
       <div className="flex justify-end mt-2" hidden={!isShowExport}>

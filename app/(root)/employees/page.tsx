@@ -1,6 +1,5 @@
 import ProfileList from "@/components/profiles/ProfileList";
-import { sanityFetch, SanityLive } from "@/sanity/lib/live";
-import { EMPLOYEES_QUERY } from "@/sanity/lib/queries";
+import { getEmployees } from "@/data/employee";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,28 +18,36 @@ const Page = async ({
     10,
   );
 
-  const params = {
-    search: query || null,
+  const employeesResult = await getEmployees({
+    search: query || "",
     page: currentPage,
     limit: itemsPerPage,
-  };
-
-  const { data: employeesResult } = await sanityFetch({
-    query: EMPLOYEES_QUERY,
-    params,
   });
+
+  // Transform employees to match expected format
+  const employeesFormatted = employeesResult.data.map((emp) => ({
+    _id: emp.id,
+    _type: "employee",
+    firstName: emp.first_name,
+    lastName: emp.last_name,
+    phone: emp.phone,
+    position: emp.position,
+    note: emp.note,
+    _createdAt: emp.created_at,
+    workingTimes: emp.workingTimes || [],
+    timeOffSchedules: emp.timeOffSchedules || [],
+    assignedServices: emp.assignedServices || [],
+  }));
 
   return (
     <>
       <h2 className="heading">Employee List</h2>
 
       <ProfileList
-        data={employeesResult.data}
+        data={employeesFormatted}
         totalItems={employeesResult.total}
         itemsPerPage={itemsPerPage}
       />
-
-      <SanityLive />
     </>
   );
 };

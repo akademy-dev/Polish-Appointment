@@ -4,29 +4,5 @@ import type { StructureResolver } from "sanity/structure";
 export const structure: StructureResolver = (S) =>
   S.list()
     .title("Content")
-    .items([
-      S.documentTypeListItem("employee").title("Employees"),
-      S.documentTypeListItem("customer").title("Customers"),
-      S.documentTypeListItem("service").title("Services"),
-      S.documentTypeListItem("category").title("Categories"),
-      S.documentTypeListItem("appointment").title("Appointments"),
-      S.documentTypeListItem("timeOffSchedule").title("Time Off Schedules"),
-      S.documentTypeListItem("timeTracking").title("Time Tracking"),
-      S.documentTypeListItem("appointmentTimeOff").title(
-        "Appointment Time Offs"
-      ),
-      S.documentTypeListItem("workingTime").title("Working Times"),
-      S.documentTypeListItem("assignedService").title("Assigned Services"),
-      S.documentTypeListItem("user").title("Users"),
-      S.documentTypeListItem("session").title("Sessions"),
-      S.documentTypeListItem("account").title("Accounts"),
-      S.documentTypeListItem("verificationToken").title("Verification Tokens"),
-      S.documentTypeListItem("passwordResetToken").title(
-        "Password Reset Tokens"
-      ),
-      S.documentTypeListItem("twoFactorToken").title("Two Factor Tokens"),
-      S.documentTypeListItem("twoFactorConfirmation").title(
-        "Two Factor Confirmations"
-      ),
-      S.documentTypeListItem("setting").title("Setting"),
-    ]);
+    // Sanity auth/login document types have been removed.
+    .items([]);
