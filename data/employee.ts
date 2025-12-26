@@ -12,6 +12,9 @@ export interface Employee {
   phone?: string;
   position?: "owner" | "serviceProvider" | "backRoom";
   note?: string;
+
+  hourly_rate?: number;
+  hourlyRate?: number; // For backward compatibility
   created_at?: string;
   workingTimes?: WorkingTime[];
   timeOffSchedules?: TimeOffSchedule[];
@@ -108,6 +111,9 @@ export const getEmployees = async (
       phone: emp.phone,
       position: emp.position,
       note: emp.note,
+
+      hourly_rate: emp.hourly_rate,
+      hourlyRate: emp.hourly_rate,
       created_at: emp.created_at,
       _createdAt: emp.created_at, // For backward compatibility
       workingTimes: (emp.workingTimes || []).map((wt: any) => ({
@@ -220,6 +226,10 @@ export const getAllEmployees = async (
       phone: emp.phone,
       position: emp.position,
       note: emp.note,
+      position: emp.position,
+      note: emp.note,
+      hourly_rate: emp.hourly_rate,
+      hourlyRate: emp.hourly_rate,
       created_at: emp.created_at,
       _createdAt: emp.created_at,
       workingTimes: (emp.workingTimes || []).map((wt: any) => ({
@@ -327,6 +337,8 @@ export const getEmployeeById = async (
       phone: data.phone,
       position: data.position,
       note: data.note,
+      hourly_rate: data.hourly_rate,
+      hourlyRate: data.hourly_rate,
       created_at: data.created_at,
       _createdAt: data.created_at,
       workingTimes: (data.workingTimes || []).map((wt: any) => ({
@@ -365,6 +377,7 @@ export const createEmployee = async (
   phone: string | null,
   position: string,
   note: string | null,
+  hourlyRate: number | null,
   workingTimes: WorkingTime[],
   timeOffSchedules: TimeOffSchedule[],
   assignedServices: AssignedService[]
@@ -378,7 +391,9 @@ export const createEmployee = async (
         last_name: lastName,
         phone: phone || null,
         position: position,
+        position: position,
         note: note || null,
+        hourly_rate: hourlyRate || 0,
       })
       .select()
       .single();
@@ -467,6 +482,9 @@ export const createEmployee = async (
       phone: employee.phone,
       position: employee.position,
       note: employee.note,
+
+      hourly_rate: employee.hourly_rate,
+      hourlyRate: employee.hourly_rate,
       created_at: employee.created_at,
     };
   } catch (error) {
@@ -482,7 +500,9 @@ export const updateEmployee = async (
     lastName?: string;
     phone?: string | null;
     position?: string;
+
     note?: string | null;
+    hourlyRate?: number | null;
   },
   workingTimes?: WorkingTime[],
   timeOffSchedules?: TimeOffSchedule[],
@@ -496,7 +516,10 @@ export const updateEmployee = async (
     if (updates.lastName !== undefined) updateData.last_name = updates.lastName;
     if (updates.phone !== undefined) updateData.phone = updates.phone || null;
     if (updates.position !== undefined) updateData.position = updates.position;
+
     if (updates.note !== undefined) updateData.note = updates.note || null;
+    if (updates.hourlyRate !== undefined)
+      updateData.hourly_rate = updates.hourlyRate || 0;
 
     const { data: employee, error: employeeError } = await supabase
       .from("employees")
@@ -579,6 +602,9 @@ export const updateEmployee = async (
       phone: employee.phone,
       position: employee.position,
       note: employee.note,
+
+      hourly_rate: employee.hourly_rate,
+      hourlyRate: employee.hourly_rate,
       created_at: employee.created_at,
     };
   } catch (error) {

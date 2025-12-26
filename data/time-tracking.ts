@@ -91,7 +91,7 @@ export const updateTimeTracking = async (
 ): Promise<TimeTracking | null> => {
   try {
     const updateData: any = {};
-    
+
     if (updates.checkOut !== undefined) {
       updateData.check_out = updates.checkOut;
     }
@@ -304,13 +304,13 @@ function transformTimeTracking(data: any): TimeTracking {
     employee_id: data.employee_id,
     employee: data.employee
       ? {
-          _id: data.employee.id,
-          id: data.employee.id,
-          firstName: data.employee.first_name,
-          first_name: data.employee.first_name,
-          lastName: data.employee.last_name,
-          last_name: data.employee.last_name,
-        }
+        _id: data.employee.id,
+        id: data.employee.id,
+        firstName: data.employee.first_name,
+        first_name: data.employee.first_name,
+        lastName: data.employee.last_name,
+        last_name: data.employee.last_name,
+      }
       : undefined,
     checkIn: data.check_in,
     check_in: data.check_in,

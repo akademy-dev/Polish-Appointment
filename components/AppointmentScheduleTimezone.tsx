@@ -90,6 +90,7 @@ interface AppointmentScheduleProps {
   currentDate: string;
   notWorking?: boolean;
   cancelled?: boolean;
+  completed?: boolean;
   minTime?: string;
   maxTime?: string;
 }
@@ -305,6 +306,7 @@ const AppointmentScheduleTimezone = ({
   currentDate,
   notWorking = false,
   cancelled = false,
+  completed = false,
   minTime: propMinTime,
   maxTime: propMaxTime,
 }: AppointmentScheduleProps) => {
@@ -504,9 +506,9 @@ const AppointmentScheduleTimezone = ({
     const dateAtStartOfDay = currentDate
       ? moment(currentDate, "YYYY-MM-DD").startOf("day").toDate()
       : moment
-          .tz(new Date(), getIanaTimezone(timezone))
-          .startOf("day")
-          .toDate();
+        .tz(new Date(), getIanaTimezone(timezone))
+        .startOf("day")
+        .toDate();
 
     return generateNotWorkingEvents(
       initialEmployees,
@@ -522,9 +524,9 @@ const AppointmentScheduleTimezone = ({
     const dateAtStartOfDay = currentDate
       ? moment(currentDate, "YYYY-MM-DD").startOf("day").toDate()
       : moment
-          .tz(new Date(), getIanaTimezone(timezone))
-          .startOf("day")
-          .toDate();
+        .tz(new Date(), getIanaTimezone(timezone))
+        .startOf("day")
+        .toDate();
 
     const events = generateAppointmentTimeOffEvents(
       appointmentTimeOffs,
@@ -585,12 +587,14 @@ const AppointmentScheduleTimezone = ({
       ...(cancelled
         ? appointmentEvents
         : appointmentEvents.filter(
-            (event) => event.data?.status !== "cancelled"
-          )),
+          (event) =>
+            event.data?.status !== "cancelled" &&
+            (completed || event.data?.status !== "completed")
+        )),
     ];
     setEvents(filteredEvents);
     setProcessing(false);
-  }, [notWorkingEvents, timeOffEvents, appointmentEvents, cancelled]);
+  }, [notWorkingEvents, timeOffEvents, appointmentEvents, cancelled, completed]);
 
   // Reset isLoading when initialAppointments change (indicating fetch complete)
   useEffect(() => {
@@ -1015,16 +1019,16 @@ const AppointmentScheduleTimezone = ({
             formValues.recurringDuration?.value &&
               formValues.recurringDuration?.unit
               ? {
-                  value: formValues.recurringDuration.value,
-                  unit: formValues.recurringDuration.unit,
-                }
+                value: formValues.recurringDuration.value,
+                unit: formValues.recurringDuration.unit,
+              }
               : undefined,
             formValues.recurringFrequency?.value &&
               formValues.recurringFrequency?.unit
               ? {
-                  value: formValues.recurringFrequency.value,
-                  unit: formValues.recurringFrequency.unit,
-                }
+                value: formValues.recurringFrequency.value,
+                unit: formValues.recurringFrequency.unit,
+              }
               : undefined
           );
 
@@ -1045,19 +1049,19 @@ const AppointmentScheduleTimezone = ({
               isRecurring: formValues.isRecurring,
               recurringDuration:
                 formValues.recurringDuration?.value &&
-                formValues.recurringDuration?.unit
+                  formValues.recurringDuration?.unit
                   ? {
-                      value: formValues.recurringDuration.value,
-                      unit: formValues.recurringDuration.unit,
-                    }
+                    value: formValues.recurringDuration.value,
+                    unit: formValues.recurringDuration.unit,
+                  }
                   : undefined,
               recurringFrequency:
                 formValues.recurringFrequency?.value &&
-                formValues.recurringFrequency?.unit
+                  formValues.recurringFrequency?.unit
                   ? {
-                      value: formValues.recurringFrequency.value,
-                      unit: formValues.recurringFrequency.unit,
-                    }
+                    value: formValues.recurringFrequency.value,
+                    unit: formValues.recurringFrequency.unit,
+                  }
                   : undefined,
             });
             setConflicts(conflictResult.conflicts);
@@ -1081,16 +1085,16 @@ const AppointmentScheduleTimezone = ({
           formValues.recurringDuration?.value &&
             formValues.recurringDuration?.unit
             ? {
-                value: formValues.recurringDuration.value,
-                unit: formValues.recurringDuration.unit,
-              }
+              value: formValues.recurringDuration.value,
+              unit: formValues.recurringDuration.unit,
+            }
             : undefined,
           formValues.recurringFrequency?.value &&
             formValues.recurringFrequency?.unit
             ? {
-                value: formValues.recurringFrequency.value,
-                unit: formValues.recurringFrequency.unit,
-              }
+              value: formValues.recurringFrequency.value,
+              unit: formValues.recurringFrequency.unit,
+            }
             : undefined
         );
 
@@ -1201,16 +1205,16 @@ const AppointmentScheduleTimezone = ({
               formValues.recurringDuration?.value &&
                 formValues.recurringDuration?.unit
                 ? {
-                    value: formValues.recurringDuration.value,
-                    unit: formValues.recurringDuration.unit,
-                  }
+                  value: formValues.recurringDuration.value,
+                  unit: formValues.recurringDuration.unit,
+                }
                 : undefined,
               formValues.recurringFrequency?.value &&
                 formValues.recurringFrequency?.unit
                 ? {
-                    value: formValues.recurringFrequency.value,
-                    unit: formValues.recurringFrequency.unit,
-                  }
+                  value: formValues.recurringFrequency.value,
+                  unit: formValues.recurringFrequency.unit,
+                }
                 : undefined
             );
 
@@ -1230,19 +1234,19 @@ const AppointmentScheduleTimezone = ({
                 isRecurring: formValues.isRecurring,
                 recurringDuration:
                   formValues.recurringDuration?.value &&
-                  formValues.recurringDuration?.unit
+                    formValues.recurringDuration?.unit
                     ? {
-                        value: formValues.recurringDuration.value,
-                        unit: formValues.recurringDuration.unit,
-                      }
+                      value: formValues.recurringDuration.value,
+                      unit: formValues.recurringDuration.unit,
+                    }
                     : undefined,
                 recurringFrequency:
                   formValues.recurringFrequency?.value &&
-                  formValues.recurringFrequency?.unit
+                    formValues.recurringFrequency?.unit
                     ? {
-                        value: formValues.recurringFrequency.value,
-                        unit: formValues.recurringFrequency.unit,
-                      }
+                      value: formValues.recurringFrequency.value,
+                      unit: formValues.recurringFrequency.unit,
+                    }
                     : undefined,
               });
               setConflicts(conflictResult.conflicts);
@@ -1266,16 +1270,16 @@ const AppointmentScheduleTimezone = ({
             formValues.recurringDuration?.value &&
               formValues.recurringDuration?.unit
               ? {
-                  value: formValues.recurringDuration.value,
-                  unit: formValues.recurringDuration.unit,
-                }
+                value: formValues.recurringDuration.value,
+                unit: formValues.recurringDuration.unit,
+              }
               : undefined,
             formValues.recurringFrequency?.value &&
               formValues.recurringFrequency?.unit
               ? {
-                  value: formValues.recurringFrequency.value,
-                  unit: formValues.recurringFrequency.unit,
-                }
+                value: formValues.recurringFrequency.value,
+                unit: formValues.recurringFrequency.unit,
+              }
               : undefined
           );
 
@@ -1393,6 +1397,11 @@ const AppointmentScheduleTimezone = ({
         resourceId: string;
       };
 
+      // Reset state to ensure clean slate for new appointment
+      setRpcAppointments([]);
+      setAppointmentId(undefined);
+      appointmentForm.reset();
+
       setType("create");
       appointmentForm.setValue("time", start.toISOString());
       appointmentForm.setValue("employee", {
@@ -1420,6 +1429,17 @@ const AppointmentScheduleTimezone = ({
 
     // Call SQL function when appointment is clicked to get full data
     if (calendarEvent.type === "appointment" && calendarEvent.data._id) {
+      // Prevent interaction with completed or cancelled appointments
+      if (
+        calendarEvent.data.status === "completed" ||
+        calendarEvent.data.status === "cancelled"
+      ) {
+        toast.info(
+          `This appointment is ${calendarEvent.data.status} and cannot be edited.`
+        );
+        return;
+      }
+
       try {
         const response = await fetch(
           `/api/appointments?appointmentId=${calendarEvent.data._id}`
@@ -1437,16 +1457,16 @@ const AppointmentScheduleTimezone = ({
             rpcLength: Array.isArray(rpcResult) ? rpcResult.length : undefined,
             sample: sample
               ? {
-                  id: (sample as any).id,
-                  employee_id: (sample as any).employee_id,
-                  employee_first_name: (sample as any).employee_first_name,
-                  employee_last_name: (sample as any).employee_last_name,
-                  services_same_day_count: Array.isArray(
-                    (sample as any).services_same_day
-                  )
-                    ? (sample as any).services_same_day.length
-                    : 0,
-                }
+                id: (sample as any).id,
+                employee_id: (sample as any).employee_id,
+                employee_first_name: (sample as any).employee_first_name,
+                employee_last_name: (sample as any).employee_last_name,
+                services_same_day_count: Array.isArray(
+                  (sample as any).services_same_day
+                )
+                  ? (sample as any).services_same_day.length
+                  : 0,
+              }
               : sample,
           });
         }
@@ -1465,6 +1485,7 @@ const AppointmentScheduleTimezone = ({
             phone: appointmentData.customer_phone || "",
             _ref: appointmentData.customer_id,
             _type: "reference",
+            note: appointmentData.customer_note || "",
           });
 
           // Set employee from calendarEvent (or from RPC if available)
@@ -1514,76 +1535,78 @@ const AppointmentScheduleTimezone = ({
 
             // Transform services_same_day into appointments format
             const transformedAppointments: Appointment[] =
-              appointmentData.services_same_day.map((service: any) => ({
-                // IMPORTANT:
-                // Staff in services_same_day can be different or can lag behind in RPC fields.
-                // Prefer staff info on the service row (if present), otherwise fall back to
-                // calendar resource (current staff on UI), then finally fall back to RPC root fields.
-                _id: `${appointmentData.id}_${service.service_id}_${service.start_time}`, // Generate unique ID
-                startTime: service.start_time,
-                endTime: service.end_time,
-                duration: calculateDuration(
-                  service.start_time,
-                  service.end_time
-                ),
-                created_at: service.created_at || appointmentData.created_at,
-                _createdAt: service.created_at || appointmentData.created_at,
-                customer: {
-                  _id: appointmentData.customer_id,
-                  firstName: appointmentData.customer_first_name,
-                  lastName: appointmentData.customer_last_name,
-                  fullName:
-                    `${appointmentData.customer_first_name || ""} ${appointmentData.customer_last_name || ""}`.trim(),
-                },
-                employee: {
-                  _id:
-                    service.employee_id ||
-                    service.employeeId ||
-                    service.staff_id ||
-                    service.staffId ||
-                    appointmentData.employee_id ||
-                    employeeIdFromCalendar,
-                  firstName:
-                    service.employee_first_name ||
-                    service.employeeFirstName ||
-                    service.staff_first_name ||
-                    service.staffFirstName ||
-                    appointmentData.employee_first_name ||
-                    (employeeFromCalendar as any)?.firstName ||
-                    "",
-                  lastName:
-                    service.employee_last_name ||
-                    service.employeeLastName ||
-                    service.staff_last_name ||
-                    service.staffLastName ||
-                    appointmentData.employee_last_name ||
-                    (employeeFromCalendar as any)?.lastName ||
-                    "",
-                  fullName:
-                    service.employee_full_name ||
-                    (service as any).employee_fullname ||
-                    service.employeeFullName ||
-                    service.staff_full_name ||
-                    service.staffFullName ||
-                    service.employee_name ||
-                    service.staff_name ||
-                    employeeNameFromCalendar ||
-                    `${appointmentData.employee_first_name || ""} ${appointmentData.employee_last_name || ""}`.trim(),
-                },
-                service: {
-                  _id: service.service_id,
-                  name: service.name,
+              appointmentData.services_same_day.map(
+                (service: any, idx: number) => ({
+                  // IMPORTANT:
+                  // Staff in services_same_day can be different or can lag behind in RPC fields.
+                  // Prefer staff info on the service row (if present), otherwise fall back to
+                  // calendar resource (current staff on UI), then finally fall back to RPC root fields.
+                  // Append index to ensure uniqueness if multiple same services exist at same time
+                  _id: `${appointmentData.id}_${service.service_id}_${service.start_time}_${idx}`,
+                  startTime: service.start_time,
+                  endTime: service.end_time,
                   duration: calculateDuration(
                     service.start_time,
                     service.end_time
                   ),
-                },
-                reminder: appointmentData.reminder || [],
-                type: appointmentData.type || "walk-in",
-                status: appointmentData.status || "scheduled",
-                note: appointmentData.note || "",
-                recurringGroupId: appointmentData.recurring_group_id,
-              }));
+                  created_at: service.created_at || appointmentData.created_at,
+                  _createdAt: service.created_at || appointmentData.created_at,
+                  customer: {
+                    _id: appointmentData.customer_id,
+                    firstName: appointmentData.customer_first_name,
+                    lastName: appointmentData.customer_last_name,
+                    fullName:
+                      `${appointmentData.customer_first_name || ""} ${appointmentData.customer_last_name || ""}`.trim(),
+                  },
+                  employee: {
+                    _id:
+                      service.employee_id ||
+                      service.employeeId ||
+                      service.staff_id ||
+                      service.staffId ||
+                      appointmentData.employee_id ||
+                      employeeIdFromCalendar,
+                    firstName:
+                      service.employee_first_name ||
+                      service.employeeFirstName ||
+                      service.staff_first_name ||
+                      service.staffFirstName ||
+                      appointmentData.employee_first_name ||
+                      (employeeFromCalendar as any)?.firstName ||
+                      "",
+                    lastName:
+                      service.employee_last_name ||
+                      service.employeeLastName ||
+                      service.staff_last_name ||
+                      service.staffLastName ||
+                      appointmentData.employee_last_name ||
+                      (employeeFromCalendar as any)?.lastName ||
+                      "",
+                    fullName:
+                      service.employee_full_name ||
+                      (service as any).employee_fullname ||
+                      service.employeeFullName ||
+                      service.staff_full_name ||
+                      service.staffFullName ||
+                      service.employee_name ||
+                      service.staff_name ||
+                      employeeNameFromCalendar ||
+                      `${appointmentData.employee_first_name || ""} ${appointmentData.employee_last_name || ""}`.trim(),
+                  },
+                  service: {
+                    _id: service.service_id,
+                    name: service.name,
+                    duration: calculateDuration(
+                      service.start_time,
+                      service.end_time
+                    ),
+                  },
+                  reminder: appointmentData.reminder || [],
+                  type: appointmentData.type || "walk-in",
+                  status: appointmentData.status || "scheduled",
+                  note: appointmentData.note || "",
+                  recurringGroupId: appointmentData.recurring_group_id,
+                }));
 
             if (process.env.NODE_ENV !== "production") {
               console.log("[rpc] transformed today's services (staff)", {
@@ -1600,8 +1623,9 @@ const AppointmentScheduleTimezone = ({
               });
             }
 
-            // Store transformed appointments to pass to AppointmentForm
-            setRpcAppointments(transformedAppointments);
+            // Deduplication is no longer needed because we append index to _id.
+            // This ensures we show ALL services even if they are identical (e.g. quantity > 1).
+            setRpcAppointments(transformedAppointments as Appointment[]);
 
             // Set services - use the first service's service_id
             // Calculate duration for the service
@@ -1622,7 +1646,7 @@ const AppointmentScheduleTimezone = ({
             // Calculate and set duration from first and last service
             const lastService =
               appointmentData.services_same_day[
-                appointmentData.services_same_day.length - 1
+              appointmentData.services_same_day.length - 1
               ];
             if (firstService.start_time && lastService.end_time) {
               const totalDuration = calculateDuration(
@@ -1643,15 +1667,15 @@ const AppointmentScheduleTimezone = ({
             );
             const newServices = calendarEvent.data.service
               ? [
-                  {
-                    _ref: calendarEvent.data.service._id,
-                    _type: "reference",
-                    duration:
-                      calendarEvent.data.duration ||
-                      calendarEvent.data.service.duration,
-                    quantity: 1,
-                  },
-                ]
+                {
+                  _ref: calendarEvent.data.service._id,
+                  _type: "reference",
+                  duration:
+                    calendarEvent.data.duration ||
+                    calendarEvent.data.service.duration,
+                  quantity: 1,
+                },
+              ]
               : [];
             appointmentForm.setValue("services", newServices);
             setDuration(calendarEvent.data.duration || 0);
@@ -1685,21 +1709,22 @@ const AppointmentScheduleTimezone = ({
       phone: "",
       _ref: calendarEvent.data.customer._id,
       _type: "reference",
+      note: (calendarEvent.data.customer as any).note || "",
     });
     appointmentForm.setValue("note", calendarEvent.data.note || "");
     appointmentForm.setValue("reminder", calendarEvent.data.reminder);
     appointmentForm.setValue("type", calendarEvent.data.type || "walk-in");
     const newServices = calendarEvent.data.service
       ? [
-          {
-            _ref: calendarEvent.data.service._id,
-            _type: "reference",
-            duration:
-              calendarEvent.data.duration ||
-              calendarEvent.data.service.duration,
-            quantity: 1,
-          },
-        ]
+        {
+          _ref: calendarEvent.data.service._id,
+          _type: "reference",
+          duration:
+            calendarEvent.data.duration ||
+            calendarEvent.data.service.duration,
+          quantity: 1,
+        },
+      ]
       : [];
     appointmentForm.setValue("services", newServices);
     appointmentForm.setValue(
@@ -1800,14 +1825,22 @@ const AppointmentScheduleTimezone = ({
       setIsSubmitting(true);
 
       const appointmentId = calendarEvent.data._id;
-      const startDate = typeof start === "string" ? new Date(start) : start;
-      const duration =
-        calendarEvent.data.duration ||
-        calendarEvent.data.service?.duration ||
-        0;
-      const endDate = new Date(startDate.getTime() + duration * 60000);
+      let startDate = typeof start === "string" ? new Date(start) : start;
+      // Use the provided end time from the drag event to preserve duration
+      let endDate =
+        args.end && typeof args.end === "string"
+          ? new Date(args.end)
+          : args.end
+            ? (args.end as Date)
+            : new Date(startDate.getTime() + (calendarEvent.data.duration || 30) * 60000);
+
+      const duration = Math.round(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60)
+      );
       const newEmployeeId =
         resourceId?.toString() || calendarEvent.resourceId.toString();
+
+
 
       // ⚡ OPTIMISTIC UPDATE: Update local state immediately
       setAppointments((prev) =>
@@ -1875,7 +1908,7 @@ const AppointmentScheduleTimezone = ({
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, router]
+    [isSubmitting, router, appointments]
   );
 
   const handleServiceConfirm = useCallback(async () => {
@@ -1927,9 +1960,16 @@ const AppointmentScheduleTimezone = ({
       const startDate = typeof start === "string" ? new Date(start) : start;
       const endDate = typeof end === "string" ? new Date(end) : end;
       const appointmentId = calendarEvent.data._id;
-      const duration = Math.round(
+      let duration = Math.round(
         (endDate.getTime() - startDate.getTime()) / (1000 * 60)
       );
+
+      // Prevent zero duration or negative duration
+      if (duration <= 0) {
+        duration = 15; // Set minimum duration to 15 minutes
+        // Adjust endDate to reflect the new duration
+        endDate.setTime(startDate.getTime() + duration * 60 * 1000);
+      }
 
       // ⚡ OPTIMISTIC UPDATE: Update local state immediately
       setAppointments((prev) =>
@@ -2065,15 +2105,21 @@ const AppointmentScheduleTimezone = ({
     const calendarEvent = event as CalendarEvent;
     return (
       calendarEvent.type !== "not_working" &&
-      calendarEvent.type !== "appointmentTimeOff"
+      calendarEvent.type !== "appointmentTimeOff" &&
+      calendarEvent.data?.status !== "cancelled" &&
+      calendarEvent.data?.status !== "completed"
     );
   }, []);
+
+
 
   const draggableAccessor = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
     return (
       calendarEvent.type !== "not_working" &&
-      calendarEvent.type !== "appointmentTimeOff"
+      calendarEvent.type !== "appointmentTimeOff" &&
+      calendarEvent.data?.status !== "cancelled" &&
+      calendarEvent.data?.status !== "completed"
     );
   }, []);
 
@@ -2396,19 +2442,19 @@ const AppointmentScheduleTimezone = ({
         description={
           pendingMoveEvent
             ? (() => {
-                const event = pendingMoveEvent.event as CalendarEvent;
-                const newEmployeeId =
-                  pendingMoveEvent.resourceId?.toString() ||
-                  event.resourceId.toString();
-                const newEmployee = filteredEmployees.find(
-                  (emp) => emp._id === newEmployeeId
-                );
-                const serviceName = event.data.service?.name || "this service";
-                const employeeName = newEmployee
-                  ? getProfileName(newEmployee)
-                  : "this employee";
-                return `The employee "${employeeName}" doesn't have "${serviceName}" in their assigned services. Do you want to continue anyway?`;
-              })()
+              const event = pendingMoveEvent.event as CalendarEvent;
+              const newEmployeeId =
+                pendingMoveEvent.resourceId?.toString() ||
+                event.resourceId.toString();
+              const newEmployee = filteredEmployees.find(
+                (emp) => emp._id === newEmployeeId
+              );
+              const serviceName = event.data.service?.name || "this service";
+              const employeeName = newEmployee
+                ? getProfileName(newEmployee)
+                : "this employee";
+              return `The employee "${employeeName}" doesn't have "${serviceName}" in their assigned services. Do you want to continue anyway?`;
+            })()
             : "This employee doesn't have the required service. Do you want to continue?"
         }
         onConfirm={handleServiceConfirm}
@@ -2477,11 +2523,11 @@ const AppointmentScheduleTimezone = ({
                       <p className="text-sm text-gray-600">
                         {selectedTimeOff._createdAt
                           ? moment
-                              .tz(
-                                selectedTimeOff._createdAt,
-                                getIanaTimezone(timezone)
-                              )
-                              .format("MMM DD, YYYY h:mm A")
+                            .tz(
+                              selectedTimeOff._createdAt,
+                              getIanaTimezone(timezone)
+                            )
+                            .format("MMM DD, YYYY h:mm A")
                           : "N/A"}
                       </p>
                     </div>
@@ -2492,11 +2538,11 @@ const AppointmentScheduleTimezone = ({
                       <p className="text-sm text-gray-600">
                         {selectedTimeOff._updatedAt
                           ? moment
-                              .tz(
-                                selectedTimeOff._updatedAt,
-                                getIanaTimezone(timezone)
-                              )
-                              .format("MMM DD, YYYY h:mm A")
+                            .tz(
+                              selectedTimeOff._updatedAt,
+                              getIanaTimezone(timezone)
+                            )
+                            .format("MMM DD, YYYY h:mm A")
                           : "N/A"}
                       </p>
                     </div>
@@ -2598,11 +2644,11 @@ const AppointmentScheduleTimezone = ({
                       <p className="text-sm text-gray-600">
                         {selectedTimeOff._createdAt
                           ? moment
-                              .tz(
-                                selectedTimeOff._createdAt,
-                                getIanaTimezone(timezone)
-                              )
-                              .format("MMM DD, YYYY h:mm A")
+                            .tz(
+                              selectedTimeOff._createdAt,
+                              getIanaTimezone(timezone)
+                            )
+                            .format("MMM DD, YYYY h:mm A")
                           : "N/A"}
                       </p>
                     </div>
@@ -2613,11 +2659,11 @@ const AppointmentScheduleTimezone = ({
                       <p className="text-sm text-gray-600">
                         {selectedTimeOff._updatedAt
                           ? moment
-                              .tz(
-                                selectedTimeOff._updatedAt,
-                                getIanaTimezone(timezone)
-                              )
-                              .format("MMM DD, YYYY h:mm A")
+                            .tz(
+                              selectedTimeOff._updatedAt,
+                              getIanaTimezone(timezone)
+                            )
+                            .format("MMM DD, YYYY h:mm A")
                           : "N/A"}
                       </p>
                     </div>

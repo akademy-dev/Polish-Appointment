@@ -514,7 +514,7 @@ const EmployeeAssignedServiceForm = ({
 
                         {categoryServices !==
                           Object.entries(assignedByCategory)[
-                            Object.entries(assignedByCategory).length - 1
+                          Object.entries(assignedByCategory).length - 1
                           ][1] && <Separator className="mt-6" />}
                       </div>
                     ),
@@ -576,7 +576,7 @@ const EmployeeAssignedServiceForm = ({
 
                       {categoryServices !==
                         Object.entries(availableByCategory)[
-                          Object.entries(availableByCategory).length - 1
+                        Object.entries(availableByCategory).length - 1
                         ][1] && <Separator className="mt-6" />}
                     </div>
                   ),
@@ -599,7 +599,9 @@ const EmployeeAssignedServiceForm = ({
           </AccordionContent>
         </AccordionItem>
       </Accordion>
-    </div>
+
+
+    </div >
   );
 };
 

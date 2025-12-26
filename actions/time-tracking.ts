@@ -17,10 +17,21 @@ export async function createTimeTracking(data: {
   note?: string;
 }) {
   try {
+    let hourlyRate = data.hourlyRate;
+
+    // If hourly rate is not provided, fetch it from the employee profile
+    if (hourlyRate === undefined) {
+      const { getEmployeeById } = await import("@/data/employee");
+      const employee = await getEmployeeById(data.employee._ref);
+      if (employee?.hourly_rate) {
+        hourlyRate = employee.hourly_rate;
+      }
+    }
+
     const timeTracking = await createTimeTrackingSupabase(
       data.employee._ref,
       data.checkIn,
-      data.hourlyRate,
+      hourlyRate,
       data.note
     );
 

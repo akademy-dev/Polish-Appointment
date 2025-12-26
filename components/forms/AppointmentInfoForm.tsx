@@ -51,6 +51,7 @@ const AppointmentInfoForm = ({
   onBackToCustomer,
   servicesLoading = false,
   employeesLoading = false,
+  customerNote,
 }: {
   form: UseFormReturn<z.infer<typeof appointmentFormSchema>>;
   services: Service[];
@@ -72,6 +73,7 @@ const AppointmentInfoForm = ({
   onBackToCustomer?: () => void;
   servicesLoading?: boolean;
   employeesLoading?: boolean;
+  customerNote?: string;
 }) => {
   const { timezone } = useContext(CalendarContext);
 
@@ -273,6 +275,17 @@ const AppointmentInfoForm = ({
               Choose another Client
             </Button>
           )}
+
+          {customerNote && (
+            <div className="mt-2 p-3 bg-muted/50 rounded-md">
+              <div className="font-semibold text-sm mb-1 text-black">
+                Customer Note:
+              </div>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {customerNote}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="w-px bg-black self-stretch "></div>
@@ -332,7 +345,7 @@ const AppointmentInfoForm = ({
                         id="note"
                         autoComplete="off"
                         className="w-2xs ml-4"
-                        {...field}
+                        value={field.value || ""}
                         disabled={isSubmitting}
                       />
                     </FormControl>
@@ -789,13 +802,33 @@ const AppointmentInfoForm = ({
                       },
                     },
                     {
-                      accessorKey: "name",
+                      id: "name",
+                      accessorFn: (row: any) => row.name || "",
                       header: "Name",
                       cell: ({ row }: { row: any }) => {
                         if (row.original.rowType === "category") {
                           return null;
                         }
                         return row.original.name || "-";
+                      },
+                      filterFn: (row, id, value) => {
+                        const searchTerm = value.toLowerCase();
+                        const rowValue = (row.getValue(id) as string)?.toLowerCase() || "";
+
+                        // Check if name matches
+                        if (rowValue.includes(searchTerm)) return true;
+
+                        // Check if category/type matches (for service rows)
+                        const categoryName = (row.original.category?.name || "").toLowerCase();
+                        if (categoryName.includes(searchTerm)) return true;
+
+                        // Check if category matches (for category header rows)
+                        if (row.original.rowType === "category") {
+                          const headerName = (row.original.categoryName || "").toLowerCase();
+                          if (headerName.includes(searchTerm)) return true;
+                        }
+
+                        return false;
                       },
                     },
                     {
