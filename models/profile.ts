@@ -31,6 +31,7 @@ export type Employee = {
   workingTimes?: WorkingTime[];
   timeOffSchedules?: TimeOffSchedule[];
   assignedServices?: any[];
+  hourlyRate?: number;
 };
 
 export type Customer = {

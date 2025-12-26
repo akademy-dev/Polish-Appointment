@@ -20,6 +20,7 @@ export function AppSidebar() {
   const numOfWeeklyJump = [1, 2, 3, 4];
   const [notWorking, setNotWorking] = React.useState(false);
   const [cancelled, setCancelled] = React.useState(false);
+  const [completed, setCompleted] = React.useState(false);
 
   // Hàm helper để convert real date (UTC-based) sang display date (fake local cho Calendar)
   const toDisplayDate = (realDate: Date) => {
@@ -70,6 +71,7 @@ export function AppSidebar() {
     // Đồng bộ checkbox từ URL (nếu có)
     setNotWorking(searchParams.get("notWorking") === "true");
     setCancelled(searchParams.get("cancelled") === "true");
+    setCompleted(searchParams.get("completed") === "true");
   }, [searchParams, timezone, setDate]);
 
   const handleNextWeek = (numberOfWeek: number) => {
@@ -186,6 +188,22 @@ export function AppSidebar() {
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               Cancelled
+            </label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="completed"
+              checked={completed}
+              onCheckedChange={(checked) => {
+                setCompleted(checked as boolean);
+                updateUrlParams({ completed: checked as boolean });
+              }}
+            />
+            <label
+              htmlFor="completed"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Completed
             </label>
           </div>
         </div>

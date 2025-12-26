@@ -13,6 +13,7 @@ interface PageProps {
     date?: string;
     notWorking?: string;
     cancelled?: string;
+    completed?: string;
   }>;
 }
 
@@ -24,35 +25,36 @@ const page = async ({ searchParams }: PageProps) => {
   // Set default values if data is null or missing
   const settingData = settings
     ? {
-        _id: settings.id,
-        timezone: settings.timezone || "UTC-7:00",
-        minTime: settings.min_time || "8:00 AM",
-        maxTime: settings.max_time || "6:00 PM",
-        smsMessage:
-          settings.sms_message ||
-          "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
-      }
+      _id: settings.id,
+      timezone: settings.timezone || "UTC-7:00",
+      minTime: settings.min_time || "8:00 AM",
+      maxTime: settings.max_time || "6:00 PM",
+      smsMessage:
+        settings.sms_message ||
+        "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+    }
     : {
-    _id: "",
-    timezone: "UTC-7:00",
-    minTime: "8:00 AM",
-    maxTime: "6:00 PM",
-        smsMessage:
-          "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
-  };
+      _id: "",
+      timezone: "UTC-7:00",
+      minTime: "8:00 AM",
+      maxTime: "6:00 PM",
+      smsMessage:
+        "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+    };
 
   moment.tz.setDefault(getIanaTimezone(parseOffset(settingData.timezone)));
   const date = resolvedSearchParams.date
     ? resolvedSearchParams.date
     : moment
-        .tz(new Date(), getIanaTimezone(parseOffset(settingData.timezone)))
-        .format("YYYY-MM-DD");
+      .tz(new Date(), getIanaTimezone(parseOffset(settingData.timezone)))
+      .format("YYYY-MM-DD");
 
   const notWorking = resolvedSearchParams.notWorking === "true";
   const cancelled = resolvedSearchParams.cancelled === "true";
+  const completed = resolvedSearchParams.completed === "true";
 
   const employeesData = await getAllEmployees();
-  
+
   // Transform employees to match expected format
   const employees = {
     data: employeesData.map((emp) => ({
@@ -75,7 +77,7 @@ const page = async ({ searchParams }: PageProps) => {
     undefined,
     parseOffset(settingData.timezone)
   );
-  
+
   // Transform appointments to match expected format
   const appointments = {
     data: appointmentsData.map((apt) => ({
@@ -86,26 +88,26 @@ const page = async ({ searchParams }: PageProps) => {
       duration: apt.service?.duration || 0,
       customer: apt.customer
         ? {
-            _id: apt.customer.id,
-            firstName: apt.customer.firstName,
-            lastName: apt.customer.lastName,
-            fullName: apt.customer.fullName,
-          }
+          _id: apt.customer.id,
+          firstName: apt.customer.firstName,
+          lastName: apt.customer.lastName,
+          fullName: apt.customer.fullName,
+        }
         : undefined,
       employee: apt.employee
         ? {
-            _id: apt.employee.id,
-            firstName: apt.employee.firstName,
-            lastName: apt.employee.lastName,
-            fullName: apt.employee.fullName,
-          }
+          _id: apt.employee.id,
+          firstName: apt.employee.firstName,
+          lastName: apt.employee.lastName,
+          fullName: apt.employee.fullName,
+        }
         : undefined,
       service: apt.service
         ? {
-            _id: apt.service.id,
-            name: apt.service.name,
-            duration: apt.service.duration,
-          }
+          _id: apt.service.id,
+          name: apt.service.name,
+          duration: apt.service.duration,
+        }
         : undefined,
       reminder: apt.reminder || [],
       type: apt.type,
@@ -129,6 +131,7 @@ const page = async ({ searchParams }: PageProps) => {
         currentDate={date}
         notWorking={notWorking}
         cancelled={cancelled}
+        completed={completed}
         minTime={settingData.minTime || "8:00 AM"}
         maxTime={settingData.maxTime || "6:00 PM"}
       />

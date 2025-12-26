@@ -148,12 +148,12 @@ interface FormButtonProps {
   onSuccess?: () => void;
   categories?: { _id: string; name: string }[]; // For services type
   variant?:
-    | "default"
-    | "outline"
-    | "ghost"
-    | "destructive"
-    | "secondary"
-    | "link";
+  | "default"
+  | "outline"
+  | "ghost"
+  | "destructive"
+  | "secondary"
+  | "link";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
 }
@@ -355,7 +355,16 @@ const FormButton = ({
         const payload = await response.json();
 
         const rows = (payload?.data || []) as any[];
-        const transformedResult = rows.map((row: any, idx: number) => ({
+
+        // Filter out future appointments to ensure only completed/past history is shown
+        const now = new Date();
+        const filteredRows = rows.filter((row: any) => {
+          if (!row.Date) return false;
+          const rowDate = new Date(row.Date);
+          return rowDate <= now;
+        });
+
+        const transformedResult = filteredRows.map((row: any, idx: number) => ({
           _id: `${row.Date ?? idx}`,
           _createdAt: row.Date,
           startTime: row.Date,
@@ -402,26 +411,26 @@ const FormButton = ({
             duration: apt.service?.duration || 0,
             customer: apt.customer
               ? {
-                  _id: apt.customer.id,
-                  firstName: apt.customer.firstName,
-                  lastName: apt.customer.lastName,
-                  fullName: apt.customer.fullName,
-                }
+                _id: apt.customer.id,
+                firstName: apt.customer.firstName,
+                lastName: apt.customer.lastName,
+                fullName: apt.customer.fullName,
+              }
               : undefined,
             employee: apt.employee
               ? {
-                  _id: apt.employee.id,
-                  firstName: apt.employee.firstName,
-                  lastName: apt.employee.lastName,
-                  fullName: apt.employee.fullName,
-                }
+                _id: apt.employee.id,
+                firstName: apt.employee.firstName,
+                lastName: apt.employee.lastName,
+                fullName: apt.employee.fullName,
+              }
               : undefined,
             service: apt.service
               ? {
-                  _id: apt.service.id,
-                  name: apt.service.name,
-                  duration: apt.service.duration,
-                }
+                _id: apt.service.id,
+                name: apt.service.name,
+                duration: apt.service.duration,
+              }
               : undefined,
             reminder: apt.reminder || [],
             type: apt.type,
@@ -585,7 +594,10 @@ const FormButton = ({
       note: "",
       workingTimes: [],
       timeOffSchedules: [],
+      workingTimes: [],
+      timeOffSchedules: [],
       assignedServices: [],
+      hourlyRate: 0,
     },
   });
 
@@ -762,6 +774,7 @@ const FormButton = ({
       formData.append("phone", formValues.phone || "");
       formData.append("position", formValues.position);
       formData.append("note", formValues.note || "");
+      formData.append("hourlyRate", String(formValues.hourlyRate || 0));
 
       if (mode === "edit" && profile) {
         // Update mode - include _id
@@ -982,16 +995,16 @@ const FormButton = ({
             formValues.recurringDuration?.value &&
               formValues.recurringDuration?.unit
               ? {
-                  value: formValues.recurringDuration.value,
-                  unit: formValues.recurringDuration.unit,
-                }
+                value: formValues.recurringDuration.value,
+                unit: formValues.recurringDuration.unit,
+              }
               : undefined,
             formValues.recurringFrequency?.value &&
               formValues.recurringFrequency?.unit
               ? {
-                  value: formValues.recurringFrequency.value,
-                  unit: formValues.recurringFrequency.unit,
-                }
+                value: formValues.recurringFrequency.value,
+                unit: formValues.recurringFrequency.unit,
+              }
               : undefined
           );
 
@@ -1011,19 +1024,19 @@ const FormButton = ({
               isRecurring: formValues.isRecurring,
               recurringDuration:
                 formValues.recurringDuration?.value &&
-                formValues.recurringDuration?.unit
+                  formValues.recurringDuration?.unit
                   ? {
-                      value: formValues.recurringDuration.value,
-                      unit: formValues.recurringDuration.unit,
-                    }
+                    value: formValues.recurringDuration.value,
+                    unit: formValues.recurringDuration.unit,
+                  }
                   : undefined,
               recurringFrequency:
                 formValues.recurringFrequency?.value &&
-                formValues.recurringFrequency?.unit
+                  formValues.recurringFrequency?.unit
                   ? {
-                      value: formValues.recurringFrequency.value,
-                      unit: formValues.recurringFrequency.unit,
-                    }
+                    value: formValues.recurringFrequency.value,
+                    unit: formValues.recurringFrequency.unit,
+                  }
                   : undefined,
             });
             setConflicts(conflictResult.conflicts);
@@ -1047,16 +1060,16 @@ const FormButton = ({
           formValues.recurringDuration?.value &&
             formValues.recurringDuration?.unit
             ? {
-                value: formValues.recurringDuration.value,
-                unit: formValues.recurringDuration.unit,
-              }
+              value: formValues.recurringDuration.value,
+              unit: formValues.recurringDuration.unit,
+            }
             : undefined,
           formValues.recurringFrequency?.value &&
             formValues.recurringFrequency?.unit
             ? {
-                value: formValues.recurringFrequency.value,
-                unit: formValues.recurringFrequency.unit,
-              }
+              value: formValues.recurringFrequency.value,
+              unit: formValues.recurringFrequency.unit,
+            }
             : undefined
         );
 
@@ -1105,16 +1118,16 @@ const FormButton = ({
               formValues.recurringDuration?.value &&
                 formValues.recurringDuration?.unit
                 ? {
-                    value: formValues.recurringDuration.value,
-                    unit: formValues.recurringDuration.unit,
-                  }
+                  value: formValues.recurringDuration.value,
+                  unit: formValues.recurringDuration.unit,
+                }
                 : undefined,
               formValues.recurringFrequency?.value &&
                 formValues.recurringFrequency?.unit
                 ? {
-                    value: formValues.recurringFrequency.value,
-                    unit: formValues.recurringFrequency.unit,
-                  }
+                  value: formValues.recurringFrequency.value,
+                  unit: formValues.recurringFrequency.unit,
+                }
                 : undefined
             );
 
@@ -1134,19 +1147,19 @@ const FormButton = ({
                 isRecurring: formValues.isRecurring,
                 recurringDuration:
                   formValues.recurringDuration?.value &&
-                  formValues.recurringDuration?.unit
+                    formValues.recurringDuration?.unit
                     ? {
-                        value: formValues.recurringDuration.value,
-                        unit: formValues.recurringDuration.unit,
-                      }
+                      value: formValues.recurringDuration.value,
+                      unit: formValues.recurringDuration.unit,
+                    }
                     : undefined,
                 recurringFrequency:
                   formValues.recurringFrequency?.value &&
-                  formValues.recurringFrequency?.unit
+                    formValues.recurringFrequency?.unit
                     ? {
-                        value: formValues.recurringFrequency.value,
-                        unit: formValues.recurringFrequency.unit,
-                      }
+                      value: formValues.recurringFrequency.value,
+                      unit: formValues.recurringFrequency.unit,
+                    }
                     : undefined,
               });
               setConflicts(conflictResult.conflicts);
@@ -1169,16 +1182,16 @@ const FormButton = ({
             formValues.recurringDuration?.value &&
               formValues.recurringDuration?.unit
               ? {
-                  value: formValues.recurringDuration.value,
-                  unit: formValues.recurringDuration.unit,
-                }
+                value: formValues.recurringDuration.value,
+                unit: formValues.recurringDuration.unit,
+              }
               : undefined,
             formValues.recurringFrequency?.value &&
               formValues.recurringFrequency?.unit
               ? {
-                  value: formValues.recurringFrequency.value,
-                  unit: formValues.recurringFrequency.unit,
-                }
+                value: formValues.recurringFrequency.value,
+                unit: formValues.recurringFrequency.unit,
+              }
               : undefined
           );
 
@@ -1410,82 +1423,82 @@ const FormButton = ({
 
             {(historyFilterType === "customer" ||
               historyFilterType === "both") && (
-              <div className="space-y-2 md:w-fit">
-                <Label>Customer</Label>
-                <Popover
-                  open={historyCustomerOpen}
-                  onOpenChange={(open) => {
-                    setHistoryCustomerOpen(open);
-                    if (!open) setHistoryCustomerQuery("");
-                  }}
-                >
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={historyCustomerOpen}
-                      className="w-[320px] justify-between"
-                    >
-                      {selectedHistoryCustomerInfo
-                        ? `${selectedHistoryCustomerInfo.fullName}${selectedHistoryCustomerInfo.phone ? ` - ${selectedHistoryCustomerInfo.phone}` : ""}`
-                        : "Search by name or phone..."}
-                      <ChevronsUpDown className="opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[320px] p-0" align="start">
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Search by name or phone..."
-                        value={historyCustomerQuery}
-                        onValueChange={setHistoryCustomerQuery}
-                      />
-                      <CommandList>
-                        {historyCustomerSearching ? (
-                          <div className="py-6 text-center text-sm text-muted-foreground">
-                            Searching...
-                          </div>
-                        ) : historyCustomerResults.length === 0 ? (
-                          <CommandEmpty>No customer found.</CommandEmpty>
-                        ) : (
-                          <CommandGroup>
-                            {historyCustomerResults.map((c) => {
-                              const label = `${c.fullName}${c.phone ? ` - ${c.phone}` : ""}`;
-                              return (
-                                <CommandItem
-                                  key={c.id}
-                                  value={c.id}
-                                  onSelect={() => {
-                                    const isSame =
-                                      selectedHistoryCustomer === c.id;
-                                    const nextId = isSame ? "" : c.id;
-                                    setSelectedHistoryCustomer(nextId);
-                                    setSelectedHistoryCustomerInfo(
-                                      isSame ? null : c
-                                    );
-                                    setHistoryCustomerOpen(false);
-                                    setHistoryCustomerQuery("");
-                                  }}
-                                >
-                                  {label}
-                                  <Check
-                                    className={cn(
-                                      "ml-auto",
-                                      selectedHistoryCustomer === c.id
-                                        ? "opacity-100"
-                                        : "opacity-0"
-                                    )}
-                                  />
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        )}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
+                <div className="space-y-2 md:w-fit">
+                  <Label>Customer</Label>
+                  <Popover
+                    open={historyCustomerOpen}
+                    onOpenChange={(open) => {
+                      setHistoryCustomerOpen(open);
+                      if (!open) setHistoryCustomerQuery("");
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={historyCustomerOpen}
+                        className="w-[320px] justify-between"
+                      >
+                        {selectedHistoryCustomerInfo
+                          ? `${selectedHistoryCustomerInfo.fullName}${selectedHistoryCustomerInfo.phone ? ` - ${selectedHistoryCustomerInfo.phone}` : ""}`
+                          : "Search by name or phone..."}
+                        <ChevronsUpDown className="opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[320px] p-0" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Search by name or phone..."
+                          value={historyCustomerQuery}
+                          onValueChange={setHistoryCustomerQuery}
+                        />
+                        <CommandList>
+                          {historyCustomerSearching ? (
+                            <div className="py-6 text-center text-sm text-muted-foreground">
+                              Searching...
+                            </div>
+                          ) : historyCustomerResults.length === 0 ? (
+                            <CommandEmpty>No customer found.</CommandEmpty>
+                          ) : (
+                            <CommandGroup>
+                              {historyCustomerResults.map((c) => {
+                                const label = `${c.fullName}${c.phone ? ` - ${c.phone}` : ""}`;
+                                return (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={c.id}
+                                    onSelect={() => {
+                                      const isSame =
+                                        selectedHistoryCustomer === c.id;
+                                      const nextId = isSame ? "" : c.id;
+                                      setSelectedHistoryCustomer(nextId);
+                                      setSelectedHistoryCustomerInfo(
+                                        isSame ? null : c
+                                      );
+                                      setHistoryCustomerOpen(false);
+                                      setHistoryCustomerQuery("");
+                                    }}
+                                  >
+                                    {label}
+                                    <Check
+                                      className={cn(
+                                        "ml-auto",
+                                        selectedHistoryCustomer === c.id
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                  </CommandItem>
+                                );
+                              })}
+                            </CommandGroup>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
           </div>
 
           <DataTable
@@ -1631,25 +1644,25 @@ const FormButton = ({
 
             {(historyFilterType === "customer" ||
               historyFilterType === "both") && (
-              <div className="space-y-2">
-                <Label>Employee</Label>
-                <Select
-                  value={selectedHistoryEmployee}
-                  onValueChange={(value) => setSelectedHistoryEmployee(value)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customerHistoryEmployeeOptions.map((name) => (
-                      <SelectItem key={name} value={name}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                <div className="space-y-2">
+                  <Label>Employee</Label>
+                  <Select
+                    value={selectedHistoryEmployee}
+                    onValueChange={(value) => setSelectedHistoryEmployee(value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerHistoryEmployeeOptions.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
           </div>
 
           <DataTable
@@ -1990,20 +2003,20 @@ const FormButton = ({
           className={cn(
             // Different sizes based on form type
             type === "customers" &&
-              mode === "history" &&
-              "w-[95vw] sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col",
+            mode === "history" &&
+            "w-[95vw] sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col",
             type === "customers" &&
-              mode !== "history" &&
-              "sm:max-w-md max-h-[90vh]",
+            mode !== "history" &&
+            "sm:max-w-md max-h-[90vh]",
             type === "services" && "sm:max-w-lg max-h-[90vh]",
             type === "employees" &&
-              mode === "history" &&
-              "w-[95vw] sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col",
+            mode === "history" &&
+            "w-[95vw] sm:max-w-5xl h-[90vh] overflow-hidden flex flex-col",
             type === "employees" &&
-              mode !== "history" &&
-              "sm:max-w-2xl max-h-[95vh]",
+            mode !== "history" &&
+            "sm:max-w-2xl max-h-[95vh]",
             type === "schedule" &&
-              "sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl max-h-[95vh]",
+            "sm:max-w-screen-sm md:max-w-screen-md lg:max-w-screen-lg xl:max-w-screen-xl max-h-[95vh]",
             // Default for other cases
             !["customers", "services", "employees", "schedule"].includes(
               type

@@ -34,10 +34,10 @@ export default async function TimeTracking() {
     _updatedAt: tt.updated_at || tt.created_at,
     employee: tt.employee
       ? {
-          _id: tt.employee.id,
-          firstName: tt.employee.first_name,
-          lastName: tt.employee.last_name,
-        }
+        _id: tt.employee.id,
+        firstName: tt.employee.first_name,
+        lastName: tt.employee.last_name,
+      }
       : undefined,
     checkIn: tt.check_in,
     checkOut: tt.check_out,

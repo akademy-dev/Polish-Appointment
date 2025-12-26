@@ -144,6 +144,7 @@ export const AppointmentForm = ({
       firstName: string;
       lastName: string;
       phone: string;
+      note?: string;
     }[]
   >([]);
   const [customerHistory, setCustomerHistory] = React.useState<Appointment[]>(
@@ -163,10 +164,10 @@ export const AppointmentForm = ({
   >([]);
   const [selectedEmployee, setSelectedEmployee] = React.useState<
     | {
-        _id: string;
-        firstName: string;
-        lastName: string;
-      }
+      _id: string;
+      firstName: string;
+      lastName: string;
+    }
     | undefined
   >(undefined);
 
@@ -309,26 +310,26 @@ export const AppointmentForm = ({
                 _createdAt: appointment.created_at, // For backward compatibility
                 service: appointment.service
                   ? {
-                      _id: appointment.service.id || appointment.service._id,
-                      name: appointment.service.name,
-                      duration: appointment.service.duration,
-                    }
+                    _id: appointment.service.id || appointment.service._id,
+                    name: appointment.service.name,
+                    duration: appointment.service.duration,
+                  }
                   : undefined,
                 customer: appointment.customer
                   ? {
-                      _id: appointment.customer.id || appointment.customer._id,
-                      firstName: appointment.customer.firstName,
-                      lastName: appointment.customer.lastName,
-                      fullName: appointment.customer.fullName,
-                    }
+                    _id: appointment.customer.id || appointment.customer._id,
+                    firstName: appointment.customer.firstName,
+                    lastName: appointment.customer.lastName,
+                    fullName: appointment.customer.fullName,
+                  }
                   : undefined,
                 employee: appointment.employee
                   ? {
-                      _id: appointment.employee.id || appointment.employee._id,
-                      firstName: appointment.employee.firstName,
-                      lastName: appointment.employee.lastName,
-                      fullName: appointment.employee.fullName,
-                    }
+                    _id: appointment.employee.id || appointment.employee._id,
+                    firstName: appointment.employee.firstName,
+                    lastName: appointment.employee.lastName,
+                    fullName: appointment.employee.fullName,
+                  }
                   : undefined,
                 startTime: start
                   ? start.toISOString()
@@ -388,6 +389,7 @@ export const AppointmentForm = ({
         firstName: customer.first_name,
         lastName: customer.last_name,
         phone: customer.phone || "",
+        note: customer.note || "",
       }))
     );
   }, []);
@@ -522,6 +524,7 @@ export const AppointmentForm = ({
                     firstName: customer.first_name,
                     lastName: customer.last_name,
                     phone: customer.phone || "",
+                    note: customer.note || "",
                   },
                 ]);
               }
@@ -544,6 +547,7 @@ export const AppointmentForm = ({
                   firstName: customerData.firstName,
                   lastName: customerData.lastName,
                   phone: customerData.phone || "",
+                  note: (customerData as any).note || "",
                 },
               ]);
             }
@@ -577,26 +581,26 @@ export const AppointmentForm = ({
                     _createdAt: apt.created_at, // For backward compatibility
                     customer: apt.customer
                       ? {
-                          _id: apt.customer.id,
-                          firstName: apt.customer.firstName,
-                          lastName: apt.customer.lastName,
-                          fullName: apt.customer.fullName,
-                        }
+                        _id: apt.customer.id,
+                        firstName: apt.customer.firstName,
+                        lastName: apt.customer.lastName,
+                        fullName: apt.customer.fullName,
+                      }
                       : undefined,
                     employee: apt.employee
                       ? {
-                          _id: apt.employee.id,
-                          firstName: apt.employee.firstName,
-                          lastName: apt.employee.lastName,
-                          fullName: apt.employee.fullName,
-                        }
+                        _id: apt.employee.id,
+                        firstName: apt.employee.firstName,
+                        lastName: apt.employee.lastName,
+                        fullName: apt.employee.fullName,
+                      }
                       : undefined,
                     service: apt.service
                       ? {
-                          _id: apt.service.id,
-                          name: apt.service.name,
-                          duration: apt.service.duration,
-                        }
+                        _id: apt.service.id,
+                        name: apt.service.name,
+                        duration: apt.service.duration,
+                      }
                       : undefined,
                     reminder: apt.reminder || [],
                     type: apt.type,
@@ -908,6 +912,9 @@ export const AppointmentForm = ({
                 onBackToCustomer={handleBackToCustomer}
                 servicesLoading={servicesLoading}
                 employeesLoading={employeesLoading}
+                customerNote={
+                  customers.find((c) => c.value === customerValue)?.note
+                }
               />
               <div className="flex justify-between pt-2">
                 {type === "edit" ? (

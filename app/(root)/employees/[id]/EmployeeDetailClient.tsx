@@ -146,7 +146,9 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
         price: as.price || 0,
         duration: as.duration || 0,
         processTime: as.processTime || 0,
+        processTime: as.processTime || 0,
       })),
+      hourlyRate: employee?.hourly_rate || employee?.hourlyRate || 0,
     },
   });
 
@@ -172,8 +174,8 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
   const employeeName = isCreateMode
     ? "New Employee"
     : (employee.first_name || employee.firstName || "") +
-      " " +
-      (employee.last_name || employee.lastName || "");
+    " " +
+    (employee.last_name || employee.lastName || "");
 
   const watchedWorkingTimes = form.watch("workingTimes");
   const workingTimeMap = new Map(
@@ -562,7 +564,9 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
       formData.append("lastName", formValues.lastName);
       formData.append("phone", formValues.phone || "");
       formData.append("position", formValues.position);
+      formData.append("position", formValues.position);
       formData.append("note", formValues.note || "");
+      formData.append("hourlyRate", String(formValues.hourlyRate || 0));
 
       if (isCreateMode) {
         // Create new employee
@@ -580,8 +584,8 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
           toast.success("Success", {
             description: "Employee created successfully",
           });
-          // Navigate to the new employee's detail page
-          router.push(`/employees/${result._id}`);
+          // Navigate to the employee list page
+          router.push("/employees");
           router.refresh();
         } else {
           toast.error("Error", {
@@ -629,7 +633,7 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
   const handleDone = () => {
     // Check if form has changes - use form.formState.isDirty as the source of truth
     const hasChanges = form.formState.isDirty;
-    
+
     // For create mode, also check if form has any values filled
     const formValues = form.getValues();
     const hasFormData = isCreateMode && (
@@ -639,7 +643,7 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
       (formValues.workingTimes && formValues.workingTimes.length > 0) ||
       (formValues.assignedServices && formValues.assignedServices.length > 0)
     );
-    
+
     if (hasChanges || hasFormData) {
       setShowDoneConfirmDialog(true);
     } else {
@@ -659,245 +663,305 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
   return (
     <Form {...form}>
       <div className="max-w-4xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="heading">Employees</h2>
-          <h3 className="text-2xl font-bold mt-2">{employeeName}</h3>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="heading">Employees</h2>
+            <h3 className="text-2xl font-bold mt-2">{employeeName}</h3>
+          </div>
         </div>
-      </div>
 
-      <Accordion type="single" collapsible defaultValue="basic">
-        <AccordionItem value="basic">
-          <AccordionTrigger className="text-primary hover:text-primary/90">
-            Basics
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Accordion type="single" collapsible defaultValue="basic">
+          <AccordionItem value="basic">
+            <AccordionTrigger className="text-primary hover:text-primary/90">
+              Basics
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          First Name
+                        </label>
+                        <input
+                          {...field}
+                          className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        />
+                      </div>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Last Name
+                        </label>
+                        <input
+                          {...field}
+                          className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        />
+                      </div>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Phone
+                        </label>
+                        <input
+                          {...field}
+                          className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+                        />
+                      </div>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="position"
+                    render={({ field }) => (
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Position
+                        </label>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="owner">Owner</SelectItem>
+                            <SelectItem value="serviceProvider">
+                              Service Provider
+                            </SelectItem>
+                            <SelectItem value="backRoom">Back Room</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="note"
+                    render={({ field }) => (
+                      <div className="space-y-1 md:col-span-2">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Note
+                        </label>
+                        <textarea
+                          {...field}
+                          className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                        />
+                      </div>
+                    )}
+                  />
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="working">
+            <AccordionTrigger className="text-primary hover:text-primary/90">
+              Scheduling Hours
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-2 p-4">
                 <FormField
                   control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        First Name
-                      </label>
-                      <input
-                        {...field}
-                        className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                      />
-                    </div>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        Last Name
-                      </label>
-                      <input
-                        {...field}
-                        className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                      />
-                    </div>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        Phone
-                      </label>
-                      <input
-                        {...field}
-                        className="h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                      />
-                    </div>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="position"
-                  render={({ field }) => (
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        Position
-                      </label>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="owner">Owner</SelectItem>
-                          <SelectItem value="serviceProvider">
-                            Service Provider
-                          </SelectItem>
-                          <SelectItem value="backRoom">Back Room</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="note"
-                  render={({ field }) => (
-                    <div className="space-y-1 md:col-span-2">
-                      <label className="text-sm font-medium text-muted-foreground">
-                        Note
-                      </label>
-                      <textarea
-                        {...field}
-                        className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
-                      />
-                    </div>
+                  name="workingTimes"
+                  render={() => (
+                    <>
+                      {dayLabels.map((day) => {
+                        const workingTime = workingTimeMap.get(day);
+                        const isWorking = !!workingTime;
+
+                        return (
+                          <FormField
+                            key={day}
+                            control={form.control}
+                            name="workingTimes"
+                            render={({ field }) => (
+                              <div className="flex items-center gap-3">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={isWorking}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        field.onChange([
+                                          ...(field.value || []),
+                                          {
+                                            day,
+                                            from: "09:30 AM",
+                                            to: "06:00 PM",
+                                          },
+                                        ]);
+                                      } else {
+                                        field.onChange(
+                                          (field.value || []).filter(
+                                            (wt) => wt.day !== day
+                                          )
+                                        );
+                                      }
+                                    }}
+                                  />
+                                </FormControl>
+                                <span className="font-medium min-w-[80px]">
+                                  {day}
+                                </span>
+                                {isWorking ? (
+                                  <div className="flex items-center gap-2">
+                                    <Select
+                                      value={workingTime.from}
+                                      onValueChange={(from) => {
+                                        field.onChange(
+                                          (field.value || []).map((wt) =>
+                                            wt.day === day ? { ...wt, from } : wt
+                                          )
+                                        );
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-8 w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {timeRange.map((time) => (
+                                          <SelectItem key={time} value={time}>
+                                            {time}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <span className="text-sm text-muted-foreground">
+                                      -
+                                    </span>
+                                    <Select
+                                      value={workingTime.to}
+                                      onValueChange={(to) => {
+                                        field.onChange(
+                                          (field.value || []).map((wt) =>
+                                            wt.day === day ? { ...wt, to } : wt
+                                          )
+                                        );
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-8 w-[120px]">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {timeRange.map((time) => (
+                                          <SelectItem key={time} value={time}>
+                                            {time}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">
+                                    {day === "Mon" ? "CLOSED" : "OFF"}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          />
+                        );
+                      })}
+                    </>
                   )}
                 />
               </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+            </AccordionContent>
+          </AccordionItem>
 
-        <AccordionItem value="working">
-          <AccordionTrigger className="text-primary hover:text-primary/90">
-            Scheduling Hours
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-2 p-4">
-              <FormField
-                control={form.control}
-                name="workingTimes"
-                render={() => (
-                  <>
-                    {dayLabels.map((day) => {
-                      const workingTime = workingTimeMap.get(day);
-                      const isWorking = !!workingTime;
-
-                      return (
-                        <FormField
-                          key={day}
-                          control={form.control}
-                          name="workingTimes"
-                          render={({ field }) => (
-                            <div className="flex items-center gap-3">
-                              <FormControl>
-                                <Checkbox
-                                  checked={isWorking}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      field.onChange([
-                                        ...(field.value || []),
-                                        {
-                                          day,
-                                          from: "09:30 AM",
-                                          to: "06:00 PM",
-                                        },
-                                      ]);
-                                    } else {
-                                      field.onChange(
-                                        (field.value || []).filter(
-                                          (wt) => wt.day !== day
-                                        )
-                                      );
-                                    }
-                                  }}
-                                />
-                              </FormControl>
-                              <span className="font-medium min-w-[80px]">
-                                {day}
-                              </span>
-                              {isWorking ? (
-                                <div className="flex items-center gap-2">
-                                  <Select
-                                    value={workingTime.from}
-                                    onValueChange={(from) => {
-                                      field.onChange(
-                                        (field.value || []).map((wt) =>
-                                          wt.day === day ? { ...wt, from } : wt
-                                        )
-                                      );
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-8 w-[120px]">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {timeRange.map((time) => (
-                                        <SelectItem key={time} value={time}>
-                                          {time}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <span className="text-sm text-muted-foreground">
-                                    -
-                                  </span>
-                                  <Select
-                                    value={workingTime.to}
-                                    onValueChange={(to) => {
-                                      field.onChange(
-                                        (field.value || []).map((wt) =>
-                                          wt.day === day ? { ...wt, to } : wt
-                                        )
-                                      );
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-8 w-[120px]">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {timeRange.map((time) => (
-                                        <SelectItem key={time} value={time}>
-                                          {time}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">
-                                  {day === "Mon" ? "CLOSED" : "OFF"}
-                                </span>
-                              )}
+          <AccordionItem value="assigned-services">
+            <AccordionTrigger className="text-primary hover:text-primary/90">
+              Assigned Services (
+              {Object.values(getServicesByCategory(true)).flat().length})
+            </AccordionTrigger>
+            <AccordionContent>
+              {servicesLoading ? (
+                <div className="p-4">Loading services...</div>
+              ) : (
+                <>
+                  <div className="space-y-6 p-4">
+                    {Object.keys(getServicesByCategory(true)).length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">
+                        No services assigned yet.
+                      </p>
+                    ) : (
+                      Object.entries(getServicesByCategory(true)).map(
+                        ([categoryName, categoryServices]) => (
+                          <div key={categoryName} className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-semibold">
+                                {categoryName}
+                              </h3>
+                              <Button
+                                onClick={() => {
+                                  const allSelected = categoryServices.every(
+                                    (service) => selectedForAction[service._id],
+                                  );
+                                  handleSelectAllCategory(
+                                    categoryServices,
+                                    !allSelected,
+                                    "assigned",
+                                  );
+                                }}
+                              >
+                                Select all
+                              </Button>
                             </div>
-                          )}
-                        />
-                      );
-                    })}
-                  </>
-                )}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
 
-        <AccordionItem value="assigned-services">
-          <AccordionTrigger className="text-primary hover:text-primary/90">
-            Assigned Services (
-            {Object.values(getServicesByCategory(true)).flat().length})
-          </AccordionTrigger>
-          <AccordionContent>
-            {servicesLoading ? (
-              <div className="p-4">Loading services...</div>
-            ) : (
-              <>
-                <div className="space-y-6 p-4">
-                  {Object.keys(getServicesByCategory(true)).length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">
-                      No services assigned yet.
-                    </p>
-                  ) : (
-                    Object.entries(getServicesByCategory(true)).map(
+                            <div className="border rounded-lg overflow-hidden">
+                              {renderServiceTable(categoryServices, "assigned")}
+                            </div>
+                          </div>
+                        ),
+                      )
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 justify-end mt-4 pt-4 px-4">
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelAssigned}
+                      type="button"
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveAssigned} type="button">
+                      Save
+                    </Button>
+                  </div>
+                </>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="available-services">
+            <AccordionTrigger className="text-primary hover:text-primary/90">
+              Available Services (
+              {Object.values(getServicesByCategory(false)).flat().length})
+            </AccordionTrigger>
+            <AccordionContent>
+              {servicesLoading ? (
+                <div className="p-4">Loading services...</div>
+              ) : (
+                <>
+                  <div className="space-y-6 p-4">
+                    {Object.entries(getServicesByCategory(false)).map(
                       ([categoryName, categoryServices]) => (
                         <div key={categoryName} className="space-y-4">
                           <div className="flex items-center justify-between">
@@ -905,14 +969,15 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
                               {categoryName}
                             </h3>
                             <Button
+                              type="button"
                               onClick={() => {
                                 const allSelected = categoryServices.every(
-                                  (service) => selectedForAction[service._id],
+                                  (service) => !!selectedForAction[service._id],
                                 );
                                 handleSelectAllCategory(
                                   categoryServices,
                                   !allSelected,
-                                  "assigned",
+                                  "available",
                                 );
                               }}
                             >
@@ -921,123 +986,97 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
                           </div>
 
                           <div className="border rounded-lg overflow-hidden">
-                            {renderServiceTable(categoryServices, "assigned")}
+                            {renderServiceTable(categoryServices, "available")}
                           </div>
                         </div>
                       ),
-                    )
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 justify-end mt-4 pt-4 px-4">
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelAvailable}
+                      type="button"
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveAvailable} type="button">
+                      Save
+                    </Button>
+                  </div>
+                </>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="time-tracking">
+            <AccordionTrigger className="text-primary hover:text-primary/90">
+              {/* Time Tracking */}
+              Hourly Rate ($)
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="p-4 space-y-4">
+                <FormField
+                  control={form.control}
+                  name="hourlyRate"
+                  render={({ field }) => (
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Set the hourly rate for this employee used in time tracking reports.
+                      </label>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          {...field}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          className="max-w-[200px]"
+                        />
+                      </FormControl>
+                      {/* <p className="text-xs text-muted-foreground">
+                        Set the hourly rate for this employee used in time tracking reports.
+                      </p> */}
+                    </div>
                   )}
-                </div>
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-                <div className="flex gap-2 justify-end mt-4 pt-4 px-4">
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelAssigned}
-                    type="button"
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSaveAssigned} type="button">
-                    Save
-                  </Button>
-                </div>
-              </>
-            )}
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="available-services">
-          <AccordionTrigger className="text-primary hover:text-primary/90">
-            Available Services (
-            {Object.values(getServicesByCategory(false)).flat().length})
-          </AccordionTrigger>
-          <AccordionContent>
-            {servicesLoading ? (
-              <div className="p-4">Loading services...</div>
-            ) : (
-              <>
-                <div className="space-y-6 p-4">
-                  {Object.entries(getServicesByCategory(false)).map(
-                    ([categoryName, categoryServices]) => (
-                      <div key={categoryName} className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold">
-                            {categoryName}
-                          </h3>
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              const allSelected = categoryServices.every(
-                                (service) => !!selectedForAction[service._id],
-                              );
-                              handleSelectAllCategory(
-                                categoryServices,
-                                !allSelected,
-                                "available",
-                              );
-                            }}
-                          >
-                            Select all
-                          </Button>
-                        </div>
-
-                        <div className="border rounded-lg overflow-hidden">
-                          {renderServiceTable(categoryServices, "available")}
-                        </div>
-                      </div>
-                    ),
-                  )}
-                </div>
-
-                <div className="flex gap-2 justify-end mt-4 pt-4 px-4">
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelAvailable}
-                    type="button"
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSaveAvailable} type="button">
-                    Save
-                  </Button>
-                </div>
-              </>
-            )}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-      <div className="flex justify-end gap-2 pt-4">
-        <Button
-          variant="outline"
-          disabled={
-            isSubmitting ||
-            (isCreateMode
-              ? !basicsFilled
-              : !form.formState.isDirty)
-          }
-          onClick={handleSave}
-        >
-          {isSubmitting
-            ? isCreateMode
-              ? "Creating..."
-              : "Saving..."
-            : isCreateMode
-              ? "Create"
-              : "Save"}
-        </Button>
-        {!isCreateMode && (
+        </Accordion>
+        <div className="flex justify-end gap-2 pt-4">
           <Button
-            variant="ghost"
-            disabled={!form.formState.isDirty || isSubmitting}
-            onClick={handleCancel}
+            variant="outline"
+            disabled={
+              isSubmitting ||
+              (isCreateMode
+                ? !basicsFilled
+                : !form.formState.isDirty)
+            }
+            onClick={handleSave}
           >
-            Cancel Changes
+            {isSubmitting
+              ? isCreateMode
+                ? "Creating..."
+                : "Saving..."
+              : isCreateMode
+                ? "Create"
+                : "Save"}
           </Button>
-        )}
-        <Button variant="default" onClick={handleDone}>
-          Done
-        </Button>
-      </div>
+          {!isCreateMode && (
+            <Button
+              variant="ghost"
+              disabled={!form.formState.isDirty || isSubmitting}
+              onClick={handleCancel}
+            >
+              Cancel Changes
+            </Button>
+          )}
+          <Button variant="default" onClick={handleDone}>
+            Done
+          </Button>
+        </div>
       </div>
       <ConfirmDialog
         open={showDoneConfirmDialog}

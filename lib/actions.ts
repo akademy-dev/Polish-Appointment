@@ -17,7 +17,7 @@ export const createEmployee = async (
   timeOffSchedules: TimeOffSchedule[],
   assignedServices: AssignedService[]
 ) => {
-  const { firstName, lastName, phone, position, note } = Object.fromEntries(
+  const { firstName, lastName, phone, position, note, hourlyRate } = Object.fromEntries(
     Array.from(form)
   );
 
@@ -31,6 +31,7 @@ export const createEmployee = async (
       (phone as string) || null,
       position as string,
       (note as string) || null,
+      hourlyRate ? parseFloat(hourlyRate as string) : 0,
       workingTimes,
       timeOffSchedules,
       assignedServices
@@ -68,7 +69,7 @@ export const updateEmployee = async (
   timeOffSchedules: TimeOffSchedule[],
   assignedServices: AssignedService[]
 ) => {
-  const { firstName, lastName, phone, position, note } = Object.fromEntries(
+  const { firstName, lastName, phone, position, note, hourlyRate } = Object.fromEntries(
     Array.from(form)
   );
 
@@ -82,8 +83,10 @@ export const updateEmployee = async (
         firstName: firstName as string,
         lastName: lastName as string,
         phone: (phone as string) || null,
+
         position: position as string,
         note: (note as string) || null,
+        hourlyRate: hourlyRate ? parseFloat(hourlyRate as string) : 0,
       },
       workingTimes,
       timeOffSchedules,
@@ -807,32 +810,9 @@ export const updateTimeSettings = async (
   }
 };
 
-export const updateHourlyRate = async (id: string, hourlyRate?: number) => {
-  try {
-    const { updateSettings } = await import("@/data/settings");
-    const result = await updateSettings(id, { hourly_rate: hourlyRate });
 
-    if (!result) {
-      return parseServerActionResponse({
-        error: "Failed to update hourly rate",
-        status: "ERROR",
-      });
-    }
 
-    revalidatePath("/settings");
 
-    return parseServerActionResponse({
-      ...result,
-      error: "",
-      status: "SUCCESS",
-    });
-  } catch (error) {
-    return parseServerActionResponse({
-      error: JSON.stringify(error),
-      status: "ERROR",
-    });
-  }
-};
 
 export const checkRecurringConflicts = async (
   employeeId: string,
@@ -893,13 +873,13 @@ export const checkRecurringConflicts = async (
         conflicts:
           allConflicts.length > 0
             ? [
-                {
-                  occurrence: 1,
-                  startTime,
-                  endTime,
-                  conflicts: allConflicts,
-                },
-              ]
+              {
+                occurrence: 1,
+                startTime,
+                endTime,
+                conflicts: allConflicts,
+              },
+            ]
             : [],
         error: "",
         status: "SUCCESS",

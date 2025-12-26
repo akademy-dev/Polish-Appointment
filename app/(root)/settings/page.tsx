@@ -3,7 +3,7 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Timezone } from "@/components/Timezone";
 import { TimeSettings } from "@/components/TimeSettings";
 import { SMSMessageSettings } from "@/components/SMSMessageSettings";
-import { HourlyRateSettings } from "@/components/HourlyRateSettings";
+
 import { getSettings } from "@/data/settings";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -19,26 +19,25 @@ const Page = async () => {
   // Set default values if data is null or missing
   const settingData = settings
     ? {
-        id: settings.id,
-        _id: settings.id, // Keep _id for backward compatibility with components
-        timezone: settings.timezone || "UTC-7:00",
-        minTime: settings.min_time || "8:00 AM",
-        maxTime: settings.max_time || "6:00 PM",
-        smsMessage:
-          settings.sms_message ||
-          "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
-        hourlyRate: settings.hourly_rate,
-      }
+      id: settings.id,
+      _id: settings.id, // Keep _id for backward compatibility with components
+      timezone: settings.timezone || "UTC-7:00",
+      minTime: settings.min_time || "8:00 AM",
+      maxTime: settings.max_time || "6:00 PM",
+      smsMessage:
+        settings.sms_message ||
+        "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+
+    }
     : {
-        id: "",
-    _id: "",
-    timezone: "UTC-7:00",
-    minTime: "8:00 AM",
-    maxTime: "6:00 PM",
-    smsMessage:
-      "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
-    hourlyRate: undefined,
-  };
+      id: "",
+      _id: "",
+      timezone: "UTC-7:00",
+      minTime: "8:00 AM",
+      maxTime: "6:00 PM",
+      smsMessage:
+        "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+    };
 
   return (
     <div className="space-y-6">
@@ -93,16 +92,7 @@ const Page = async () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Time Tracking</h3>
-              <p className="text-sm text-muted-foreground">
-                Configure default settings for time tracking
-              </p>
-              <HourlyRateSettings
-                _id={settingData._id}
-                hourlyRate={settingData.hourlyRate}
-              />
-            </div>
+
           </div>
         </TabsContent>
 

@@ -136,10 +136,11 @@ export const employeeFormSchema = z.object({
   position: z.string({
     required_error: "Please select a position",
   }),
-  note: z.string().optional(),
+  note: z.string().nullish(),
   workingTimes: workingTimeSchema,
   timeOffSchedules: timeOffScheduleFormSchema,
   assignedServices: assignedServicesSchema,
+  hourlyRate: z.number().min(0).optional(),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
@@ -148,7 +149,7 @@ export const customerFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phone: z.string().min(1, "Phone is required"),
-  note: z.string().optional(),
+  note: z.string().nullish(),
 });
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -181,7 +182,7 @@ export type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
 export const appointmentFormSchema = z.object({
   time: z.string().min(1, { message: "Time is required" }),
-  note: z.string().optional(),
+  note: z.string().nullish(),
   reminder: z.array(z.any()),
   type: z.enum(["walk-in", "request"], {
     required_error: "Type is required",
@@ -205,6 +206,7 @@ export const appointmentFormSchema = z.object({
     phone: z.string().min(1, "Phone is required"),
     _ref: z.string().optional(),
     _type: z.literal("reference"),
+    note: z.string().nullish(),
   }),
   employee: z.object({
     _ref: z.string().min(1, "Employee reference is required"),

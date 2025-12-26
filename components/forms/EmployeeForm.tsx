@@ -38,6 +38,7 @@ const EmployeeForm = ({
       note: "",
       workingTimes: [],
       assignedServices: [],
+      hourlyRate: 0,
     },
   });
 
@@ -76,7 +77,7 @@ const EmployeeForm = ({
           className={cn(
             "relative",
             infoTabErrors &&
-              "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200",
+            "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200",
           )}
           disabled={isSubmitting}
         >
@@ -90,7 +91,7 @@ const EmployeeForm = ({
           className={cn(
             "relative",
             workingTabErrors &&
-              "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200",
+            "text-red-700 data-[state=active]:text-red-800 data-[state=active]:bg-red-50 border-red-200",
           )}
           disabled={isSubmitting}
         >

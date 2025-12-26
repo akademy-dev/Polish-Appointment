@@ -210,9 +210,12 @@ const ServiceForm = ({
                       className="w-[var(--radix-popover-trigger-width)] p-0"
                       align="start"
                     >
-                      <Command>
+                      <Command className="h-auto">
                         <CommandInput placeholder="Search category..." />
-                        <CommandList className="max-h-[200px]">
+                        <CommandList
+                          className="max-h-[200px] overflow-y-scroll pr-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent"
+                          onWheel={(e) => e.stopPropagation()}
+                        >
                           <CommandEmpty>No category found.</CommandEmpty>
                           <CommandGroup>
                             <CommandItem

@@ -36,6 +36,7 @@ import {
   Plus,
 } from "lucide-react";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { toast } from "sonner";
 import {
   createTimeTracking,
@@ -112,10 +113,10 @@ export default function TimeTrackingPage({
         _updatedAt: tt.updated_at || tt.created_at,
         employee: tt.employee
           ? {
-              _id: tt.employee.id,
-              firstName: tt.employee.first_name,
-              lastName: tt.employee.last_name,
-            }
+            _id: tt.employee.id,
+            firstName: tt.employee.first_name,
+            lastName: tt.employee.last_name,
+          }
           : undefined,
         checkIn: tt.check_in,
         checkOut: tt.check_out,
@@ -308,6 +309,13 @@ export default function TimeTrackingPage({
 
   // Format time
   const formatTime = (dateString: string) => {
+    if (settings?.timezone) {
+      return formatInTimeZone(
+        new Date(dateString),
+        settings.timezone,
+        "MMM dd, yyyy 'at' h:mm a"
+      );
+    }
     return format(new Date(dateString), "MMM dd, yyyy 'at' h:mm a");
   };
 
@@ -375,8 +383,8 @@ export default function TimeTrackingPage({
             <div className="text-2xl font-bold">
               {Array.isArray(timeTracking)
                 ? timeTracking.filter(
-                    (record) => record.status === "checked_in"
-                  ).length
+                  (record) => record.status === "checked_in"
+                ).length
                 : 0}
             </div>
           </CardContent>
