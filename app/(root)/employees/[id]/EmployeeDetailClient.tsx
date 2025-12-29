@@ -39,12 +39,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Service } from "@/models/service";
+import { Category } from "@/models/category";
 import { formatMinuteDuration } from "@/lib/utils";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface EmployeeDetailClientProps {
   employee: EmployeeWithRelations | null;
   allServices: ServiceWithCategory[];
+  categories: Category[];
 }
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -108,11 +110,18 @@ const generateTimeOptions = () => {
   return options;
 };
 
-const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientProps) => {
+const EmployeeDetailClient = ({
+  employee,
+  allServices,
+  categories,
+}: EmployeeDetailClientProps) => {
   const router = useRouter();
   const [isDirty, setIsDirty] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { services, loading: servicesLoading } = useServices();
+
+  // Use props directly
+  const services = allServices as unknown as Service[];
+  const servicesLoading = false;
   const isCreateMode = !employee;
   const [selectedForAction, setSelectedForAction] = useState<{
     [key: string]: boolean;
