@@ -584,13 +584,11 @@ const AppointmentScheduleTimezone = ({
     const filteredEvents = [
       ...notWorkingEvents,
       ...timeOffEvents,
-      ...(cancelled
-        ? appointmentEvents
-        : appointmentEvents.filter(
-          (event) =>
-            event.data?.status !== "cancelled" &&
-            (completed || event.data?.status !== "completed")
-        )),
+      ...(appointmentEvents.filter(
+        (event) =>
+          (cancelled || event.data?.status !== "cancelled") &&
+          (completed || event.data?.status !== "completed")
+      )),
     ];
     setEvents(filteredEvents);
     setProcessing(false);
@@ -2417,6 +2415,7 @@ const AppointmentScheduleTimezone = ({
             initialAppointments={
               rpcAppointments.length > 0 ? rpcAppointments : undefined
             }
+            initialEmployeesData={initialEmployees}
           />
         </DialogContent>
       </Dialog>

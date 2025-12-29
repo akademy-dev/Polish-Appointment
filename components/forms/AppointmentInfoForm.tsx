@@ -341,6 +341,7 @@ const AppointmentInfoForm = ({
                   <div className="flex flex-col gap-1">
                     <FormControl>
                       <Input
+                        {...field}
                         type="text"
                         id="note"
                         autoComplete="off"
