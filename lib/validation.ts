@@ -99,20 +99,20 @@ export const appointmentTimeOffSchema = z
     }),
     startTime: z.string().min(1, "Start time is required"),
     duration: z.union([z.number().min(1), z.literal("to_close")]),
-    reason: z.string().optional(),
+    reason: z.string().nullish(),
     isRecurring: z.boolean(),
     recurringDuration: z
       .object({
         value: z.number().min(1).max(26),
         unit: z.enum(["days", "weeks", "months"]),
       })
-      .optional(),
+      .nullish(),
     recurringFrequency: z
       .object({
         value: z.number().min(1).max(26),
         unit: z.enum(["days", "weeks"]),
       })
-      .optional(),
+      .nullish(),
   })
   .refine(
     (data) => {
