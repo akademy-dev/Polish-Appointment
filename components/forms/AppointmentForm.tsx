@@ -34,6 +34,13 @@ for (let min = 15; min <= 240; min += 15) {
   intervals.push(min);
 }
 
+// Global caches to prevent duplicate requests across remounts
+const globalServicesCache: { data: any; promise: Promise<any> | null } = {
+  data: null,
+  promise: null,
+};
+const globalCustomerHistoryCache = new Map<string, { data: any; promise: Promise<any> | null }>();
+
 export const AppointmentForm = ({
   onSuccess,
   hideSubmitButton = false,
@@ -47,6 +54,7 @@ export const AppointmentForm = ({
   onCancelStandingSuccess,
   setIsSubmitting,
   initialAppointments,
+  initialEmployeesData,
 }: {
   onSuccess?: () => void;
   hideSubmitButton?: boolean;
@@ -60,6 +68,7 @@ export const AppointmentForm = ({
   onCancelStandingSuccess?: () => void;
   setIsSubmitting?: (value: boolean) => void;
   initialAppointments?: Appointment[];
+  initialEmployeesData?: any[];
 }) => {
   const [showAppointmentInfo, setShowAppointmentInfo] = React.useState(
     type === "edit"
@@ -281,14 +290,41 @@ export const AppointmentForm = ({
     showAppointmentInfo,
   ]);
 
+  // No local cache needed, using globalCustomerHistoryCache
+
   React.useEffect(() => {
+    let isMounted = true;
     async function fetchCustomerHistory() {
       if (customerRef) {
         try {
-          // Fetch all appointments for this customer from Supabase
-          const customerHistoryRes = await fetch(
-            `/api/appointments?customerId=${customerRef}`
-          ).then((res) => res.json());
+          let historyPromise;
+          const cached = globalCustomerHistoryCache.get(customerRef);
+
+          // Check global cache
+          if (cached && cached.promise) {
+            historyPromise = cached.promise;
+          } else {
+            // New fetch
+            const p = fetch(
+              `/api/appointments?customerId=${customerRef}`
+            ).then((res) => res.json());
+
+            globalCustomerHistoryCache.set(customerRef, {
+              data: null,
+              promise: p,
+            });
+            historyPromise = p;
+          }
+
+          const customerHistoryRes = await historyPromise;
+
+          // Update cache data when resolved
+          const currentCache = globalCustomerHistoryCache.get(customerRef);
+          if (currentCache) {
+            currentCache.data = customerHistoryRes;
+          }
+
+          if (!isMounted) return;
 
           // Filter out cancelled appointments and map data
           const filteredAndMappedData = (customerHistoryRes || [])
@@ -345,14 +381,15 @@ export const AppointmentForm = ({
             });
           setCustomerHistory([...filteredAndMappedData]); // always new reference
         } catch (error) {
-          setCustomerHistory([]);
+          if (isMounted) setCustomerHistory([]);
         }
       } else {
-        setCustomerHistory([]); // also a new reference
+        if (isMounted) setCustomerHistory([]); // also a new reference
       }
     }
 
     fetchCustomerHistory();
+    return () => { isMounted = false; };
   }, [customerRef]);
 
   const [customerValue, setCustomerValue] = React.useState<string>("");
@@ -408,25 +445,84 @@ export const AppointmentForm = ({
     // This will trigger the useEffect to set showAppointmentInfo to false
   }, [form]);
 
-  // Fetch services and employees in parallel - optimized with Promise.all
+  // No local servicesCache needed
+
+  // Fetch services and employees - optimized
   React.useEffect(() => {
     let isMounted = true;
 
     (async () => {
       try {
-        // Set loading states
         setServicesLoading(true);
-        setEmployeesLoading(true);
 
-        // Fetch services and employees in parallel
-        const [servicesRes, employeesRes] = await Promise.all([
-          fetch("/api/services").then((res) => res.json()),
-          fetch("/api/employees").then((res) => res.json()),
+        // Handle Employees
+        let employeesPromise;
+        if (initialEmployeesData) {
+          // Use provided data immediately
+          const employeeList = (initialEmployeesData || []).map((employee: any) => ({
+            value: employee._id || employee.id,
+            _id: employee._id || employee.id,
+            label:
+              getProfileName(employee) || `${employee.first_name || ""} ${employee.last_name || ""}`.trim(),
+            assignedServices: (employee.assignedServices || []).map(
+              (as: any) => ({
+                serviceId: as.serviceId || as.service_id,
+                price: as.price || 0,
+                duration: as.duration || 0,
+                processTime: as.processTime || as.process_time || 0,
+              })
+            ),
+          }));
+          setEmployees(employeeList);
+          setEmployeesLoading(false);
+          employeesPromise = Promise.resolve(initialEmployeesData);
+        } else {
+          setEmployeesLoading(true);
+          employeesPromise = fetch("/api/employees").then((res) => res.json());
+        }
+
+        // SERVICES FETCH (using cache)
+        let servicesPromise;
+        if (globalServicesCache.data) {
+          const transformedServices = (globalServicesCache.data || []).map((s: any) => ({
+            _id: s.id,
+            name: s.name,
+            price: s.price,
+            duration: s.duration,
+            category: s.category || {
+              _id: "",
+              name: "",
+            },
+          }));
+          setServices(transformedServices);
+          servicesPromise = Promise.resolve(globalServicesCache.data);
+        } else if (globalServicesCache.promise) {
+          servicesPromise = globalServicesCache.promise.then(data => {
+            globalServicesCache.data = data;
+            return data;
+          });
+        } else {
+          const p = fetch("/api/services").then((res) => res.json());
+          globalServicesCache.promise = p;
+          servicesPromise = p.then(data => {
+            globalServicesCache.data = data;
+            return data;
+          });
+        }
+
+        const [servicesRes, employeesResRaw] = await Promise.all([
+          servicesPromise,
+          (!initialEmployeesData) ? employeesPromise : Promise.resolve(null)
         ]);
 
         if (!isMounted) return;
 
-        // Transform services
+        // Process Services (if newly fetched)
+        if (!globalServicesCache.data && servicesRes) { // actually resolved now
+          globalServicesCache.data = servicesRes;
+        }
+
+        // Re-set services from resolved data (ensures consistency)
         const transformedServices = (servicesRes || []).map((s: any) => ({
           _id: s.id,
           name: s.name,
@@ -438,30 +534,34 @@ export const AppointmentForm = ({
           },
         }));
         setServices(transformedServices);
+        setServicesLoading(false);
 
-        // Transform employees
-        const employeeList = (employeesRes || []).map((employee: any) => ({
-          value: employee.id,
-          _id: employee.id,
-          label:
-            `${employee.first_name || ""} ${employee.last_name || ""}`.trim(),
-          assignedServices: (employee.assignedServices || []).map(
-            (as: any) => ({
-              serviceId: as.serviceId || as.service_id,
-              price: as.price || 0,
-              duration: as.duration || 0,
-              processTime: as.processTime || as.process_time || 0,
-            })
-          ),
-        }));
-        setEmployees(employeeList);
+        // Process Employees (only if fetched)
+        if (!initialEmployeesData && employeesResRaw) {
+          const employeeList = (employeesResRaw || []).map((employee: any) => ({
+            value: employee.id,
+            _id: employee.id,
+            label:
+              `${employee.first_name || ""} ${employee.last_name || ""}`.trim(),
+            assignedServices: (employee.assignedServices || []).map(
+              (as: any) => ({
+                serviceId: as.serviceId || as.service_id,
+                price: as.price || 0,
+                duration: as.duration || 0,
+                processTime: as.processTime || as.process_time || 0,
+              })
+            ),
+          }));
+          setEmployees(employeeList);
+          setEmployeesLoading(false);
+        }
 
         // Only reset services if not in edit mode and services are empty
         if (type !== "edit") {
           const serviceRefs = form
             .getValues("services")
             .map((service: { _ref: string }) => service._ref);
-          const selectedServices = servicesRes.filter((service: Service) =>
+          const selectedServices = (servicesRes || []).filter((service: Service) =>
             serviceRefs.includes(service._id)
           );
           form.setValue(
@@ -473,20 +573,31 @@ export const AppointmentForm = ({
             }))
           );
         }
+
       } catch (error) {
         if (isMounted) {
           setServices([]);
-          setEmployees([]);
+          // Don't clear employees if we had initial data? 
+          // Ideally we handle errors more gracefully but this matches previous behavior
+          if (!initialEmployeesData) setEmployees([]);
         }
       } finally {
         if (isMounted) {
           setServicesLoading(false);
-          setEmployeesLoading(false);
+          if (!initialEmployeesData) setEmployeesLoading(false);
         }
       }
     })();
 
-    // Fetch customer and appointments in parallel if in edit mode
+    return () => {
+      isMounted = false;
+    };
+  }, [initialEmployeesData]); // Removed 'type' and 'form' dependencies for static data!
+
+  // Fetch customer and appointments in parallel if in edit mode (Dynamic Data)
+  React.useEffect(() => {
+    let isMounted = true;
+
     if (type === "edit" && form.getValues("customer._ref")) {
       (async () => {
         try {
@@ -629,7 +740,7 @@ export const AppointmentForm = ({
     return () => {
       isMounted = false;
     };
-  }, [type, form]);
+  }, [type, form]); // Dependency array for dynamic data
 
   // Check for upcoming appointments in the next 2 weeks
   const checkUpcomingAppointments = async (customerId: string) => {
