@@ -39,12 +39,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Service } from "@/models/service";
+import { Category } from "@/models/category";
 import { formatMinuteDuration } from "@/lib/utils";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface EmployeeDetailClientProps {
   employee: EmployeeWithRelations | null;
   allServices: ServiceWithCategory[];
+  categories: Category[];
 }
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -108,11 +110,18 @@ const generateTimeOptions = () => {
   return options;
 };
 
-const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientProps) => {
+const EmployeeDetailClient = ({
+  employee,
+  allServices,
+  categories,
+}: EmployeeDetailClientProps) => {
   const router = useRouter();
   const [isDirty, setIsDirty] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { services, loading: servicesLoading } = useServices();
+
+  // Use props directly
+  const services = allServices as unknown as Service[];
+  const servicesLoading = false;
   const isCreateMode = !employee;
   const [selectedForAction, setSelectedForAction] = useState<{
     [key: string]: boolean;
@@ -131,8 +140,8 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
     resolver: zodResolver(employeeFormSchema),
     mode: "onChange",
     defaultValues: {
-      firstName: employee?.first_name || employee?.firstName || "",
-      lastName: employee?.last_name || employee?.lastName || "",
+      firstName: employee?.first_name || "",
+      lastName: employee?.last_name || "",
       phone: employee?.phone || "",
       position: (employee?.position as "owner" | "serviceProvider" | "backRoom") || "backRoom",
       note: employee?.note || "",
@@ -145,7 +154,6 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
         serviceId: as.serviceId || "",
         price: as.price || 0,
         duration: as.duration || 0,
-        processTime: as.processTime || 0,
         processTime: as.processTime || 0,
       })),
       hourlyRate: employee?.hourly_rate || employee?.hourlyRate || 0,
@@ -173,9 +181,9 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
 
   const employeeName = isCreateMode
     ? "New Employee"
-    : (employee.first_name || employee.firstName || "") +
+    : (employee.first_name || "") +
     " " +
-    (employee.last_name || employee.lastName || "");
+    (employee.last_name || "");
 
   const watchedWorkingTimes = form.watch("workingTimes");
   const workingTimeMap = new Map(
@@ -278,7 +286,7 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
   const updateServiceField = (
     serviceId: string,
     field: keyof AssignedService,
-    value: string | number | boolean,
+    value: string | number,
     section: "assigned" | "available",
   ) => {
     if (section === "assigned") {
@@ -762,6 +770,7 @@ const EmployeeDetailClient = ({ employee, allServices }: EmployeeDetailClientPro
                         </label>
                         <textarea
                           {...field}
+                          value={field.value || ""}
                           className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
                         />
                       </div>
