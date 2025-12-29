@@ -27,7 +27,12 @@ import { cancelRecurringAppointments } from "@/lib/actions";
 import { createTimeOff } from "@/actions/time-off";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { safeParseDate, calculateDuration } from "@/lib/utils";
+import {
+  safeParseDate,
+  calculateDuration,
+  setTimeToDate,
+  getIanaTimezone,
+} from "@/lib/utils";
 
 const intervals: number[] = [];
 for (let min = 15; min <= 240; min += 15) {
@@ -55,6 +60,8 @@ export const AppointmentForm = ({
   setIsSubmitting,
   initialAppointments,
   initialEmployeesData,
+  maxTime,
+  timezone,
 }: {
   onSuccess?: () => void;
   hideSubmitButton?: boolean;
@@ -69,6 +76,8 @@ export const AppointmentForm = ({
   setIsSubmitting?: (value: boolean) => void;
   initialAppointments?: Appointment[];
   initialEmployeesData?: any[];
+  maxTime?: string;
+  timezone?: string;
 }) => {
   const [showAppointmentInfo, setShowAppointmentInfo] = React.useState(
     type === "edit"
@@ -857,6 +866,29 @@ export const AppointmentForm = ({
     }
 
     const timeOffData = timeOffForm.getValues();
+
+    // Calculate duration only if "to_close" is selected (string)
+    if (timeOffData.duration === "to_close") {
+      if (!maxTime || !timezone) {
+        toast.error(
+          "Cannot calculate 'To Close' duration: Missing store hours or timezone configuration"
+        );
+        return;
+      }
+
+      const start = new Date(timeOffData.startTime);
+      const end = setTimeToDate(start, maxTime, timezone);
+
+      if (end) {
+        const calculatedDuration = Math.round(
+          (end.getTime() - start.getTime()) / (1000 * 60)
+        );
+        timeOffData.duration = calculatedDuration;
+      } else {
+        toast.error("Could not calculate duration to closing time");
+        return;
+      }
+    }
 
     // Validate required fields
     if (!timeOffData.startTime) {

@@ -50,7 +50,14 @@ import {
 } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ConflictDialog } from "@/components/ConflictDialog";
-import { getIanaTimezone, safeParseDate, calculateDuration } from "@/lib/utils";
+import {
+  getIanaTimezone,
+  safeParseDate,
+  calculateDuration,
+  setTimeToDate,
+  formatToISO8601,
+  isValidTimeString,
+} from "@/lib/utils";
 import { deleteTimeOff, updateTimeOff } from "@/actions/time-off";
 import {
   Select,
@@ -94,26 +101,6 @@ interface AppointmentScheduleProps {
   minTime?: string;
   maxTime?: string;
 }
-
-export const formatToISO8601 = (
-  date: Date,
-  time: string,
-  timezone: string
-): string => {
-  const dateMoment = moment.tz(date, getIanaTimezone(timezone));
-  const [hours, minutes] =
-    time.includes("AM") || time.includes("PM")
-      ? moment(time, "h:mm A").format("HH:mm").split(":")
-      : time.split(":");
-  return dateMoment
-    .set({
-      hour: parseInt(hours, 10),
-      minute: parseInt(minutes, 10),
-      second: 0,
-      millisecond: 0,
-    })
-    .toISOString();
-};
 
 const generateNotWorkingEvents = (
   employees: Employee[],
@@ -200,29 +187,6 @@ const generateNotWorkingEvents = (
   return notWorkingEvents;
 };
 
-const isValidTimeString = (timeStr: string): boolean => {
-  const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$/i;
-  return timeRegex.test(timeStr.trim());
-};
-
-const setTimeToDate = (
-  date: Date,
-  timeStr: string,
-  timezone: string
-): Date | null => {
-  timeStr = timeStr.trim();
-  if (!isValidTimeString(timeStr)) {
-    return null;
-  }
-
-  const isoTime = formatToISO8601(date, timeStr, timezone);
-  const momentTime = moment.tz(isoTime, getIanaTimezone(timezone));
-  if (!momentTime.isValid()) {
-    return null;
-  }
-  return momentTime.toDate();
-};
-
 const generateAppointmentTimeOffEvents = (
   appointmentTimeOffs: any[],
   date: Date,
@@ -232,7 +196,7 @@ const generateAppointmentTimeOffEvents = (
   const events: any[] = [];
 
   appointmentTimeOffs.forEach((timeOff) => {
-    if (!timeOff.employee || !timeOff.startTime || !timeOff.duration) {
+    if (!timeOff.employee || !timeOff.startTime) {
       return;
     }
 
@@ -267,7 +231,11 @@ const generateAppointmentTimeOffEvents = (
         .toDate();
       let endTime;
 
-      if (timeOff.duration === "to_close") {
+      if (
+        timeOff.duration === "to_close" ||
+        timeOff.duration === null ||
+        timeOff.duration === undefined
+      ) {
         // For "to close", set end time to the end of the day (maxTime)
         const maxTimeMoment = setTimeToDate(date, maxTime, timezone);
         endTime =
@@ -599,26 +567,19 @@ const AppointmentScheduleTimezone = ({
     setIsLoading(false);
   }, [initialAppointments, setIsLoading]);
 
-  // Fetch appointment time off data from Supabase
-  const fetchAppointmentTimeOffs = React.useCallback(async () => {
-    try {
-      const response = await fetch("/api/appointment-time-off");
-      const timeOffs = await response.json();
-      setAppointmentTimeOffs(timeOffs || []);
-    } catch (error) {
-      setAppointmentTimeOffs([]);
-    }
-  }, []);
-
-  // Fetch appointment time offs on component mount
-  useEffect(() => {
-    fetchAppointmentTimeOffs();
-  }, [fetchAppointmentTimeOffs]);
-
   // Refresh appointment time offs when appointments change (indicating new time off was created)
-  useEffect(() => {
+  // Remove self-fetch as it's now synced via props
+  /* useEffect(() => {
     fetchAppointmentTimeOffs();
-  }, [initialAppointments, fetchAppointmentTimeOffs]);
+  }, [initialAppointments, fetchAppointmentTimeOffs]); */
+
+  // Fetch appointment time off data from Supabase
+  // Sync with initialAppointmentTimeOffs when they change (from server)
+  useEffect(() => {
+    if (initialAppointmentTimeOffs) {
+      setAppointmentTimeOffs(initialAppointmentTimeOffs);
+    }
+  }, [initialAppointmentTimeOffs]);
 
   const updateUrlParams = (updates: Record<string, string | boolean>) => {
     const currentParams = new URLSearchParams(searchParams.toString());
@@ -830,7 +791,6 @@ const AppointmentScheduleTimezone = ({
         startTransition(() => {
           router.refresh();
         });
-        fetchAppointmentTimeOffs(); // Refresh time off data
       } else {
         toast.error("Error", {
           description: result.error,
@@ -867,7 +827,9 @@ const AppointmentScheduleTimezone = ({
         toast.success("Time off cancelled successfully");
         setShowTimeOffDialog(false);
         setSelectedTimeOff(null);
-        fetchAppointmentTimeOffs();
+        startTransition(() => {
+          router.refresh();
+        });
       } else {
         toast.error("Error cancelling time off", {
           description: result.error,
@@ -887,14 +849,30 @@ const AppointmentScheduleTimezone = ({
 
     setIsSubmitting(true);
     try {
-      const result = await updateTimeOff(selectedTimeOff._id, editingTimeOff);
+      let timeOffToUpdate = { ...editingTimeOff };
+
+      // Calculate duration if "to_close"
+      if (editingTimeOff.duration === "to_close") {
+        const start = new Date(editingTimeOff.startTime);
+        const end = setTimeToDate(start, maxTime, timezone);
+        if (end) {
+          const duration = Math.round(
+            (end.getTime() - start.getTime()) / (1000 * 60)
+          );
+          timeOffToUpdate.duration = duration;
+        }
+      }
+
+      const result = await updateTimeOff(selectedTimeOff._id, timeOffToUpdate);
 
       if (result.status === "SUCCESS") {
         toast.success("Time off updated successfully");
         setShowTimeOffDialog(false);
         setSelectedTimeOff(null);
         setEditingTimeOff(null);
-        fetchAppointmentTimeOffs();
+        startTransition(() => {
+          router.refresh();
+        });
       } else {
         toast.error("Error updating time off", {
           description: result.error,
@@ -923,6 +901,7 @@ const AppointmentScheduleTimezone = ({
         isRecurring: selectedTimeOff.isRecurring,
         recurringDuration: selectedTimeOff.recurringDuration,
         recurringFrequency: selectedTimeOff.recurringFrequency,
+        _createdAt: selectedTimeOff._createdAt,
       });
     }
   };
@@ -1168,7 +1147,6 @@ const AppointmentScheduleTimezone = ({
           startTransition(() => {
             router.refresh();
           });
-          fetchAppointmentTimeOffs(); // Refresh time off data
         } else {
           toast.error("Error", {
             description: result.error,
@@ -1188,7 +1166,8 @@ const AppointmentScheduleTimezone = ({
           if (formValues.isRecurring) {
             const startTime = new Date(formValues.time);
             const totalDuration = formValues.services.reduce(
-              (total, service) => total + service.duration * service.quantity,
+              (total, service) =>
+                total + service.duration * service.quantity,
               0
             );
             const endTime = new Date(
@@ -1354,7 +1333,6 @@ const AppointmentScheduleTimezone = ({
             startTransition(() => {
               router.refresh();
             });
-            fetchAppointmentTimeOffs(); // Refresh time off data
           } else {
             toast.error("Error", {
               description: result.error,
@@ -1677,7 +1655,7 @@ const AppointmentScheduleTimezone = ({
               : [];
             appointmentForm.setValue("services", newServices);
             setDuration(calendarEvent.data.duration || 0);
-            // Reset RPC appointments if fallback
+            // Reset RPC appointments for fallback
             setRpcAppointments([]);
           }
 
@@ -2406,7 +2384,8 @@ const AppointmentScheduleTimezone = ({
             isSubmitting={isSubmitting}
             type={type}
             onTimeOffCreated={() => {
-              fetchAppointmentTimeOffs();
+              // Refresh is handled by the form component via props or we can do it here if needed
+              // But strictly speaking, if we follow the pattern, we should rely on router.refresh()
               setOpen(false);
             }}
             setIsCancellingStanding={setIsCancellingStanding}
@@ -2416,6 +2395,8 @@ const AppointmentScheduleTimezone = ({
               rpcAppointments.length > 0 ? rpcAppointments : undefined
             }
             initialEmployeesData={initialEmployees}
+            maxTime={maxTime}
+            timezone={timezone}
           />
         </DialogContent>
       </Dialog>
@@ -2500,23 +2481,30 @@ const AppointmentScheduleTimezone = ({
                           .format("MMM DD, YYYY h:mm A")}
                       </p>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Duration</label>
-                      <p className="text-sm text-gray-600">
-                        {formatDuration(selectedTimeOff.duration)}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Recurring</label>
-                      <p className="text-sm text-gray-600">
-                        {selectedTimeOff.isRecurring ? "Yes" : "No"}
-                      </p>
-                    </div>
                   </div>
-
                   <div
                     className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}
                   >
+                    <div>
+                      <label className="text-sm font-medium">Duration</label>
+                      <p className="text-sm text-gray-600">
+                        {selectedTimeOff.duration
+                          ? formatDuration(selectedTimeOff.duration)
+                          : formatDuration(
+                            moment
+                              .duration(
+                                moment(
+                                  setTimeToDate(
+                                    moment(selectedTimeOff.startTime).toDate(),
+                                    maxTime,
+                                    timezone
+                                  )!
+                                ).diff(moment(selectedTimeOff.startTime))
+                              )
+                              .asMinutes()
+                          )}
+                      </p>
+                    </div>
                     <div>
                       <label className="text-sm font-medium">Created At</label>
                       <p className="text-sm text-gray-600">
@@ -2524,21 +2512,6 @@ const AppointmentScheduleTimezone = ({
                           ? moment
                             .tz(
                               selectedTimeOff._createdAt,
-                              getIanaTimezone(timezone)
-                            )
-                            .format("MMM DD, YYYY h:mm A")
-                          : "N/A"}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">
-                        Last Updated
-                      </label>
-                      <p className="text-sm text-gray-600">
-                        {selectedTimeOff._updatedAt
-                          ? moment
-                            .tz(
-                              selectedTimeOff._updatedAt,
                               getIanaTimezone(timezone)
                             )
                             .format("MMM DD, YYYY h:mm A")
@@ -2582,6 +2555,8 @@ const AppointmentScheduleTimezone = ({
                         </div>
                       </div>
                     )}
+
+
 
                   <div
                     className={`flex ${isMobile ? "flex-col" : "justify-end"} gap-2 pt-4`}
@@ -2635,71 +2610,54 @@ const AppointmentScheduleTimezone = ({
                     </div>
                   </div>
 
-                  <div
-                    className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}
-                  >
-                    <div>
-                      <label className="text-sm font-medium">Created At</label>
-                      <p className="text-sm text-gray-600">
-                        {selectedTimeOff._createdAt
-                          ? moment
-                            .tz(
-                              selectedTimeOff._createdAt,
-                              getIanaTimezone(timezone)
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="duration">Duration</Label>
+                      <Select
+                        value={editingTimeOff.duration?.toString() || ""}
+                        onValueChange={(value) => {
+                          if (value === "to_close") {
+                            setEditingTimeOff((prev: any) => ({
+                              ...prev,
+                              duration: "to_close",
+                            }));
+                          } else {
+                            setEditingTimeOff((prev: any) => ({
+                              ...prev,
+                              duration: Number(value),
+                            }));
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 32 }, (_, i) => (i + 1) * 15).map(
+                            (min) => (
+                              <SelectItem key={min} value={min.toString()}>
+                                {formatDuration(min)}
+                              </SelectItem>
                             )
-                            .format("MMM DD, YYYY h:mm A")
-                          : "N/A"}
-                      </p>
+                          )}
+                          <SelectItem value="to_close">To close</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">
-                        Last Updated
-                      </label>
-                      <p className="text-sm text-gray-600">
-                        {selectedTimeOff._updatedAt
-                          ? moment
-                            .tz(
-                              selectedTimeOff._updatedAt,
-                              getIanaTimezone(timezone)
-                            )
-                            .format("MMM DD, YYYY h:mm A")
-                          : "N/A"}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="duration">Duration</Label>
-                    <Select
-                      value={editingTimeOff.duration?.toString() || ""}
-                      onValueChange={(value) => {
-                        if (value === "to_close") {
-                          setEditingTimeOff((prev: any) => ({
-                            ...prev,
-                            duration: "to_close",
-                          }));
-                        } else {
-                          setEditingTimeOff((prev: any) => ({
-                            ...prev,
-                            duration: Number(value),
-                          }));
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select duration" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 32 }, (_, i) => (i + 1) * 15).map(
-                          (min) => (
-                            <SelectItem key={min} value={min.toString()}>
-                              {formatDuration(min)}
-                            </SelectItem>
-                          )
-                        )}
-                        <SelectItem value="to_close">To close</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-1">
+                      <Label>Created At</Label>
+                      <p className="text-sm text-gray-600">
+                        {editingTimeOff._createdAt
+                          ? moment
+                            .tz(
+                              editingTimeOff._createdAt,
+                              getIanaTimezone(timezone)
+                            )
+                            .format("MMM DD, YYYY h:mm A")
+                          : "N/A"}
+                      </p>
+                    </div>
                   </div>
 
                   {editingTimeOff.reason && (
@@ -2761,7 +2719,7 @@ const AppointmentScheduleTimezone = ({
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 };
 
