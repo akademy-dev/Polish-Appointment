@@ -1005,7 +1005,8 @@ const FormButton = ({
                 value: formValues.recurringFrequency.value,
                 unit: formValues.recurringFrequency.unit,
               }
-              : undefined
+              : undefined,
+            timezone
           );
 
           if (
@@ -1128,7 +1129,8 @@ const FormButton = ({
                   value: formValues.recurringFrequency.value,
                   unit: formValues.recurringFrequency.unit,
                 }
-                : undefined
+                : undefined,
+              timezone
             );
 
             if (
