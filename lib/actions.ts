@@ -820,7 +820,8 @@ export const checkRecurringConflicts = async (
   endTime: string,
   isRecurring: boolean,
   recurringDuration?: { value: number; unit: "days" | "weeks" | "months" },
-  recurringFrequency?: { value: number; unit: "days" | "weeks" }
+  recurringFrequency?: { value: number; unit: "days" | "weeks" },
+  timezone: string = "UTC"
 ) => {
   try {
     // Get employee with working times and time off schedules
@@ -845,7 +846,8 @@ export const checkRecurringConflicts = async (
       const workingTimeConflicts = checkWorkingTimeConflicts(
         employee,
         new Date(startTime),
-        new Date(endTime)
+        new Date(endTime),
+        timezone
       );
 
       const timeOffConflicts = checkTimeOffConflicts(
@@ -935,27 +937,25 @@ export const checkRecurringConflicts = async (
 
     // Check each occurrence for conflicts
     for (let occurrence = 0; occurrence < totalAppointments; occurrence++) {
-      // Calculate occurrence time
-      const originalDate = new Date(startTime);
-      const originalHour = originalDate.getHours();
-      const originalMinute = originalDate.getMinutes();
+      // Calculate occurrence time using moment-timezone to respect daylight saving and timezone
+      const originalMoment = moment.tz(startTime, timezone);
 
-      let daysToAdd = 0;
-      if (occurrence > 0 && recurringFrequency) {
-        switch (recurringFrequency.unit) {
-          case "days":
-            daysToAdd = recurringFrequency.value * occurrence;
-            break;
-          case "weeks":
-            daysToAdd = recurringFrequency.value * 7 * occurrence;
-            break;
-        }
+      let occurrenceMoment;
+
+      if (occurrence === 0) {
+        occurrenceMoment = originalMoment.clone();
+      } else if (recurringFrequency) {
+        // Use moment's add function which handles months/years/DST correctly
+        occurrenceMoment = originalMoment.clone().add(
+          recurringFrequency.value * occurrence,
+          recurringFrequency.unit // moment supports 'days', 'weeks' directly
+        );
+      } else {
+        // Should not happen if totalAppointments > 1, but fallback
+        occurrenceMoment = originalMoment.clone();
       }
 
-      const occurrenceTime = new Date(originalDate);
-      occurrenceTime.setDate(originalDate.getDate() + daysToAdd);
-      occurrenceTime.setHours(originalHour, originalMinute, 0, 0);
-
+      const occurrenceTime = occurrenceMoment.toDate();
       const durationMs =
         new Date(endTime).getTime() - new Date(startTime).getTime();
       const currentStartTime = occurrenceTime;
@@ -979,7 +979,8 @@ export const checkRecurringConflicts = async (
       const workingTimeConflicts = checkWorkingTimeConflicts(
         employee,
         currentStartTime,
-        currentEndTime
+        currentEndTime,
+        timezone
       );
 
       const timeOffConflicts = checkTimeOffConflicts(
@@ -1030,7 +1031,8 @@ export const checkRecurringConflicts = async (
 const checkWorkingTimeConflicts = (
   employee: any,
   startTime: Date,
-  endTime: Date
+  endTime: Date,
+  timezone: string = "UTC"
 ) => {
   const conflicts: any[] = [];
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -1066,15 +1068,17 @@ const checkWorkingTimeConflicts = (
     return conflicts;
   }
 
-  // Check if appointment is outside working hours using moment.js
-  const appointmentDate = moment(startTime).format("YYYY-MM-DD");
-  const workStart = moment(
+  // Check if appointment is outside working hours using moment.js with timezone
+  const appointmentDate = moment(startTime).tz(timezone).format("YYYY-MM-DD");
+  const workStart = moment.tz(
     `${appointmentDate} ${workSchedule.from}`,
-    "YYYY-MM-DD h:mm A"
+    "YYYY-MM-DD h:mm A",
+    timezone
   ).toDate();
-  const workEnd = moment(
+  const workEnd = moment.tz(
     `${appointmentDate} ${workSchedule.to}`,
-    "YYYY-MM-DD h:mm A"
+    "YYYY-MM-DD h:mm A",
+    timezone
   ).toDate();
 
   // Only conflict if appointment is completely outside working hours

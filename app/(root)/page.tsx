@@ -53,17 +53,29 @@ const page = async ({ searchParams }: PageProps) => {
   const cancelled = resolvedSearchParams.cancelled === "true";
   const completed = resolvedSearchParams.completed === "true";
 
-  const employeesData = await getAllEmployees();
+  // Parallelize remaining fetches
+  // Import getAppointmentsByDate dynamically if needed, or just call it if it's imported at top (it's imported inside currently)
+  const { getAppointmentsByDate } = await import("@/data/appointment");
+
+  const [employeesData, appointmentsData, appointmentTimeOffsData] = await Promise.all([
+    getAllEmployees(),
+    getAppointmentsByDate(
+      date,
+      undefined,
+      parseOffset(settingData.timezone)
+    ),
+    getAppointmentTimeOffs()
+  ]);
 
   // Transform employees to match expected format
-  const employees = {
+  const employees: { data: import("@/models/employee").Employee[] } = {
     data: employeesData.map((emp) => ({
       _id: emp.id,
-      _type: "employee",
+      _type: "employee" as const,
       firstName: emp.first_name,
       lastName: emp.last_name,
       phone: emp.phone,
-      position: emp.position,
+      position: emp.position as "owner" | "serviceProvider" | "backRoom",
       note: emp.note,
       _createdAt: emp.created_at,
       workingTimes: emp.workingTimes || [],
@@ -71,15 +83,9 @@ const page = async ({ searchParams }: PageProps) => {
       assignedServices: emp.assignedServices || [],
     })),
   };
-  const { getAppointmentsByDate } = await import("@/data/appointment");
-  const appointmentsData = await getAppointmentsByDate(
-    date,
-    undefined,
-    parseOffset(settingData.timezone)
-  );
 
   // Transform appointments to match expected format
-  const appointments = {
+  const appointments: { data: import("@/models/appointment").Appointment[] } = {
     data: appointmentsData.map((apt) => ({
       _id: apt.id,
       _createdAt: apt.created_at,
@@ -110,14 +116,15 @@ const page = async ({ searchParams }: PageProps) => {
         }
         : undefined,
       reminder: apt.reminder || [],
-      type: apt.type,
-      status: apt.status,
+      reminderDateTimes: apt.reminder_datetime || [],
+      smsMessage: apt.sms_message || "",
+      type: apt.type as "appointment" | "break" | "time-off",
+      status: apt.status as "scheduled" | "confirmed" | "completed" | "cancelled" | "no-show",
       note: apt.note,
       recurringGroupId: apt.recurring_group_id,
     })),
   };
 
-  const appointmentTimeOffsData = await getAppointmentTimeOffs();
   const appointmentTimeOffs = {
     data: appointmentTimeOffsData || [],
   };
