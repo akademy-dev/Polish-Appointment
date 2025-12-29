@@ -140,8 +140,8 @@ const EmployeeDetailClient = ({
     resolver: zodResolver(employeeFormSchema),
     mode: "onChange",
     defaultValues: {
-      firstName: employee?.first_name || employee?.firstName || "",
-      lastName: employee?.last_name || employee?.lastName || "",
+      firstName: employee?.first_name || "",
+      lastName: employee?.last_name || "",
       phone: employee?.phone || "",
       position: (employee?.position as "owner" | "serviceProvider" | "backRoom") || "backRoom",
       note: employee?.note || "",
@@ -154,7 +154,6 @@ const EmployeeDetailClient = ({
         serviceId: as.serviceId || "",
         price: as.price || 0,
         duration: as.duration || 0,
-        processTime: as.processTime || 0,
         processTime: as.processTime || 0,
       })),
       hourlyRate: employee?.hourly_rate || employee?.hourlyRate || 0,
@@ -182,9 +181,9 @@ const EmployeeDetailClient = ({
 
   const employeeName = isCreateMode
     ? "New Employee"
-    : (employee.first_name || employee.firstName || "") +
+    : (employee.first_name || "") +
     " " +
-    (employee.last_name || employee.lastName || "");
+    (employee.last_name || "");
 
   const watchedWorkingTimes = form.watch("workingTimes");
   const workingTimeMap = new Map(
@@ -287,7 +286,7 @@ const EmployeeDetailClient = ({
   const updateServiceField = (
     serviceId: string,
     field: keyof AssignedService,
-    value: string | number | boolean,
+    value: string | number,
     section: "assigned" | "available",
   ) => {
     if (section === "assigned") {
@@ -771,6 +770,7 @@ const EmployeeDetailClient = ({
                         </label>
                         <textarea
                           {...field}
+                          value={field.value || ""}
                           className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
                         />
                       </div>

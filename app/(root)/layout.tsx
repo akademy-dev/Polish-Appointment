@@ -10,7 +10,7 @@ import CreateInfoButton from "@/components/CreateInfoButton";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { LogOutIcon } from "lucide-react";
-import RootLoading from "@/app/(root)/Loading";
+import RootLoading from "@/app/(root)/loading";
 import { SettingsProvider, useSettings } from "@/hooks/use-settings";
 
 function LayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -55,9 +55,9 @@ function LayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
             <div className="flex items-center justify-between">
               <Navbar value={value} />
               {value !== "settings" &&
-              value !== "appointments" &&
-              value !== "time-tracking" &&
-              value !== "services" ? (
+                value !== "appointments" &&
+                value !== "time-tracking" &&
+                value !== "services" ? (
                 <div className="hidden lg:flex items-center gap-4">
                   <CreateInfoButton type={value} />
                 </div>

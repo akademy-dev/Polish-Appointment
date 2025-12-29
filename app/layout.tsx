@@ -23,7 +23,7 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
   return (
-    <SessionProvider session={session}>
+    <SessionProvider session={session} refetchOnWindowFocus={false}>
       <html lang="en" suppressHydrationWarning>
         <body
           className={` ${lexend.variable} antialiased lexend_abe6586a-module__pyLM9W__variable`}

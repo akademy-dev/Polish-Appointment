@@ -44,24 +44,47 @@ export const CategoriesProvider = ({ children }: CategoriesProviderProps) => {
 
   const fetchCategories = async () => {
     try {
+      if (globalCategoriesCache) {
+        setCategories(globalCategoriesCache);
+        setLoading(false);
+        return;
+      }
+
+      if (globalCategoriesPromise) {
+        setLoading(true);
+        const result = await globalCategoriesPromise;
+        const transformedCategories = (result || []).map((cat: any) => ({
+          _id: cat.id,
+          id: cat.id,
+          name: cat.name,
+        }));
+        setCategories(transformedCategories);
+        return;
+      }
+
       setLoading(true);
       setError(null);
-      const response = await fetch("/api/categories");
-      if (!response.ok) {
-        throw new Error("Failed to fetch categories");
-      }
-      const result = await response.json();
+
+      globalCategoriesPromise = fetch("/api/categories").then(res => {
+        if (!res.ok) throw new Error("Failed to fetch categories");
+        return res.json();
+      });
+
+      const result = await globalCategoriesPromise;
       // Transform to match expected format
       const transformedCategories = (result || []).map((cat: any) => ({
         _id: cat.id,
         id: cat.id,
         name: cat.name,
       }));
+
+      globalCategoriesCache = transformedCategories;
       setCategories(transformedCategories);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch categories"
       );
+      globalCategoriesPromise = null; // Reset promise on error
     } finally {
       setLoading(false);
     }
@@ -72,6 +95,8 @@ export const CategoriesProvider = ({ children }: CategoriesProviderProps) => {
   }, []);
 
   const refetch = () => {
+    globalCategoriesCache = null;
+    globalCategoriesPromise = null;
     fetchCategories();
   };
 
@@ -82,3 +107,6 @@ export const CategoriesProvider = ({ children }: CategoriesProviderProps) => {
   );
 };
 
+// Global cache variables
+let globalCategoriesCache: Category[] | null = null;
+let globalCategoriesPromise: Promise<any> | null = null;

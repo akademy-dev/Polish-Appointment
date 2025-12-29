@@ -64,7 +64,7 @@ import { AppointmentForm } from "@/components/forms/AppointmentForm";
 import { ConflictDialog } from "@/components/ConflictDialog";
 import { ColumnDef } from "@tanstack/react-table";
 import ProfileTableLoading from "./ProfileTableLoading";
-import { ArrowUpDown, CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { ArrowUpDown, CalendarIcon, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import * as React from "react";
 import { formatMinuteDuration, parseOffset, cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -1297,7 +1297,11 @@ const FormButton = ({
   const renderForm = () => {
     if (mode === "history" && type === "employees") {
       if (loadingHistory) {
-        return <ProfileTableLoading />;
+        return (
+          <div className="flex items-center justify-center h-full w-full min-w-[50vw] min-h-[50vh]">
+            <Loader2 className="h-24 w-24 animate-spin text-primary" />
+          </div>
+        );
       }
       const columns: ColumnDef<EmployeeHistoryRow>[] = [
         {
@@ -1518,7 +1522,11 @@ const FormButton = ({
       );
     } else if (mode === "history" && type === "customers") {
       if (loadingHistory) {
-        return <ProfileTableLoading />;
+        return (
+          <div className="flex items-center justify-center h-full w-full min-w-[50vw] min-h-[50vh]">
+            <Loader2 className="h-24 w-24 animate-spin text-primary" />
+          </div>
+        );
       }
       const columns: ColumnDef<CustomerHistoryRow>[] = [
         {
