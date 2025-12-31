@@ -1,137 +1,224 @@
 import twilio from "twilio";
-import {
-  SEND_SMS_QUERY,
-  TIMEZONE_QUERY,
-  UPDATE_APPOINTMENT_STATUS_QUERY,
-} from "@/sanity/lib/queries";
-import { Appointment } from "@/models/appointment";
+import { createClient } from "@supabase/supabase-js";
 import { formatInTimeZone } from "date-fns-tz";
-
 import * as dotenv from "dotenv";
 import * as path from "path";
-import { createClient } from "next-sanity";
 import { parseOffset } from "@/lib/utils";
 
 // Load .env.local
-dotenv.config({ path: path.resolve(".env.local") });
+dotenv.config({ path: path.resolve(".env") });
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
-const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
-const apiVersion = process.env.NEXT_PUBLIC_SANITY_API_VERSION;
-const token = process.env.SANITY_WRITE_TOKEN;
+const supabaseUrl = process.env.SUPABASE_URL;
+// Use service role key for backend scripts to bypass RLS if needed, or fallback to key
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
-const client = createClient({
-  projectId,
-  dataset,
-  apiVersion,
-  token,
-  useCdn: false,
-});
+if (!supabaseUrl || !supabaseKey) {
+    console.error("Missing Supabase credentials");
+    process.exit(1);
+}
 
-const writeClient = createClient({
-  projectId,
-  dataset,
-  apiVersion,
-  token,
-  useCdn: false, // Set to false for write operations
+const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+    },
 });
 
 const twilioClient = twilio(accountSid, authToken);
 
 async function runCronJob() {
-  const VARIABLE_LIST = ["Customer", "Employee", "Service", "Date Time"];
-  try {
-    // Tính khoảng thời gian: từ 5 phút trước đến hiện tại (sử dụng UTC để tránh lệ thuộc timezone cục bộ)
-    const now = new Date();
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    console.log("----------------------------------------");
+    console.log("Cron job started at:", new Date().toISOString());
+    const VARIABLE_LIST = ["Customer", "Employee", "Service", "Date Time"];
+    try {
+        // Calculate time window: 5 minutes ago to now
+        const now = new Date();
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
-    // Cập nhật truy vấn để lấy các cuộc hẹn trong khoảng thời gian
-    const appointments: Appointment[] = await client.fetch(SEND_SMS_QUERY, {
-      startTime: fiveMinutesAgo.toISOString(),
-      endTime: now.toISOString(),
-    });
+        console.log("Checking for appointments between:", fiveMinutesAgo.toISOString(), "and", now.toISOString());
 
-    const timezone = await client.fetch(TIMEZONE_QUERY);
+        // Fetch scheduled appointments from Supabase
+        const { data: allScheduledAppointments, error: fetchError } = await supabase
+            .from("appointments")
+            .select(`
+                id,
+                start_time,
+                end_time,
+                status,
+                reminder,
+                reminder_datetime,
+                customer:customers (
+                    id,
+                    first_name,
+                    last_name,
+                    phone
+                ),
+                employee:employees (
+                    id,
+                    first_name,
+                    last_name
+                ),
+                service:services (
+                    id,
+                    name,
+                    duration
+                )
+            `)
+            .eq("status", "scheduled");
 
-    // Set default values if data is null or missing
-    const settingData = timezone || {
-      timezone: "UTC-7:00",
-      minTime: "8:00 AM",
-      maxTime: "6:00 PM",
-      smsMessage:
-        "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
-    };
-
-    for (const appointment of appointments) {
-      let messageBody =
-        settingData.smsMessage ||
-        "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.";
-      VARIABLE_LIST.forEach((variable) => {
-        const regex = new RegExp(`{${variable}}`, "g");
-        switch (variable) {
-          case "Customer":
-            messageBody = messageBody.replace(
-              regex,
-              `${appointment.customer.firstName} ${appointment.customer.lastName}`
-            );
-            break;
-          case "Employee":
-            messageBody = messageBody.replace(
-              regex,
-              `${appointment.employee.firstName} ${appointment.employee.lastName}`
-            );
-            break;
-          case "Service":
-            messageBody = messageBody.replace(regex, appointment.service.name);
-            break;
-          case "Date Time":
-            // Sử dụng Intl.DateTimeFormat để format theo timezone cụ thể, tránh lệ thuộc timezone cục bộ của server
-            const formattedDate = formatInTimeZone(
-              new Date(appointment.startTime),
-              parseOffset(settingData.timezone || "UTC-7:00"),
-              "yyyy-MM-dd hh:mm a"
-            );
-            messageBody = messageBody.replace(regex, formattedDate);
-
-            break;
+        if (fetchError) {
+            throw new Error(`Failed to fetch appointments: ${fetchError.message}`);
         }
-      });
 
-      const toPhone = appointment.customer.phone;
-      if (!toPhone) {
-        continue;
-      }
+        console.log(`Debug: Total 'scheduled' appointments fetched: ${allScheduledAppointments?.length}`);
 
-      await twilioClient.messages.create({
-        body: messageBody,
-        from: twilioPhoneNumber,
-        to: toPhone,
-      });
+        // Filter appointments that have a reminder_datetime within the window
+        const appointmentsToProcess = (allScheduledAppointments || []).filter((apt) => {
+            const reminderDateTimes = apt.reminder_datetime;
+            if (!Array.isArray(reminderDateTimes) || reminderDateTimes.length === 0) {
+                return false;
+            }
+
+            // Check if any reminder time is in the window [fiveMinutesAgo, now]
+            const hasMatch = reminderDateTimes.some((dtString: string) => {
+                const dt = new Date(dtString);
+                const isMatch = dt >= fiveMinutesAgo && dt <= now;
+                // Log strictly for debugging near-matches
+                if (!isMatch && dt > new Date(now.getTime() - 15 * 60 * 1000) && dt < new Date(now.getTime() + 15 * 60 * 1000)) {
+                    console.log(`Debug: Near miss for Apt ${apt.id}. Reminder: ${dt.toISOString()}. Window: ${fiveMinutesAgo.toISOString()} - ${now.toISOString()}`);
+                }
+                return isMatch;
+            });
+
+            if (hasMatch) {
+                console.log(`Debug: Match found for Apt ${apt.id}`);
+            }
+
+            return hasMatch;
+        });
+
+        console.log(`Found ${appointmentsToProcess.length} appointments to process for execution.`);
+
+        // Fetch settings for timezone
+        let settingData = {
+            timezone: "UTC-7:00",
+            minTime: "8:00 AM",
+            maxTime: "6:00 PM",
+            smsMessage:
+                "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.",
+        };
+
+        const { data: settingsData, error: settingsError } = await supabase
+            .from("settings")
+            .select("*")
+            .single();
+
+        if (settingsData && !settingsError) {
+            settingData = {
+                ...settingData,
+                ...settingsData,
+                // Ensure timezone is valid or fallback
+                timezone: settingsData.timezone || "UTC-7:00",
+            };
+        }
+
+        for (const appointment of appointmentsToProcess) {
+            const customerName = appointment.customer ? `${appointment.customer.first_name} ${appointment.customer.last_name}` : "Customer";
+            console.log(`Processing appointment ID: ${appointment.id} for Customer: ${customerName}`);
+
+            let messageBody =
+                settingData.smsMessage ||
+                "Hi {Customer}, your appointment with {Employee} for {Service} is scheduled for {Date Time}. Please arrive 10 minutes early.";
+
+            VARIABLE_LIST.forEach((variable) => {
+                const regex = new RegExp(`{${variable}}`, "g");
+                switch (variable) {
+                    case "Customer":
+                        messageBody = messageBody.replace(
+                            regex,
+                            customerName
+                        );
+                        break;
+                    case "Employee":
+                        const employeeName = appointment.employee ? `${appointment.employee.first_name} ${appointment.employee.last_name}` : "Employee";
+                        messageBody = messageBody.replace(
+                            regex,
+                            employeeName
+                        );
+                        break;
+                    case "Service":
+                        messageBody = messageBody.replace(regex, appointment.service?.name || "Service");
+                        break;
+                    case "Date Time":
+                        // Format date based on settings timezone
+                        const formattedDate = formatInTimeZone(
+                            new Date(appointment.start_time),
+                            parseOffset(settingData.timezone),
+                            "yyyy-MM-dd hh:mm a"
+                        );
+                        messageBody = messageBody.replace(regex, formattedDate);
+                        break;
+                }
+            });
+
+            const toPhone = appointment.customer?.phone;
+            if (!toPhone) {
+                console.log(`Skipping appointment ${appointment.id}: No phone number for customer.`);
+                continue;
+            }
+
+            console.log(`Sending SMS to ${toPhone}: "${messageBody}"`);
+
+            try {
+                await twilioClient.messages.create({
+                    body: messageBody,
+                    from: twilioPhoneNumber,
+                    to: toPhone,
+                });
+                console.log(`SMS sent successfully to ${toPhone}`);
+            } catch (smsError) {
+                console.error(`Failed to send SMS to ${toPhone}:`, smsError);
+            }
+        }
+
+        console.log("Fetching appointments to update status...");
+
+        // Find scheduled appointments where end_time has passed
+        const { data: appointmentsToUpdate, error: updateFetchError } = await supabase
+            .from("appointments")
+            .select("id")
+            .eq("status", "scheduled")
+            .lt("end_time", now.toISOString()); // end_time < now
+
+        if (updateFetchError) {
+            console.error("Error fetching appointments to update:", updateFetchError);
+        } else {
+            console.log(`Found ${(appointmentsToUpdate || []).length} appointments to mark as completed.`);
+
+            for (const apt of (appointmentsToUpdate || [])) {
+                console.log(`Updating status for appointment ${apt.id} to 'completed'.`);
+                const { error: updateError } = await supabase
+                    .from("appointments")
+                    .update({ status: "completed" })
+                    .eq("id", apt.id);
+
+                if (updateError) {
+                    console.error(`Failed to update appointment ${apt.id}:`, updateError);
+                }
+            }
+        }
+
+        console.log("Cron job finished successfully.");
+        console.log("----------------------------------------");
+        process.exit(0);
+    } catch (error) {
+        console.error("Cron Job Error:", error);
+        process.exit(1);
     }
-
-    const appointmentScheduled: {
-      _id: string;
-      status: string;
-    }[] = await client.fetch(UPDATE_APPOINTMENT_STATUS_QUERY, {
-      date: now.toISOString(),
-    });
-
-    for (const appointment of appointmentScheduled) {
-      await writeClient
-        .patch(appointment._id)
-        .set({ status: "completed" })
-        .commit();
-    }
-    // Cập nhật trạng thái của các cuộc hẹn đã endTime
-    process.exit(0); // Exit with code 0 for success
-  } catch (error) {
-    console.error("Cron Job Error:", error);
-    process.exit(1); // Exit with code 1 for error
-  }
 }
 
 runCronJob();
