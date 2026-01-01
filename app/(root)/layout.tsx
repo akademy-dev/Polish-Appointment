@@ -10,7 +10,7 @@ import CreateInfoButton from "@/components/CreateInfoButton";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { LogOutIcon } from "lucide-react";
-import RootLoading from "@/app/(root)/loading";
+import RootLoading from "@/app/(root)/Loading";
 import { SettingsProvider, useSettings } from "@/hooks/use-settings";
 
 function LayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {

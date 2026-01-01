@@ -1,6 +1,6 @@
-import { getAllEmployees } from "@/data/employee";
+import { getEmployeesForSchedule } from "@/data/employee";
 import { getSettings } from "@/data/settings";
-import { getAppointmentTimeOffs } from "@/data/appointment-time-off";
+import { getAppointmentTimeOffsByDate } from "@/data/appointment-time-off";
 import AppointmentScheduleTimezone from "@/components/AppointmentScheduleTimezone";
 import moment from "moment-timezone";
 import { getIanaTimezone, parseOffset } from "@/lib/utils";
@@ -58,13 +58,13 @@ const page = async ({ searchParams }: PageProps) => {
   const { getAppointmentsByDate } = await import("@/data/appointment");
 
   const [employeesData, appointmentsData, appointmentTimeOffsData] = await Promise.all([
-    getAllEmployees(),
+    getEmployeesForSchedule(),
     getAppointmentsByDate(
       date,
       undefined,
       parseOffset(settingData.timezone)
     ),
-    getAppointmentTimeOffs()
+    getAppointmentTimeOffsByDate(date, settingData.timezone || "UTC-7:00")
   ]);
 
   // Transform employees to match expected format

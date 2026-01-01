@@ -9,6 +9,8 @@ export interface Employee {
   _type?: "employee"; // For backward compatibility
   first_name?: string;
   last_name?: string;
+  firstName?: string; // For backward compatibility
+  lastName?: string; // For backward compatibility
   phone?: string;
   position?: "owner" | "serviceProvider" | "backRoom";
   note?: string;
@@ -16,6 +18,7 @@ export interface Employee {
   hourly_rate?: number;
   hourlyRate?: number; // For backward compatibility
   created_at?: string;
+  _createdAt?: string; // For backward compatibility
   workingTimes?: WorkingTime[];
   timeOffSchedules?: TimeOffSchedule[];
   assignedServices?: AssignedService[];
@@ -226,8 +229,6 @@ export const getAllEmployees = async (
       phone: emp.phone,
       position: emp.position,
       note: emp.note,
-      position: emp.position,
-      note: emp.note,
       hourly_rate: emp.hourly_rate,
       hourlyRate: emp.hourly_rate,
       created_at: emp.created_at,
@@ -262,6 +263,97 @@ export const getAllEmployees = async (
       if (a.position === "owner" && b.position !== "owner") return -1;
       if (a.position !== "owner" && b.position === "owner") return 1;
       // If both are owner or both are not owner, sort by created_at desc
+      const aDate = a.created_at
+        ? safeParseDate(a.created_at)?.getTime() || 0
+        : 0;
+      const bDate = b.created_at
+        ? safeParseDate(b.created_at)?.getTime() || 0
+        : 0;
+      return bDate - aDate;
+    });
+
+    return employees;
+  } catch (error) {
+    return [];
+  }
+};
+
+/**
+ * Lightweight employee fetch for Schedule page.
+ * Only includes relations needed by the calendar UI:
+ * - working_time (for not-working overlay)
+ * - assigned_service (for drag+drop service validation)
+ *
+ * Avoids fetching time_off_schedule which can be large and is not used on Schedule.
+ */
+export const getEmployeesForSchedule = async (): Promise<
+  EmployeeWithRelations[]
+> => {
+  try {
+    const { data, error } = await supabase.from("employees").select(`
+        id,
+        first_name,
+        last_name,
+        phone,
+        position,
+        note,
+        hourly_rate,
+        created_at,
+        workingTimes:working_time (
+          id,
+          day,
+          from,
+          to
+        ),
+        assignedServices:assigned_service (
+          id,
+          service_id,
+          price,
+          duration,
+          process_time
+        )
+      `);
+
+    if (error) {
+      return [];
+    }
+
+    const employees: EmployeeWithRelations[] = (data || []).map((emp: any) => ({
+      id: emp.id,
+      _id: emp.id,
+      _type: "employee",
+      first_name: emp.first_name,
+      last_name: emp.last_name,
+      firstName: emp.first_name,
+      lastName: emp.last_name,
+      phone: emp.phone,
+      position: emp.position,
+      note: emp.note,
+      hourly_rate: emp.hourly_rate,
+      hourlyRate: emp.hourly_rate,
+      created_at: emp.created_at,
+      _createdAt: emp.created_at,
+      workingTimes: (emp.workingTimes || []).map((wt: any) => ({
+        _key: wt.id,
+        day: wt.day,
+        from: wt.from,
+        to: wt.to,
+      })),
+      // Not used on Schedule; keep empty to satisfy type.
+      timeOffSchedules: [],
+      assignedServices: (emp.assignedServices || []).map((as: any) => ({
+        _key: as.id,
+        serviceId: as.service_id,
+        price: as.price,
+        duration: as.duration,
+        processTime: as.process_time,
+      })),
+    })) as EmployeeWithRelations[];
+
+    // Keep same sort semantics as other employee fetches: Owner first, then created_at desc
+    employees.sort((a, b) => {
+      if (a.position === "owner" && b.position !== "owner") return -1;
+      if (a.position !== "owner" && b.position === "owner") return 1;
       const aDate = a.created_at
         ? safeParseDate(a.created_at)?.getTime() || 0
         : 0;
@@ -390,7 +482,6 @@ export const createEmployee = async (
         first_name: firstName,
         last_name: lastName,
         phone: phone || null,
-        position: position,
         position: position,
         note: note || null,
         hourly_rate: hourlyRate || 0,

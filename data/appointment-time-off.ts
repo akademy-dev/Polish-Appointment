@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import moment from "moment-timezone";
+import { getIanaTimezone, parseOffset } from "@/lib/utils";
 
 export interface AppointmentTimeOff {
   id: string;
@@ -98,6 +100,85 @@ export const getAppointmentTimeOffs = async (): Promise<
     }));
 
     return timeOffs;
+  } catch (error) {
+    return [];
+  }
+};
+
+/**
+ * Get appointment time offs for a specific local day (timezone-aware).
+ * This is much lighter than fetching all rows and filtering client-side.
+ */
+export const getAppointmentTimeOffsByDate = async (
+  date: string,
+  timezone: string
+): Promise<AppointmentTimeOff[]> => {
+  try {
+    const tzInput = timezone?.startsWith("UTC")
+      ? parseOffset(timezone)
+      : timezone;
+    const ianaTz = getIanaTimezone(tzInput || "UTC");
+    const startUtc = moment.tz(date, "YYYY-MM-DD", ianaTz).startOf("day").utc();
+    const endUtc = startUtc.clone().add(1, "day");
+
+    const { data, error } = await supabase
+      .from("appointment_time_off")
+      .select(
+        `
+        id,
+        employee_id,
+        start_time,
+        duration,
+        reason,
+        is_recurring,
+        recurring_duration,
+        recurring_frequency,
+        created_at,
+        employee:employees (
+          id,
+          first_name,
+          last_name,
+          phone
+        )
+      `
+      )
+      .gte("start_time", startUtc.toISOString())
+      .lt("start_time", endUtc.toISOString())
+      .order("start_time", { ascending: true });
+
+    if (error) {
+      return [];
+    }
+
+    return (data || []).map((to: any) => ({
+      id: to.id,
+      _id: to.id,
+      _createdAt: to.created_at,
+      _updatedAt: to.created_at,
+      employee_id: to.employee_id,
+      employee: to.employee
+        ? {
+            _id: to.employee.id,
+            id: to.employee.id,
+            firstName: to.employee.first_name,
+            first_name: to.employee.first_name,
+            lastName: to.employee.last_name,
+            last_name: to.employee.last_name,
+            phone: to.employee.phone || undefined,
+          }
+        : undefined,
+      startTime: to.start_time,
+      start_time: to.start_time,
+      duration: to.duration === null ? "to_close" : to.duration,
+      reason: to.reason,
+      isRecurring: to.is_recurring || false,
+      is_recurring: to.is_recurring || false,
+      recurringDuration: to.recurring_duration,
+      recurring_duration: to.recurring_duration,
+      recurringFrequency: to.recurring_frequency,
+      recurring_frequency: to.recurring_frequency,
+      created_at: to.created_at,
+    }));
   } catch (error) {
     return [];
   }

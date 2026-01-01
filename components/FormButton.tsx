@@ -1301,7 +1301,7 @@ const FormButton = ({
       if (loadingHistory) {
         return (
           <div className="flex items-center justify-center h-full w-full min-w-[50vw] min-h-[50vh]">
-            <Loader2 className="h-24 w-24 animate-spin text-primary" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </div>
         );
       }
@@ -1526,7 +1526,7 @@ const FormButton = ({
       if (loadingHistory) {
         return (
           <div className="flex items-center justify-center h-full w-full min-w-[50vw] min-h-[50vh]">
-            <Loader2 className="h-24 w-24 animate-spin text-primary" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </div>
         );
       }
