@@ -67,128 +67,55 @@ export const getAppointments = async (
     const { page = 1, limit = 20, status = "", searchTerm = "" } = params;
 
     // Build query with joins
-    let query = supabase.from("appointments").select(
-      `
-        *,
-        customer:customers (
-          id,
-          first_name,
-          last_name
-        ),
-        employee:employees (
-          id,
-          first_name,
-          last_name
-        ),
-        service:services (
-          id,
-          name,
-          duration
-        )
-      `,
-      { count: "exact" }
-    );
-
-    // Apply status filter
-    if (status) {
-      query = query.eq("status", status);
-    }
-
-    // Apply search filter (search in customer, employee, service names)
-    // Note: Supabase doesn't support searching across joined tables easily
-    // We'll need to filter after fetching or use a different approach
-    if (searchTerm && searchTerm.trim()) {
-      // For now, we'll fetch all and filter client-side, or use a more complex query
-      // This is a limitation - we might need to use full-text search or a different approach
-    }
-
-    // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
-
-    // Order by start_time asc
-    query = query.order("start_time", { ascending: true });
-
-    const { data, error, count } = await query;
+    const { data: rpcData, error } = await supabase.rpc("get_appointments_paginated", {
+      p_page: page,
+      p_limit: limit,
+      p_status: status || null,
+      p_search_term: searchTerm || null,
+    });
 
     if (error) {
+      console.error("Error in getAppointments RPC:", error);
       return { data: [], total: 0 };
     }
 
+    // RPC returns { data: [...], total: N }
+    // We need to cast it safely
+    const result = rpcData as { data: any[]; total: number };
+    const rawAppointments = result.data || [];
+    const total = result.total || 0;
+
     // Transform data to match expected format
-    let appointments: Appointment[] = (data || []).map((apt) => ({
+    const appointments: Appointment[] = rawAppointments.map((apt: any) => ({
       id: apt.id,
       _id: apt.id,
       _type: "appointment",
       start_time: apt.start_time,
-      startTime: apt.start_time, // For backward compatibility
+      startTime: apt.start_time,
       end_time: apt.end_time,
-      endTime: apt.end_time, // For backward compatibility
+      endTime: apt.end_time,
       note: apt.note,
-      employee_id: apt.employee_id,
-      customer_id: apt.customer_id,
-      service_id: apt.service_id,
+      employee_id: apt.employee?.id,
+      customer_id: apt.customer?.id,
+      service_id: apt.service?.id,
       status: apt.status,
       type: apt.type,
       recurring_group_id: apt.recurring_group_id,
-      recurringGroupId: apt.recurring_group_id, // For backward compatibility
+      recurringGroupId: apt.recurring_group_id,
       reminder: apt.reminder || [],
       reminder_datetime: apt.reminder_datetime || [],
       created_at: apt.created_at,
-      _createdAt: apt.created_at, // For backward compatibility
-      customer: apt.customer
-        ? {
-            id: apt.customer.id,
-            _id: apt.customer.id,
-            firstName: apt.customer.first_name,
-            lastName: apt.customer.last_name,
-            fullName:
-              `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
-          }
-        : undefined,
-      employee: apt.employee
-        ? {
-            id: apt.employee.id,
-            _id: apt.employee.id,
-            firstName: apt.employee.first_name,
-            lastName: apt.employee.last_name,
-            fullName:
-              `${apt.employee.first_name || ""} ${apt.employee.last_name || ""}`.trim(),
-          }
-        : undefined,
-      service: apt.service
-        ? {
-            id: apt.service.id,
-            _id: apt.service.id,
-            name: apt.service.name,
-            duration: apt.service.duration,
-          }
-        : undefined,
+      _createdAt: apt.created_at,
+      customer: apt.customer, // Already shaped correctly by RPC
+      employee: apt.employee, // Already shaped correctly by RPC
+      service: apt.service,   // Already shaped correctly by RPC
       // Calculate duration from start_time and end_time
       duration: calculateDuration(apt.start_time, apt.end_time),
     }));
 
-    // Apply search filter client-side if needed
-    if (searchTerm && searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase().trim();
-      appointments = appointments.filter((apt) => {
-        const customerName =
-          `${apt.customer?.firstName || ""} ${apt.customer?.lastName || ""}`.toLowerCase();
-        const employeeName =
-          `${apt.employee?.firstName || ""} ${apt.employee?.lastName || ""}`.toLowerCase();
-        const serviceName = (apt.service?.name || "").toLowerCase();
-        return (
-          customerName.includes(searchLower) ||
-          employeeName.includes(searchLower) ||
-          serviceName.includes(searchLower)
-        );
-      });
-    }
-
     return {
       data: appointments,
-      total: count || 0,
+      total: total,
     };
   } catch (error) {
     return { data: [], total: 0 };
@@ -256,31 +183,31 @@ export const getAppointmentsByCustomer = async (
       _createdAt: apt.created_at,
       customer: apt.customer
         ? {
-            id: apt.customer.id,
-            _id: apt.customer.id,
-            firstName: apt.customer.first_name,
-            lastName: apt.customer.last_name,
-            fullName:
-              `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
-          }
+          id: apt.customer.id,
+          _id: apt.customer.id,
+          firstName: apt.customer.first_name,
+          lastName: apt.customer.last_name,
+          fullName:
+            `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
+        }
         : undefined,
       employee: apt.employee
         ? {
-            id: apt.employee.id,
-            _id: apt.employee.id,
-            firstName: apt.employee.first_name,
-            lastName: apt.employee.last_name,
-            fullName:
-              `${apt.employee.first_name || ""} ${apt.employee.last_name || ""}`.trim(),
-          }
+          id: apt.employee.id,
+          _id: apt.employee.id,
+          firstName: apt.employee.first_name,
+          lastName: apt.employee.last_name,
+          fullName:
+            `${apt.employee.first_name || ""} ${apt.employee.last_name || ""}`.trim(),
+        }
         : undefined,
       service: apt.service
         ? {
-            id: apt.service.id,
-            _id: apt.service.id,
-            name: apt.service.name,
-            duration: apt.service.duration,
-          }
+          id: apt.service.id,
+          _id: apt.service.id,
+          name: apt.service.name,
+          duration: apt.service.duration,
+        }
         : undefined,
       // Calculate duration from start_time and end_time
       duration: calculateDuration(apt.start_time, apt.end_time),
@@ -313,38 +240,11 @@ export const getAppointmentsByDate = async (
     const startUtc = moment.tz(date, "YYYY-MM-DD", ianaTz).startOf("day").utc();
     const endUtc = startUtc.clone().add(1, "day");
 
-    let query = supabase.from("appointments").select(
-      `
-        *,
-        customer:customers (
-          id,
-          first_name,
-          last_name,
-          phone
-        ),
-        employee:employees (
-          id,
-          first_name,
-          last_name
-        ),
-        service:services (
-          id,
-          name,
-          duration
-        )
-      `
-    );
-
-    query = query.gte("start_time", startUtc.toISOString());
-    query = query.lt("start_time", endUtc.toISOString());
-
-    if (customerId) {
-      query = query.eq("customer_id", customerId);
-    }
-
-    query = query.order("start_time", { ascending: true });
-
-    const { data, error } = await query;
+    const { data, error } = await supabase.rpc("get_appointments_by_date", {
+      p_start_time: startUtc.toISOString(),
+      p_end_time: endUtc.toISOString(),
+      p_customer_id: customerId || null,
+    });
 
     if (error) {
       console.error("Error fetching appointments by date range:", error);
@@ -374,32 +274,32 @@ export const getAppointmentsByDate = async (
       _createdAt: apt.created_at,
       customer: apt.customer
         ? {
-            id: apt.customer.id,
-            _id: apt.customer.id,
-            firstName: apt.customer.first_name,
-            lastName: apt.customer.last_name,
-            fullName:
-              `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
-            phone: apt.customer.phone,
-          }
+          id: apt.customer.id,
+          _id: apt.customer.id,
+          firstName: apt.customer.first_name,
+          lastName: apt.customer.last_name,
+          fullName:
+            `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
+          phone: apt.customer.phone,
+        }
         : undefined,
       employee: apt.employee
         ? {
-            id: apt.employee.id,
-            _id: apt.employee.id,
-            firstName: apt.employee.first_name,
-            lastName: apt.employee.last_name,
-            fullName:
-              `${apt.employee.first_name || ""} ${apt.employee.last_name || ""}`.trim(),
-          }
+          id: apt.employee.id,
+          _id: apt.employee.id,
+          firstName: apt.employee.first_name,
+          lastName: apt.employee.last_name,
+          fullName:
+            `${apt.employee.first_name || ""} ${apt.employee.last_name || ""}`.trim(),
+        }
         : undefined,
       service: apt.service
         ? {
-            id: apt.service.id,
-            _id: apt.service.id,
-            name: apt.service.name,
-            duration: apt.service.duration,
-          }
+          id: apt.service.id,
+          _id: apt.service.id,
+          name: apt.service.name,
+          duration: apt.service.duration,
+        }
         : undefined,
       duration: calculateDuration(apt.start_time, apt.end_time),
     }));
@@ -450,31 +350,31 @@ export const getAppointmentsBy14Date = async (
       _createdAt: apt.created_at,
       customer: apt.customer
         ? {
-            id: apt.customer.id,
-            _id: apt.customer.id,
-            firstName: apt.customer.first_name,
-            lastName: apt.customer.last_name,
-            fullName:
-              `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
-          }
+          id: apt.customer.id,
+          _id: apt.customer.id,
+          firstName: apt.customer.first_name,
+          lastName: apt.customer.last_name,
+          fullName:
+            `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
+        }
         : undefined,
       employee: apt.employee
         ? {
-            id: apt.employee.id,
-            _id: apt.employee.id,
-            firstName: apt.employee.first_name,
-            lastName: apt.employee.last_name,
-            fullName:
-              `${apt.employee.first_name || ""} ${apt.employee.last_name || ""}`.trim(),
-          }
+          id: apt.employee.id,
+          _id: apt.employee.id,
+          firstName: apt.employee.first_name,
+          lastName: apt.employee.last_name,
+          fullName:
+            `${apt.employee.first_name || ""} ${apt.employee.last_name || ""}`.trim(),
+        }
         : undefined,
       service: apt.service
         ? {
-            id: apt.service.id,
-            _id: apt.service.id,
-            name: apt.service.name,
-            duration: apt.service.duration,
-          }
+          id: apt.service.id,
+          _id: apt.service.id,
+          name: apt.service.name,
+          duration: apt.service.duration,
+        }
         : undefined,
       // Use duration_minutes from RPC if available, otherwise calculate
       duration:
@@ -577,31 +477,31 @@ export const createAppointment = async (
       created_at: appointment.created_at,
       customer: appointment.customer
         ? {
-            id: appointment.customer.id,
-            _id: appointment.customer.id,
-            firstName: appointment.customer.first_name,
-            lastName: appointment.customer.last_name,
-            fullName:
-              `${appointment.customer.first_name || ""} ${appointment.customer.last_name || ""}`.trim(),
-          }
+          id: appointment.customer.id,
+          _id: appointment.customer.id,
+          firstName: appointment.customer.first_name,
+          lastName: appointment.customer.last_name,
+          fullName:
+            `${appointment.customer.first_name || ""} ${appointment.customer.last_name || ""}`.trim(),
+        }
         : undefined,
       employee: appointment.employee
         ? {
-            id: appointment.employee.id,
-            _id: appointment.employee.id,
-            firstName: appointment.employee.first_name,
-            lastName: appointment.employee.last_name,
-            fullName:
-              `${appointment.employee.first_name || ""} ${appointment.employee.last_name || ""}`.trim(),
-          }
+          id: appointment.employee.id,
+          _id: appointment.employee.id,
+          firstName: appointment.employee.first_name,
+          lastName: appointment.employee.last_name,
+          fullName:
+            `${appointment.employee.first_name || ""} ${appointment.employee.last_name || ""}`.trim(),
+        }
         : undefined,
       service: appointment.service
         ? {
-            id: appointment.service.id,
-            _id: appointment.service.id,
-            name: appointment.service.name,
-            duration: appointment.service.duration,
-          }
+          id: appointment.service.id,
+          _id: appointment.service.id,
+          name: appointment.service.name,
+          duration: appointment.service.duration,
+        }
         : undefined,
       // Calculate duration from start_time and end_time
       duration: calculateDuration(appointment.start_time, appointment.end_time),
@@ -706,31 +606,31 @@ export const updateAppointment = async (
       created_at: appointment.created_at,
       customer: appointment.customer
         ? {
-            id: appointment.customer.id,
-            _id: appointment.customer.id,
-            firstName: appointment.customer.first_name,
-            lastName: appointment.customer.last_name,
-            fullName:
-              `${appointment.customer.first_name || ""} ${appointment.customer.last_name || ""}`.trim(),
-          }
+          id: appointment.customer.id,
+          _id: appointment.customer.id,
+          firstName: appointment.customer.first_name,
+          lastName: appointment.customer.last_name,
+          fullName:
+            `${appointment.customer.first_name || ""} ${appointment.customer.last_name || ""}`.trim(),
+        }
         : undefined,
       employee: appointment.employee
         ? {
-            id: appointment.employee.id,
-            _id: appointment.employee.id,
-            firstName: appointment.employee.first_name,
-            lastName: appointment.employee.last_name,
-            fullName:
-              `${appointment.employee.first_name || ""} ${appointment.employee.last_name || ""}`.trim(),
-          }
+          id: appointment.employee.id,
+          _id: appointment.employee.id,
+          firstName: appointment.employee.first_name,
+          lastName: appointment.employee.last_name,
+          fullName:
+            `${appointment.employee.first_name || ""} ${appointment.employee.last_name || ""}`.trim(),
+        }
         : undefined,
       service: appointment.service
         ? {
-            id: appointment.service.id,
-            _id: appointment.service.id,
-            name: appointment.service.name,
-            duration: appointment.service.duration,
-          }
+          id: appointment.service.id,
+          _id: appointment.service.id,
+          name: appointment.service.name,
+          duration: appointment.service.duration,
+        }
         : undefined,
       // Calculate duration from start_time and end_time
       duration: calculateDuration(appointment.start_time, appointment.end_time),
@@ -857,21 +757,21 @@ export const checkAppointmentConflicts = async (
           status: apt.status,
           customer: apt.customer
             ? {
-                id: apt.customer.id,
-                _id: apt.customer.id,
-                firstName: apt.customer.first_name,
-                lastName: apt.customer.last_name,
-                fullName:
-                  `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
-              }
+              id: apt.customer.id,
+              _id: apt.customer.id,
+              firstName: apt.customer.first_name,
+              lastName: apt.customer.last_name,
+              fullName:
+                `${apt.customer.first_name || ""} ${apt.customer.last_name || ""}`.trim(),
+            }
             : undefined,
           service: apt.service
             ? {
-                id: apt.service.id,
-                _id: apt.service.id,
-                name: apt.service.name,
-                duration: apt.service.duration,
-              }
+              id: apt.service.id,
+              _id: apt.service.id,
+              name: apt.service.name,
+              duration: apt.service.duration,
+            }
             : undefined,
           // Add duration as computed property (not in interface but used by callers)
           duration:

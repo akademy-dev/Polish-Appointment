@@ -87,10 +87,10 @@ export const getServices = async (
         category:
           service.category_id && service.category_name
             ? {
-                id: service.category_id,
-                _id: service.category_id, // Keep _id for backward compatibility
-                name: service.category_name,
-              }
+              id: service.category_id,
+              _id: service.category_id, // Keep _id for backward compatibility
+              name: service.category_name,
+            }
             : undefined,
       })
     ) as ServiceWithCategory[];
@@ -127,41 +127,37 @@ export const getServiceById = async (
   id: string
 ): Promise<ServiceWithCategory | null> => {
   try {
-    const { data, error } = await supabase
-      .from("services")
-      .select(
-        `
-        *,
-        category:categories (
-          id,
-          name
-        )
-      `
-      )
-      .eq("id", id)
-      .single();
+    const { data: rpcData, error } = await supabase.rpc("get_service_by_id", {
+      p_id: id,
+    });
 
     if (error) {
+      console.error("[RPC] ❌ getServiceById error:", error);
       return null;
     }
 
-    if (!data) return null;
+    if (!rpcData) {
+      return null;
+    }
+
+    const data = rpcData as any;
 
     return {
       id: data.id,
-      _id: data.id, // Keep _id for backward compatibility
+      _id: data.id,
       name: data.name,
       price: data.price,
       duration: data.duration,
       caterogy_id: data.caterogy_id,
       created_at: data.created_at,
-      category: data.category
-        ? {
-            id: data.category.id,
-            _id: data.category.id, // Keep _id for backward compatibility
-            name: data.category.name,
+      category:
+        data.category_id && data.category_name
+          ? {
+            id: data.category_id,
+            _id: data.category_id,
+            name: data.category_name,
           }
-        : undefined,
+          : undefined,
     } as ServiceWithCategory;
   } catch (error) {
     return null;
