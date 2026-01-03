@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { WorkingTime, TimeOffSchedule } from "@/models/profile";
 import { AssignedService } from "@/models/assignedService";
 import { safeParseDate } from "@/lib/utils";
+import { cache } from "react";
 
 export interface Employee {
   id: string;
@@ -286,7 +287,7 @@ export const getAllEmployees = async (
  *
  * Avoids fetching time_off_schedule which can be large and is not used on Schedule.
  */
-export const getEmployeesForSchedule = async (): Promise<
+const getEmployeesForScheduleInternal = async (): Promise<
   EmployeeWithRelations[]
 > => {
   try {
@@ -368,6 +369,8 @@ export const getEmployeesForSchedule = async (): Promise<
     return [];
   }
 };
+
+export const getEmployeesForSchedule = cache(getEmployeesForScheduleInternal);
 
 export const getEmployeeById = async (
   id: string

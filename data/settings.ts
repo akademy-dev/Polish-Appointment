@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { cache } from "react";
 
 export interface Setting {
   id: string;
@@ -11,7 +12,8 @@ export interface Setting {
   updated_at?: string;
 }
 
-export const getSettings = async (): Promise<Setting | null> => {
+// Cache settings for the request lifecycle (React cache)
+const getSettingsInternal = async (): Promise<Setting | null> => {
   try {
     const { data, error } = await supabase
       .from("settings")
@@ -32,6 +34,8 @@ export const getSettings = async (): Promise<Setting | null> => {
     return null;
   }
 };
+
+export const getSettings = cache(getSettingsInternal);
 
 export const updateSettings = async (
   id: string,

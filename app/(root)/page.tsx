@@ -1,6 +1,7 @@
 import { getEmployeesForSchedule } from "@/data/employee";
 import { getSettings } from "@/data/settings";
 import { getAppointmentTimeOffsByDate } from "@/data/appointment-time-off";
+import { getAppointmentsByDate } from "@/data/appointment";
 import AppointmentScheduleTimezone from "@/components/AppointmentScheduleTimezone";
 import moment from "moment-timezone";
 import { getIanaTimezone, parseOffset } from "@/lib/utils";
@@ -54,9 +55,6 @@ const page = async ({ searchParams }: PageProps) => {
   const completed = resolvedSearchParams.completed === "true";
 
   // Parallelize remaining fetches
-  // Import getAppointmentsByDate dynamically if needed, or just call it if it's imported at top (it's imported inside currently)
-  const { getAppointmentsByDate } = await import("@/data/appointment");
-
   const [employeesData, appointmentsData, appointmentTimeOffsData] = await Promise.all([
     getEmployeesForSchedule(),
     getAppointmentsByDate(
@@ -68,73 +66,67 @@ const page = async ({ searchParams }: PageProps) => {
   ]);
 
   // Transform employees to match expected format
-  const employees: { data: import("@/models/employee").Employee[] } = {
-    data: employeesData.map((emp) => ({
-      _id: emp.id,
-      _type: "employee" as const,
-      firstName: emp.first_name,
-      lastName: emp.last_name,
-      phone: emp.phone,
-      position: emp.position as "owner" | "serviceProvider" | "backRoom",
-      note: emp.note,
-      _createdAt: emp.created_at,
-      workingTimes: emp.workingTimes || [],
-      timeOffSchedules: emp.timeOffSchedules || [],
-      assignedServices: emp.assignedServices || [],
-    })),
-  };
+  const employees = employeesData.map((emp) => ({
+    _id: emp.id,
+    _type: "employee" as const,
+    firstName: emp.first_name,
+    lastName: emp.last_name,
+    phone: emp.phone,
+    position: emp.position as "owner" | "serviceProvider" | "backRoom",
+    note: emp.note,
+    _createdAt: emp.created_at,
+    workingTimes: emp.workingTimes || [],
+    timeOffSchedules: emp.timeOffSchedules || [],
+    assignedServices: emp.assignedServices || [],
+  }));
 
   // Transform appointments to match expected format
-  const appointments: { data: import("@/models/appointment").Appointment[] } = {
-    data: appointmentsData.map((apt) => ({
-      _id: apt.id,
-      _createdAt: apt.created_at,
-      startTime: apt.start_time,
-      endTime: apt.end_time,
-      duration: apt.service?.duration || 0,
-      customer: apt.customer
-        ? {
-          _id: apt.customer.id,
-          firstName: apt.customer.firstName,
-          lastName: apt.customer.lastName,
-          fullName: apt.customer.fullName,
-        }
-        : undefined,
-      employee: apt.employee
-        ? {
-          _id: apt.employee.id,
-          firstName: apt.employee.firstName,
-          lastName: apt.employee.lastName,
-          fullName: apt.employee.fullName,
-        }
-        : undefined,
-      service: apt.service
-        ? {
-          _id: apt.service.id,
-          name: apt.service.name,
-          duration: apt.service.duration,
-        }
-        : undefined,
-      reminder: apt.reminder || [],
-      reminderDateTimes: apt.reminder_datetime || [],
-      smsMessage: apt.sms_message || "",
-      type: apt.type as "appointment" | "break" | "time-off",
-      status: apt.status as "scheduled" | "confirmed" | "completed" | "cancelled" | "no-show",
-      note: apt.note,
-      recurringGroupId: apt.recurring_group_id,
-    })),
-  };
-
-  const appointmentTimeOffs = {
-    data: appointmentTimeOffsData || [],
-  };
+  // Note: getAppointmentsByDate already returns data with startTime, endTime, customer, employee, service
+  // but we need to ensure format matches models/appointment.ts exactly
+  const appointments = appointmentsData.map((apt) => ({
+    _id: apt._id || apt.id,
+    _createdAt: apt._createdAt || apt.created_at,
+    startTime: apt.startTime || apt.start_time,
+    endTime: apt.endTime || apt.end_time,
+    duration: apt.duration || 0,
+    customer: apt.customer
+      ? {
+        _id: apt.customer._id || apt.customer.id,
+        firstName: apt.customer.firstName,
+        lastName: apt.customer.lastName,
+        fullName: apt.customer.fullName,
+      }
+      : undefined,
+    employee: apt.employee
+      ? {
+        _id: apt.employee._id || apt.employee.id,
+        firstName: apt.employee.firstName,
+        lastName: apt.employee.lastName,
+        fullName: apt.employee.fullName,
+      }
+      : undefined,
+    service: apt.service
+      ? {
+        _id: apt.service._id || apt.service.id,
+        name: apt.service.name,
+        duration: apt.service.duration,
+      }
+      : undefined,
+    reminder: apt.reminder || [],
+    reminderDateTimes: apt.reminder_datetime || [],
+    smsMessage: apt.sms_message || "",
+    type: apt.type as "appointment" | "break" | "time-off",
+    status: apt.status as "scheduled" | "confirmed" | "completed" | "cancelled" | "no-show",
+    note: apt.note,
+    recurringGroupId: apt.recurringGroupId || apt.recurring_group_id,
+  }));
 
   return (
     <>
       <AppointmentScheduleTimezone
-        initialEmployees={employees.data}
-        initialAppointments={appointments.data}
-        initialAppointmentTimeOffs={appointmentTimeOffs.data}
+        initialEmployees={employees}
+        initialAppointments={appointments}
+        initialAppointmentTimeOffs={appointmentTimeOffsData || []}
         currentDate={date}
         notWorking={notWorking}
         cancelled={cancelled}
