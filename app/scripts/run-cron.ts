@@ -35,11 +35,12 @@ async function runCronJob() {
     console.log("Cron job started at:", new Date().toISOString());
     const VARIABLE_LIST = ["Customer", "Employee", "Service", "Date Time"];
     try {
-        // Calculate time window: 5 minutes ago to now
+        // Calculate time window: 2 minutes ago to 2 minutes in future
         const now = new Date();
-        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        const windowStart = new Date(now.getTime() - 2 * 60 * 1000);
+        const windowEnd = new Date(now.getTime() + 2 * 60 * 1000);
 
-        console.log("Checking for appointments between:", fiveMinutesAgo.toISOString(), "and", now.toISOString());
+        console.log("Checking for appointments between:", windowStart.toISOString(), "and", windowEnd.toISOString());
 
         // Fetch scheduled appointments from Supabase
         const { data: allScheduledAppointments, error: fetchError } = await supabase
@@ -79,18 +80,20 @@ async function runCronJob() {
         // Filter appointments that have a reminder_datetime within the window
         const appointmentsToProcess = (allScheduledAppointments || []).filter((apt) => {
             const reminderDateTimes = apt.reminder_datetime;
+            console.log(`Debug: Checking Apt ${apt.id}. Reminders: ${JSON.stringify(reminderDateTimes)}`);
+
             if (!Array.isArray(reminderDateTimes) || reminderDateTimes.length === 0) {
+                console.log(`Debug: Apt ${apt.id} has no reminders.`);
                 return false;
             }
 
-            // Check if any reminder time is in the window [fiveMinutesAgo, now]
+            // Check if any reminder time is in the window [windowStart, windowEnd]
             const hasMatch = reminderDateTimes.some((dtString: string) => {
                 const dt = new Date(dtString);
-                const isMatch = dt >= fiveMinutesAgo && dt <= now;
-                // Log strictly for debugging near-matches
-                if (!isMatch && dt > new Date(now.getTime() - 15 * 60 * 1000) && dt < new Date(now.getTime() + 15 * 60 * 1000)) {
-                    console.log(`Debug: Near miss for Apt ${apt.id}. Reminder: ${dt.toISOString()}. Window: ${fiveMinutesAgo.toISOString()} - ${now.toISOString()}`);
-                }
+                const isMatch = dt >= windowStart && dt <= windowEnd;
+
+                console.log(`  -> Comparing ${dt.toISOString()} with Window [${windowStart.toISOString()} - ${windowEnd.toISOString()}] | Match: ${isMatch}`);
+
                 return isMatch;
             });
 
@@ -127,7 +130,37 @@ async function runCronJob() {
         }
 
         for (const appointment of appointmentsToProcess) {
-            const customerName = appointment.customer ? `${appointment.customer.first_name} ${appointment.customer.last_name}` : "Customer";
+            // Check if this is the first appointment for the customer "today"
+            // We prevent sending multiple SMS if they have multiple appointments in one day
+
+            // Handle customer as potential array (based on linter feedback) or object
+            const customerObj = Array.isArray(appointment.customer)
+                ? appointment.customer[0]
+                : appointment.customer;
+
+            if (customerObj?.id) {
+                const aptTime = new Date(appointment.start_time);
+                const startOfDay = new Date(aptTime);
+                startOfDay.setHours(0, 0, 0, 0);
+
+                // Check for any VALID scheduled appointment for this customer 
+                // that is strictly earlier than the current one, but on the same day.
+                const { data: earlierAppointments } = await supabase
+                    .from("appointments")
+                    .select("id")
+                    .eq("customer_id", customerObj.id)
+                    .eq("status", "scheduled")
+                    .gte("start_time", startOfDay.toISOString())
+                    .lt("start_time", appointment.start_time)
+                    .limit(1);
+
+                if (earlierAppointments && earlierAppointments.length > 0) {
+                    console.log(`Skipping SMS for Apt ${appointment.id}: Found earlier appointment today (ID: ${earlierAppointments[0].id}).`);
+                    continue;
+                }
+            }
+
+            const customerName = customerObj ? `${customerObj.first_name} ${customerObj.last_name}` : "Customer";
             console.log(`Processing appointment ID: ${appointment.id} for Customer: ${customerName}`);
 
             let messageBody =
@@ -185,32 +218,7 @@ async function runCronJob() {
             }
         }
 
-        console.log("Fetching appointments to update status...");
 
-        // Find scheduled appointments where end_time has passed
-        const { data: appointmentsToUpdate, error: updateFetchError } = await supabase
-            .from("appointments")
-            .select("id")
-            .eq("status", "scheduled")
-            .lt("end_time", now.toISOString()); // end_time < now
-
-        if (updateFetchError) {
-            console.error("Error fetching appointments to update:", updateFetchError);
-        } else {
-            console.log(`Found ${(appointmentsToUpdate || []).length} appointments to mark as completed.`);
-
-            for (const apt of (appointmentsToUpdate || [])) {
-                console.log(`Updating status for appointment ${apt.id} to 'completed'.`);
-                const { error: updateError } = await supabase
-                    .from("appointments")
-                    .update({ status: "completed" })
-                    .eq("id", apt.id);
-
-                if (updateError) {
-                    console.error(`Failed to update appointment ${apt.id}:`, updateError);
-                }
-            }
-        }
 
         console.log("Cron job finished successfully.");
         console.log("----------------------------------------");

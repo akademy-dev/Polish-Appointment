@@ -28,70 +28,40 @@ export const getCustomers = async (
   try {
     const { page = 1, limit = 20, search = "" } = params;
 
-    // Build query
-    let query = supabase
-      .from("customers")
-      .select("*", { count: "exact" });
-
-    // Apply search filter
-    if (search && search.trim()) {
-      const searchTrimmed = search.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
-      const searchTerm = `%${searchTrimmed}%`;
-      
-      // Split search term by spaces to handle full name searches like "A Nguyen"
-      const searchParts = searchTrimmed.split(/\s+/).filter(part => part.length > 0);
-      
-      if (searchParts.length >= 2) {
-        // If search has multiple parts (e.g., "A Nguyen")
-        // Search for: first_name matches first part AND last_name matches last part
-        // This requires using AND condition which Supabase supports by chaining filters
-        const firstPart = `%${searchParts[0]}%`;
-        const lastPart = `%${searchParts[searchParts.length - 1]}%`;
-        
-        // Apply AND condition: first_name contains first part AND last_name contains last part
-        query = query
-          .ilike("first_name", firstPart)
-          .ilike("last_name", lastPart);
-      } else {
-        // Single word search - search in all fields using OR
-        query = query.or(
-          `first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm}`
-        );
-      }
-    }
-
-    // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
-
-    // Order by created_at desc
-    query = query.order("created_at", { ascending: false });
-
-    const { data, error, count } = await query;
+    const { data: rpcData, error } = await supabase.rpc("get_customers_paginated", {
+      p_page: page,
+      p_limit: limit,
+      p_search_term: search || null,
+    });
 
     if (error) {
+      console.error("[RPC] ❌ getCustomers error:", error);
       return { data: [], total: 0 };
     }
 
+    // RPC returns { data: [...], total: N }
+    const result = rpcData as { data: any[]; total: number };
+    const rawCustomers = result.data || [];
+    const total = result.total || 0;
+
     // Transform data to match expected format
-    const customers: Customer[] = (data || []).map((cust) => ({
+    const customers: Customer[] = rawCustomers.map((cust: any) => ({
       id: cust.id,
-      _id: cust.id, // For backward compatibility
-      _type: "customer", // For backward compatibility
+      _id: cust.id,
+      _type: "customer",
       first_name: cust.first_name,
       last_name: cust.last_name,
-      firstName: cust.first_name, // For backward compatibility
-      lastName: cust.last_name, // For backward compatibility
+      firstName: cust.first_name,
+      lastName: cust.last_name,
       phone: cust.phone,
       note: cust.note,
       created_at: cust.created_at,
-      _createdAt: cust.created_at, // For backward compatibility
+      _createdAt: cust.created_at,
     }));
 
     return {
       data: customers,
-      total: count || 0,
+      total: total,
     };
   } catch (error) {
     return { data: [], total: 0 };
@@ -102,49 +72,20 @@ export const getAllCustomers = async (
   search?: string
 ): Promise<Customer[]> => {
   try {
-    // Build query
-    let query = supabase
-      .from("customers")
-      .select("*");
-
-    // Apply search filter if provided
-    if (search && search.trim()) {
-      const searchTrimmed = search.trim().replace(/%/g, "\\%").replace(/_/g, "\\_");
-      const searchTerm = `%${searchTrimmed}%`;
-      
-      // Split search term by spaces to handle full name searches like "A Nguyen"
-      const searchParts = searchTrimmed.split(/\s+/).filter(part => part.length > 0);
-      
-      if (searchParts.length >= 2) {
-        // If search has multiple parts (e.g., "A Nguyen")
-        // Search for: first_name matches first part AND last_name matches last part
-        // This requires using AND condition which Supabase supports by chaining filters
-        const firstPart = `%${searchParts[0]}%`;
-        const lastPart = `%${searchParts[searchParts.length - 1]}%`;
-        
-        // Apply AND condition: first_name contains first part AND last_name contains last part
-        query = query
-          .ilike("first_name", firstPart)
-          .ilike("last_name", lastPart);
-      } else {
-        // Single word search - search in all fields using OR
-        query = query.or(
-          `first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm}`
-        );
-      }
-    }
-
-    // Order by created_at desc
-    query = query.order("created_at", { ascending: false });
-
-    const { data, error } = await query;
+    const { data: rpcData, error } = await supabase.rpc("get_all_customers", {
+      p_search_term: search || null,
+    });
 
     if (error) {
+      console.error("[RPC] ❌ getAllCustomers error:", error);
       return [];
     }
 
+    // RPC returns setof json
+    const rawCustomers = (rpcData || []) as any[];
+
     // Transform data to match expected format
-    const customers: Customer[] = (data || []).map((cust) => ({
+    const customers: Customer[] = rawCustomers.map((cust: any) => ({
       id: cust.id,
       _id: cust.id,
       _type: "customer",
@@ -168,17 +109,20 @@ export const getCustomerById = async (
   id: string
 ): Promise<Customer | null> => {
   try {
-    const { data, error } = await supabase
-      .from("customers")
-      .select("*")
-      .eq("id", id)
-      .single();
+    const { data: rpcData, error } = await supabase.rpc("get_customer_by_id", {
+      p_id: id,
+    });
 
     if (error) {
+      console.error("[RPC] ❌ getCustomerById error:", error);
       return null;
     }
 
-    if (!data) return null;
+    if (!rpcData) {
+      return null;
+    }
+
+    const data = rpcData as any;
 
     return {
       id: data.id,
@@ -293,7 +237,7 @@ export const deleteCustomer = async (id: string): Promise<boolean> => {
   try {
     // Note: With CASCADE delete in Supabase, related records will be automatically deleted
     // TODO: Add appointment reference check when appointments are migrated to Supabase
-    
+
     const { error } = await supabase.from("customers").delete().eq("id", id);
 
     if (error) {

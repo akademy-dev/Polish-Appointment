@@ -48,63 +48,24 @@ export const getEmployees = async (
   try {
     const { page = 1, limit = 20, search = "" } = params;
 
-    // Build query
-    let query = supabase.from("employees").select(
-      `
-        *,
-        workingTimes:working_time (
-          id,
-          day,
-          from,
-          to
-        ),
-        timeOffSchedules:time_off_schedule (
-          id,
-          date,
-          from,
-          to,
-          reason,
-          day_of_week,
-          day_of_month,
-          period
-        ),
-        assignedServices:assigned_service (
-          id,
-          service_id,
-          price,
-          duration,
-          process_time
-        )
-      `,
-      { count: "exact" }
-    );
-
-    // Apply search filter
-    if (search && search.trim()) {
-      const searchTerm = `%${search.trim().replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
-      // Search in multiple fields using OR condition
-      // Supabase PostgREST OR syntax: field1.ilike.value,field2.ilike.value
-      query = query.or(
-        `first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm},position.ilike.${searchTerm}`
-      );
-    }
-
-    // Apply pagination
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
-    query = query.range(from, to);
-
-    // Order by created_at desc
-    query = query.order("created_at", { ascending: false });
-
-    const { data, error, count } = await query;
+    const { data: rpcData, error } = await supabase.rpc("get_employees_paginated", {
+      p_page: page,
+      p_limit: limit,
+      p_search_term: search || null,
+    });
 
     if (error) {
+      console.error("Error in getEmployees RPC:", error);
       return { data: [], total: 0 };
     }
 
+    // RPC returns { data: [...], total: N }
+    const result = rpcData as { data: any[]; total: number };
+    const rawEmployees = result.data || [];
+    const total = result.total || 0;
+
     // Transform data to match expected format
-    const employees: EmployeeWithRelations[] = (data || []).map((emp) => ({
+    const employees: EmployeeWithRelations[] = rawEmployees.map((emp: any) => ({
       id: emp.id,
       _id: emp.id, // For backward compatibility
       _type: "employee", // For backward compatibility
@@ -143,25 +104,13 @@ export const getEmployees = async (
         duration: as.duration,
         processTime: as.process_time,
       })),
-    })) as EmployeeWithRelations[];
+    }));
 
-    // Sort: Owner first, then others by created_at desc
-    employees.sort((a, b) => {
-      if (a.position === "owner" && b.position !== "owner") return -1;
-      if (a.position !== "owner" && b.position === "owner") return 1;
-      // If both are owner or both are not owner, sort by created_at desc
-      const aDate = a.created_at
-        ? safeParseDate(a.created_at)?.getTime() || 0
-        : 0;
-      const bDate = b.created_at
-        ? safeParseDate(b.created_at)?.getTime() || 0
-        : 0;
-      return bDate - aDate;
-    });
+    // Note: Sorting is now handled by the RPC (Owner first, then created_at desc)
 
     return {
       data: employees,
-      total: count || 0,
+      total: total,
     };
   } catch (error) {
     return { data: [], total: 0 };
@@ -172,54 +121,20 @@ export const getAllEmployees = async (
   search?: string
 ): Promise<EmployeeWithRelations[]> => {
   try {
-    // Build query
-    let query = supabase.from("employees").select(`
-        *,
-        workingTimes:working_time (
-          id,
-          day,
-          from,
-          to
-        ),
-        timeOffSchedules:time_off_schedule (
-          id,
-          date,
-          from,
-          to,
-          reason,
-          day_of_week,
-          day_of_month,
-          period
-        ),
-        assignedServices:assigned_service (
-          id,
-          service_id,
-          price,
-          duration,
-          process_time
-        )
-      `);
-
-    // Apply search filter if provided
-    if (search && search.trim()) {
-      const searchTerm = `%${search.trim().replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
-      // Search in multiple fields using OR condition
-      query = query.or(
-        `first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},phone.ilike.${searchTerm},position.ilike.${searchTerm}`
-      );
-    }
-
-    // Order by created_at desc
-    query = query.order("created_at", { ascending: false });
-
-    const { data, error } = await query;
+    const { data: rpcData, error } = await supabase.rpc("get_all_employees", {
+      p_search_term: search || null,
+    });
 
     if (error) {
+      console.error("Error in getAllEmployees RPC:", error);
       return [];
     }
 
+    // RPC returns setof json
+    const rawEmployees = (rpcData || []) as any[];
+
     // Transform data to match expected format
-    const employees: EmployeeWithRelations[] = (data || []).map((emp) => ({
+    const employees: EmployeeWithRelations[] = rawEmployees.map((emp: any) => ({
       id: emp.id,
       _id: emp.id,
       _type: "employee",
@@ -257,21 +172,9 @@ export const getAllEmployees = async (
         duration: as.duration,
         processTime: as.process_time,
       })),
-    })) as EmployeeWithRelations[];
+    }));
 
-    // Sort: Owner first, then others by created_at desc
-    employees.sort((a, b) => {
-      if (a.position === "owner" && b.position !== "owner") return -1;
-      if (a.position !== "owner" && b.position === "owner") return 1;
-      // If both are owner or both are not owner, sort by created_at desc
-      const aDate = a.created_at
-        ? safeParseDate(a.created_at)?.getTime() || 0
-        : 0;
-      const bDate = b.created_at
-        ? safeParseDate(b.created_at)?.getTime() || 0
-        : 0;
-      return bDate - aDate;
-    });
+    // Note: Sorting is now handled by the RPC (Owner first, then created_at desc)
 
     return employees;
   } catch (error) {
@@ -291,35 +194,17 @@ const getEmployeesForScheduleInternal = async (): Promise<
   EmployeeWithRelations[]
 > => {
   try {
-    const { data, error } = await supabase.from("employees").select(`
-        id,
-        first_name,
-        last_name,
-        phone,
-        position,
-        note,
-        hourly_rate,
-        created_at,
-        workingTimes:working_time (
-          id,
-          day,
-          from,
-          to
-        ),
-        assignedServices:assigned_service (
-          id,
-          service_id,
-          price,
-          duration,
-          process_time
-        )
-      `);
+    const { data: rpcData, error } = await supabase.rpc("get_employees_for_schedule");
 
     if (error) {
+      console.error("Error in getEmployeesForSchedule RPC:", error);
       return [];
     }
 
-    const employees: EmployeeWithRelations[] = (data || []).map((emp: any) => ({
+    // RPC returns setof json
+    const rawEmployees = (rpcData || []) as any[];
+
+    const employees: EmployeeWithRelations[] = rawEmployees.map((emp: any) => ({
       id: emp.id,
       _id: emp.id,
       _type: "employee",
@@ -351,18 +236,7 @@ const getEmployeesForScheduleInternal = async (): Promise<
       })),
     })) as EmployeeWithRelations[];
 
-    // Keep same sort semantics as other employee fetches: Owner first, then created_at desc
-    employees.sort((a, b) => {
-      if (a.position === "owner" && b.position !== "owner") return -1;
-      if (a.position !== "owner" && b.position === "owner") return 1;
-      const aDate = a.created_at
-        ? safeParseDate(a.created_at)?.getTime() || 0
-        : 0;
-      const bDate = b.created_at
-        ? safeParseDate(b.created_at)?.getTime() || 0
-        : 0;
-      return bDate - aDate;
-    });
+    // Note: Sorting is now handled by the RPC (Owner first, then created_at desc)
 
     return employees;
   } catch (error) {
@@ -376,50 +250,23 @@ export const getEmployeeById = async (
   id: string
 ): Promise<EmployeeWithRelations | null> => {
   try {
-    const { data, error } = await supabase
-      .from("employees")
-      .select(
-        `
-        *,
-        workingTimes:working_time (
-          id,
-          day,
-          from,
-          to
-        ),
-        timeOffSchedules:time_off_schedule (
-          id,
-          date,
-          from,
-          to,
-          reason,
-          day_of_week,
-          day_of_month,
-          period
-        ),
-        assignedServices:assigned_service (
-          id,
-          service_id,
-          price,
-          duration,
-          process_time
-        )
-      `
-      )
-      .eq("id", id)
-      .single();
+    const { data: rpcData, error } = await supabase.rpc("get_employee_by_id", {
+      p_id: id,
+    });
 
     if (error) {
-      console.error("[CREATE APP] ❌ getEmployeeById error:", {
+      console.error("[RPC] ❌ getEmployeeById error:", {
         employeeId: id,
         error: error.message,
       });
       return null;
     }
 
-    if (!data) {
+    if (!rpcData) {
       return null;
     }
+
+    const data = rpcData as any;
 
     return {
       id: data.id,

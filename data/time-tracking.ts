@@ -169,27 +169,20 @@ export const getTimeTrackingByDateRange = async (
   endDate: string
 ): Promise<TimeTracking[]> => {
   try {
-    const { data, error } = await supabase
-      .from("time_tracking")
-      .select(
-        `
-        *,
-        employee:employees (
-          id,
-          first_name,
-          last_name
-        )
-      `
-      )
-      .gte("check_in", startDate)
-      .lte("check_in", endDate)
-      .order("check_in", { ascending: false });
+    const { data: rpcData, error } = await supabase.rpc("get_time_tracking_by_date_range", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
 
     if (error) {
+      console.error("[RPC] ❌ getTimeTrackingByDateRange error:", error);
       return [];
     }
 
-    return (data || []).map(transformTimeTracking);
+    // RPC returns setof json (array of objects)
+    const rawData = (rpcData || []) as any[];
+
+    return rawData.map(transformTimeTracking);
   } catch (error) {
     return [];
   }
@@ -202,26 +195,19 @@ export const getTimeTrackingByEmployee = async (
   employeeId: string
 ): Promise<TimeTracking[]> => {
   try {
-    const { data, error } = await supabase
-      .from("time_tracking")
-      .select(
-        `
-        *,
-        employee:employees (
-          id,
-          first_name,
-          last_name
-        )
-      `
-      )
-      .eq("employee_id", employeeId)
-      .order("check_in", { ascending: false });
+    const { data: rpcData, error } = await supabase.rpc("get_time_tracking_by_employee", {
+      p_employee_id: employeeId,
+    });
 
     if (error) {
+      console.error("[RPC] ❌ getTimeTrackingByEmployee error:", error);
       return [];
     }
 
-    return (data || []).map(transformTimeTracking);
+    // RPC returns setof json (array of objects)
+    const rawData = (rpcData || []) as any[];
+
+    return rawData.map(transformTimeTracking);
   } catch (error) {
     return [];
   }
@@ -232,25 +218,17 @@ export const getTimeTrackingByEmployee = async (
  */
 export const getAllTimeTracking = async (): Promise<TimeTracking[]> => {
   try {
-    const { data, error } = await supabase
-      .from("time_tracking")
-      .select(
-        `
-        *,
-        employee:employees (
-          id,
-          first_name,
-          last_name
-        )
-      `
-      )
-      .order("check_in", { ascending: false });
+    const { data: rpcData, error } = await supabase.rpc("get_all_time_tracking");
 
     if (error) {
+      console.error("[RPC] ❌ getAllTimeTracking error:", error);
       return [];
     }
 
-    return (data || []).map(transformTimeTracking);
+    // RPC returns setof json (array of objects)
+    const rawData = (rpcData || []) as any[];
+
+    return rawData.map(transformTimeTracking);
   } catch (error) {
     return [];
   }
@@ -263,30 +241,20 @@ export const getTimeTrackingById = async (
   id: string
 ): Promise<TimeTracking | null> => {
   try {
-    const { data, error } = await supabase
-      .from("time_tracking")
-      .select(
-        `
-        *,
-        employee:employees (
-          id,
-          first_name,
-          last_name
-        )
-      `
-      )
-      .eq("id", id)
-      .single();
+    const { data: rpcData, error } = await supabase.rpc("get_time_tracking_by_id", {
+      p_id: id,
+    });
 
     if (error) {
+      console.error("[RPC] ❌ getTimeTrackingById error:", error);
       return null;
     }
 
-    if (!data) {
+    if (!rpcData) {
       return null;
     }
 
-    return transformTimeTracking(data);
+    return transformTimeTracking(rpcData);
   } catch (error) {
     return null;
   }
