@@ -81,43 +81,22 @@ const page = async ({ searchParams }: PageProps) => {
   }));
 
   // Transform appointments to match expected format
-  // Note: getAppointmentsByDate already returns data with startTime, endTime, customer, employee, service
-  // but we need to ensure format matches models/appointment.ts exactly
+  // getAppointmentsByDate already returns data with correct format, just map field names
   const appointments = appointmentsData.map((apt) => ({
     _id: apt._id || apt.id,
     _createdAt: apt._createdAt || apt.created_at,
     startTime: apt.startTime || apt.start_time,
     endTime: apt.endTime || apt.end_time,
     duration: apt.duration || 0,
-    customer: apt.customer
-      ? {
-        _id: apt.customer._id || apt.customer.id,
-        firstName: apt.customer.firstName,
-        lastName: apt.customer.lastName,
-        fullName: apt.customer.fullName,
-      }
-      : undefined,
-    employee: apt.employee
-      ? {
-        _id: apt.employee._id || apt.employee.id,
-        firstName: apt.employee.firstName,
-        lastName: apt.employee.lastName,
-        fullName: apt.employee.fullName,
-      }
-      : undefined,
-    service: apt.service
-      ? {
-        _id: apt.service._id || apt.service.id,
-        name: apt.service.name,
-        duration: apt.service.duration,
-      }
-      : undefined,
+    customer: apt.customer,
+    employee: apt.employee,
+    service: apt.service,
     reminder: apt.reminder || [],
     reminderDateTimes: apt.reminder_datetime || [],
     smsMessage: apt.sms_message || "",
     type: apt.type as "appointment" | "break" | "time-off",
     status: apt.status as "scheduled" | "confirmed" | "completed" | "cancelled" | "no-show",
-    note: apt.note,
+    note: apt.note || "",
     recurringGroupId: apt.recurringGroupId || apt.recurring_group_id,
   }));
 
