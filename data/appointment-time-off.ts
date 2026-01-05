@@ -49,58 +49,17 @@ export const getAppointmentTimeOffs = async (): Promise<
   AppointmentTimeOff[]
 > => {
   try {
-    const { data, error } = await supabase
-      .from("appointment_time_off")
-      .select(
-        `
-        *,
-        employee:employees (
-          id,
-          first_name,
-          last_name,
-          phone
-        )
-      `
-      )
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabase.rpc("get_appointment_time_offs");
 
     if (error) {
+      console.error("Error calling get_appointment_time_offs RPC:", error);
       return [];
     }
 
-    // Transform to match expected format
-    const timeOffs: AppointmentTimeOff[] = (data || []).map((to: any) => ({
-      id: to.id,
-      _id: to.id,
-      _createdAt: to.created_at,
-      _updatedAt: to.created_at, // Supabase doesn't have updated_at, use created_at
-      employee_id: to.employee_id,
-      employee: to.employee
-        ? {
-            _id: to.employee.id,
-            id: to.employee.id,
-            firstName: to.employee.first_name,
-            first_name: to.employee.first_name,
-            lastName: to.employee.last_name,
-            last_name: to.employee.last_name,
-            phone: to.employee.phone || undefined,
-          }
-        : undefined,
-      startTime: to.start_time,
-      start_time: to.start_time,
-      duration: to.duration,
-      reason: to.reason,
-      isRecurring: to.is_recurring || false,
-      is_recurring: to.is_recurring || false,
-      recurringDuration: to.recurring_duration,
-      recurring_duration: to.recurring_duration,
-      recurringFrequency: to.recurring_frequency,
-      recurring_frequency: to.recurring_frequency,
-      created_at: to.created_at,
-    }));
-
-    return timeOffs;
+    // The RPC returns the exact JSON structure we need, just need to cast it
+    return (data as unknown as AppointmentTimeOff[]) || [];
   } catch (error) {
+    console.error("Error in getAppointmentTimeOffs:", error);
     return [];
   }
 };
@@ -158,14 +117,14 @@ export const getAppointmentTimeOffsByDate = async (
       employee_id: to.employee_id,
       employee: to.employee
         ? {
-            _id: to.employee.id,
-            id: to.employee.id,
-            firstName: to.employee.first_name,
-            first_name: to.employee.first_name,
-            lastName: to.employee.last_name,
-            last_name: to.employee.last_name,
-            phone: to.employee.phone || undefined,
-          }
+          _id: to.employee.id,
+          id: to.employee.id,
+          firstName: to.employee.first_name,
+          first_name: to.employee.first_name,
+          lastName: to.employee.last_name,
+          last_name: to.employee.last_name,
+          phone: to.employee.phone || undefined,
+        }
         : undefined,
       startTime: to.start_time,
       start_time: to.start_time,
@@ -249,14 +208,14 @@ export const createAppointmentTimeOff = async (
       employee_id: data.employee_id,
       employee: data.employee
         ? {
-            _id: data.employee.id,
-            id: data.employee.id,
-            firstName: data.employee.first_name,
-            first_name: data.employee.first_name,
-            lastName: data.employee.last_name,
-            last_name: data.employee.last_name,
-            phone: data.employee.phone || undefined,
-          }
+          _id: data.employee.id,
+          id: data.employee.id,
+          firstName: data.employee.first_name,
+          first_name: data.employee.first_name,
+          lastName: data.employee.last_name,
+          last_name: data.employee.last_name,
+          phone: data.employee.phone || undefined,
+        }
         : undefined,
       startTime: data.start_time,
       start_time: data.start_time,
@@ -340,14 +299,14 @@ export const createMultipleAppointmentTimeOffs = async (
       employee_id: to.employee_id,
       employee: to.employee
         ? {
-            _id: to.employee.id,
-            id: to.employee.id,
-            firstName: to.employee.first_name,
-            first_name: to.employee.first_name,
-            lastName: to.employee.last_name,
-            last_name: to.employee.last_name,
-            phone: to.employee.phone || undefined,
-          }
+          _id: to.employee.id,
+          id: to.employee.id,
+          firstName: to.employee.first_name,
+          first_name: to.employee.first_name,
+          lastName: to.employee.last_name,
+          last_name: to.employee.last_name,
+          phone: to.employee.phone || undefined,
+        }
         : undefined,
       startTime: to.start_time,
       start_time: to.start_time,
@@ -449,14 +408,14 @@ export const updateAppointmentTimeOff = async (
       employee_id: data.employee_id,
       employee: data.employee
         ? {
-            _id: data.employee.id,
-            id: data.employee.id,
-            firstName: data.employee.first_name,
-            first_name: data.employee.first_name,
-            lastName: data.employee.last_name,
-            last_name: data.employee.last_name,
-            phone: data.employee.phone || undefined,
-          }
+          _id: data.employee.id,
+          id: data.employee.id,
+          firstName: data.employee.first_name,
+          first_name: data.employee.first_name,
+          lastName: data.employee.last_name,
+          last_name: data.employee.last_name,
+          phone: data.employee.phone || undefined,
+        }
         : undefined,
       startTime: data.start_time,
       start_time: data.start_time,
