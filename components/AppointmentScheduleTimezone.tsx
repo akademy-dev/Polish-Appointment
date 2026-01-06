@@ -19,7 +19,7 @@ import {
 import moment from "moment-timezone";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
-import { ChevronLeft, ChevronRight, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Check, ChevronsUpDown, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CalendarContext } from "@/hooks/context";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
@@ -56,8 +56,24 @@ import {
   calculateDuration,
   setTimeToDate,
   formatToISO8601,
+
   isValidTimeString,
+  cn,
 } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import CreateInfoButton from "@/components/CreateInfoButton";
 import { deleteTimeOff, updateTimeOff } from "@/actions/time-off";
 import {
   Select,
@@ -67,8 +83,260 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { History } from "lucide-react";
+import FormButton from "@/components/FormButton";
+import { Customer } from "@/models/profile";
 
 const DragAndDropCalendar = withDragAndDrop(Calendar);
+
+// Create a context for the client search state
+interface ClientSearchContextType {
+  customerOpen: boolean;
+  setCustomerOpen: (open: boolean) => void;
+  customers: {
+    value: string;
+    label: string;
+    _id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    note?: string;
+  }[];
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  isSearching: boolean;
+  timezone: string;
+  handleDateChange: (date: Date) => void;
+  isMobile: boolean;
+  viewingCustomer: {
+    value: string;
+    label: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    note?: string;
+  } | null;
+  setViewingCustomer: (customer: any) => void;
+}
+
+
+
+const ClientSearchContext = React.createContext<ClientSearchContextType | null>(null);
+
+const CustomerDetailsDialog = ({
+  customer,
+  open,
+  onOpenChange,
+}: {
+  customer: {
+    value: string;
+    label: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    note?: string;
+  } | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) => {
+  if (!customer) return null;
+
+  const profile: Customer = {
+    _id: customer.value,
+    _type: "customer",
+    firstName: customer.firstName,
+    lastName: customer.lastName,
+    phone: customer.phone,
+    note: customer.note,
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Customer Details</DialogTitle>
+          <DialogDescription>
+            View customer information below.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right font-semibold">Name</Label>
+            <div className="col-span-3">{customer.label}</div>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right font-semibold">Phone</Label>
+            <div className="col-span-3">{customer.phone || "N/A"}</div>
+          </div>
+          <div className="grid gap-2">
+            <Label className="font-semibold mb-2">Note</Label>
+            <div className="min-h-[60px] p-3 rounded-md bg-muted text-sm whitespace-pre-wrap">
+              {customer.note || "No notes available."}
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 items-center">
+          <FormButton
+            mode="history"
+            type="customers"
+            profile={profile}
+            variant="default"
+            size="icon"
+            className="bg-yellow-500 hover:bg-yellow-400"
+          >
+            <History className="size-5" aria-hidden="true" />
+          </FormButton>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
+const CustomToolbar = (toolbar: any) => {
+  const context = useContext(ClientSearchContext);
+
+  if (!context) return null;
+
+  const {
+    customerOpen, setCustomerOpen,
+    customers,
+    searchQuery, setSearchQuery,
+    isSearching,
+    timezone,
+    handleDateChange,
+    isMobile,
+    setViewingCustomer // Newly added context usage
+  } = context;
+
+  const goToBack = () => {
+    const currentDate = moment.tz(toolbar.date, getIanaTimezone(timezone));
+    const newDate = currentDate.subtract(1, "day").startOf("day");
+    toolbar.onNavigate("PREV");
+    handleDateChange(newDate.toDate());
+  };
+
+  const goToNext = () => {
+    const currentDate = moment.tz(toolbar.date, getIanaTimezone(timezone));
+    const newDate = currentDate.add(1, "day").startOf("day");
+    toolbar.onNavigate("NEXT");
+    handleDateChange(newDate.toDate());
+  };
+
+  const goToToday = () => {
+    const today = moment
+      .tz(new Date(), getIanaTimezone(timezone))
+      .startOf("day");
+    toolbar.onNavigate("TODAY");
+    handleDateChange(today.toDate());
+  };
+
+  return (
+    <div
+      className={`flex items-center mb-2 gap-2 relative z-20 ${isMobile ? "flex-col sm:flex-row" : ""}`}
+    >
+      <div
+        className={`flex items-center gap-2 ${isMobile ? "w-full justify-between" : ""}`}
+      >
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button onClick={goToToday}>Today</Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goToBack}
+            aria-label="Back"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goToNext}
+            aria-label="Next"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
+      <span
+        className={`font-semibold ${isMobile ? "text-base" : "text-lg"} ${isMobile ? "text-center w-full" : ""}`}
+      >
+        {toolbar.label}{" "}
+        <span
+          className={`font-semibold ${isMobile ? "text-base" : "text-lg"}`}
+        >
+          {toolbar.date.getFullYear()}
+        </span>
+      </span>
+
+      {/* Client Search Bar */}
+      <div className="flex flex-row items-center ml-auto gap-4 hidden md:flex">
+        <h2 className="text-lg font-semibold">Client search</h2>
+        <div>
+          <Popover
+            open={customerOpen}
+            onOpenChange={(open) => {
+              setCustomerOpen(open);
+              if (!open) {
+                setSearchQuery("");
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={customerOpen}
+                className="w-[250px] justify-between h-9"
+              >
+                Search customer...
+                <ChevronsUpDown className="opacity-50 h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[250px] p-0">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Search..."
+                  className="h-9"
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                />
+                <CommandList>
+                  {isSearching ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : customers.length === 0 ? (
+                    <CommandEmpty>No customer found.</CommandEmpty>
+                  ) : (
+                    <CommandGroup>
+                      {customers.map((customer) => (
+                        <CommandItem
+                          key={customer.value}
+                          value={customer.value}
+                          onSelect={() => {
+                            setViewingCustomer(customer);
+                            setCustomerOpen(false);
+                          }}
+                        >
+                          {customer.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+    </div>
+  );
+};
 
 type AppointmentWithLegacyTimes = Appointment & {
   start_time?: string;
@@ -429,6 +697,80 @@ const AppointmentScheduleTimezone = ({
 
   // Track if user has manually reordered resources
   const [hasUserReordered, setHasUserReordered] = useState(false);
+
+  // Client Search State
+  /* Client Search State */
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [customers, setCustomers] = useState<
+    {
+      value: string;
+      label: string;
+      _id: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      note?: string;
+    }[]
+  >([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [viewingCustomer, setViewingCustomer] = useState<{
+    value: string;
+    label: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    note?: string;
+  } | null>(null);
+
+  // Search customers with debounce
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If search query is empty, clear customers unless we want to show recent/all
+    if (searchQuery.trim().length === 0) {
+      setCustomers([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const searchTerm = searchQuery.trim();
+        const customersRes = await fetch(
+          `/api/customers?search=${encodeURIComponent(searchTerm)}`
+        ).then((res) => res.json());
+
+        setCustomers(
+          (customersRes || []).map((customer: any) => ({
+            _id: customer.id,
+            value: customer.id,
+            label: `${customer.first_name || ""} ${customer.last_name || ""}`.trim(),
+            firstName: customer.first_name,
+            lastName: customer.last_name,
+            phone: customer.phone || "",
+            note: customer.note,
+          }))
+        );
+      } catch (error) {
+        setCustomers([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // 300ms debounce
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+
 
   useEffect(() => {
     const savedOrder = localStorage.getItem("resourceOrder");
@@ -2013,69 +2355,7 @@ const AppointmentScheduleTimezone = ({
     [isSubmitting, router]
   );
 
-  const CustomToolbar = (toolbar: any) => {
-    const goToBack = () => {
-      const currentDate = moment.tz(toolbar.date, getIanaTimezone(timezone));
-      const newDate = currentDate.subtract(1, "day").startOf("day");
-      toolbar.onNavigate("PREV");
-      handleDateChange(newDate.toDate());
-    };
 
-    const goToNext = () => {
-      const currentDate = moment.tz(toolbar.date, getIanaTimezone(timezone));
-      const newDate = currentDate.add(1, "day").startOf("day");
-      toolbar.onNavigate("NEXT");
-      handleDateChange(newDate.toDate());
-    };
-
-    const goToToday = () => {
-      const today = moment
-        .tz(new Date(), getIanaTimezone(timezone))
-        .startOf("day");
-      toolbar.onNavigate("TODAY");
-      handleDateChange(today.toDate());
-    };
-
-    return (
-      <div
-        className={`flex items-center mb-2 gap-2 relative z-20 ${isMobile ? "flex-col sm:flex-row" : ""}`}
-      >
-        <div
-          className={`flex items-center gap-2 ${isMobile ? "w-full justify-between" : ""}`}
-        >
-          <div className="flex items-center gap-1 sm:gap-2">
-            <Button onClick={goToToday}>Today</Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToBack}
-              aria-label="Back"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToNext}
-              aria-label="Next"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-        <span
-          className={`font-semibold ${isMobile ? "text-base" : "text-lg"} ${isMobile ? "text-center w-full" : ""}`}
-        >
-          {toolbar.label}{" "}
-          <span
-            className={`font-semibold ${isMobile ? "text-base" : "text-lg"}`}
-          >
-            {toolbar.date.getFullYear()}
-          </span>
-        </span>
-      </div>
-    );
-  };
 
   const resizableAccessor = useCallback((event: object) => {
     const calendarEvent = event as CalendarEvent;
@@ -2199,168 +2479,185 @@ const AppointmentScheduleTimezone = ({
           className={`h-full w-full ${isMobile ? "mobile-calendar" : ""} ${processing || isLoading ? "loading" : null}`}
         >
           {resources.length === 0 && <NoEventsOverlay />}
-          <DragAndDropCalendar
-            selectable
-            defaultDate={date}
-            date={date}
-            defaultView={Views.DAY}
-            events={myEvents}
-            localizer={localizer}
-            min={moment
-              .tz(getIanaTimezone(timezone))
-              .set({
-                hour: moment(minTime, "h:mm A").hour(),
-                minute: moment(minTime, "h:mm A").minute(),
-                second: 0,
-                millisecond: 0,
-              })
-              .toDate()}
-            max={moment
-              .tz(getIanaTimezone(timezone))
-              .set({
-                hour: moment(maxTime, "h:mm A").hour(),
-                minute: moment(maxTime, "h:mm A").minute(),
-                second: 0,
-                millisecond: 0,
-              })
-              .toDate()}
-            // dayLayoutAlgorithm={"no-overlap"}
-            resources={resources}
-            resourceIdAccessor={(resource) => (resource as Resource).resourceId}
-            resourceTitleAccessor={(resource) =>
-              (resource as Resource).resourceTitle
-            }
-            resizableAccessor={resizableAccessor}
-            draggableAccessor={draggableAccessor}
-            onSelectSlot={handleSelectSlot}
-            onSelectEvent={handleSelectEvent}
-            onEventDrop={moveEvent}
-            onEventResize={resizeEvent}
-            step={15}
-            timeslots={1}
-            views={[Views.DAY]}
-            components={{
-              toolbar: CustomToolbar,
-              event: ({ event }: EventProps<object>) => {
-                const calendarEvent = event as CalendarEvent;
-                if (
-                  calendarEvent.type === "appointment" &&
-                  calendarEvent.data.status === "scheduled"
-                ) {
-                  // Determine background color based on appointment type
-                  const bgColor =
-                    calendarEvent.data.type === "request"
-                      ? "bg-pink-400"
-                      : "bg-cyan-600";
+          <ClientSearchContext.Provider value={{
+            customerOpen, setCustomerOpen,
+            customers,
+            searchQuery, setSearchQuery,
+            isSearching,
+            timezone,
+            handleDateChange,
+            isMobile,
+            viewingCustomer,
+            setViewingCustomer
+          }}>
+            <CustomerDetailsDialog
+              customer={viewingCustomer}
+              open={!!viewingCustomer}
+              onOpenChange={(open) => !open && setViewingCustomer(null)}
+            />
+            <DragAndDropCalendar
+              selectable
+              defaultDate={date}
+              date={date}
+              defaultView={Views.DAY}
+              events={myEvents}
+              localizer={localizer}
+              min={moment
+                .tz(getIanaTimezone(timezone))
+                .set({
+                  hour: moment(minTime, "h:mm A").hour(),
+                  minute: moment(minTime, "h:mm A").minute(),
+                  second: 0,
+                  millisecond: 0,
+                })
+                .toDate()}
+              max={moment
+                .tz(getIanaTimezone(timezone))
+                .set({
+                  hour: moment(maxTime, "h:mm A").hour(),
+                  minute: moment(maxTime, "h:mm A").minute(),
+                  second: 0,
+                  millisecond: 0,
+                })
+                .toDate()}
+              // dayLayoutAlgorithm={"no-overlap"}
+              resources={resources}
+              resourceIdAccessor={(resource) => (resource as Resource).resourceId}
+              resourceTitleAccessor={(resource) =>
+                (resource as Resource).resourceTitle
+              }
+              resizableAccessor={resizableAccessor}
+              draggableAccessor={draggableAccessor}
+              onSelectSlot={handleSelectSlot}
+              onSelectEvent={handleSelectEvent}
+              onEventDrop={moveEvent}
+              onEventResize={resizeEvent}
+              step={15}
+              timeslots={1}
+              views={[Views.DAY]}
+              components={{
+                toolbar: CustomToolbar,
+                event: ({ event }: EventProps<object>) => {
+                  const calendarEvent = event as CalendarEvent;
+                  if (
+                    calendarEvent.type === "appointment" &&
+                    calendarEvent.data.status === "scheduled"
+                  ) {
+                    // Determine background color based on appointment type
+                    const bgColor =
+                      calendarEvent.data.type === "request"
+                        ? "bg-pink-400"
+                        : "bg-cyan-600";
 
-                  return (
-                    <div
-                      className={`${bgColor} h-full rounded border border-gray-100 cursor-pointer`}
-                    >
-                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span
-                          className={`${isMobile ? "text-xs" : "text-sm"} text-black font-medium truncate w-full text-center`}
-                        >
-                          {calendarEvent.data?.customer
-                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
-                            : "No Customer"}
-                        </span>
-                        <span
-                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
-                        >
-                          {calendarEvent.title}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                } else if (
-                  calendarEvent.type === "appointment" &&
-                  calendarEvent.data.status === "cancelled" &&
-                  cancelled === true
-                ) {
-                  return (
-                    <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
-                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span
-                          className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
-                        >
-                          {calendarEvent.data?.customer
-                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
-                            : "No Customer"}
-                        </span>
-                        <span
-                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
-                        >
-                          {calendarEvent.title}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                } else if (
-                  calendarEvent.type === "appointment" &&
-                  calendarEvent.data.status === "completed"
-                ) {
-                  return (
-                    <div className="bg-green-700 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
-                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span
-                          className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
-                        >
-                          {calendarEvent.data?.customer
-                            ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
-                            : "No Customer"}
-                        </span>
-                        <span
-                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
-                        >
-                          {calendarEvent.title}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                } else if (calendarEvent.type === "not_working") {
-                  return (
-                    <div className="bg-gray-500 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
-                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span
-                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
-                        >
-                          {calendarEvent.title}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                } else if (calendarEvent.type === "appointmentTimeOff") {
-                  return (
-                    <div className="bg-blue-400 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
-                      <div className="flex flex-col justify-center items-center p-1 gap-0.5">
-                        <span
-                          className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-black font-medium truncate w-full text-center`}
-                        >
-                          {calendarEvent.title}
-                        </span>
-                        {(calendarEvent.data as any)?.reason && (
+                    return (
+                      <div
+                        className={`${bgColor} h-full rounded border border-gray-100 cursor-pointer`}
+                      >
+                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
                           <span
-                            className={`${isMobile ? "text-[8px]" : "text-[12px]"} text-black opacity-80 truncate w-full text-center`}
+                            className={`${isMobile ? "text-xs" : "text-sm"} text-black font-medium truncate w-full text-center`}
                           >
-                            {(calendarEvent.data as any).reason}
+                            {calendarEvent.data?.customer
+                              ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                              : "No Customer"}
                           </span>
-                        )}
+                          <span
+                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                          >
+                            {calendarEvent.title}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    );
+                  } else if (
+                    calendarEvent.type === "appointment" &&
+                    calendarEvent.data.status === "cancelled" &&
+                    cancelled === true
+                  ) {
+                    return (
+                      <div className="bg-red-600 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                          <span
+                            className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
+                          >
+                            {calendarEvent.data?.customer
+                              ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                              : "No Customer"}
+                          </span>
+                          <span
+                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                          >
+                            {calendarEvent.title}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  } else if (
+                    calendarEvent.type === "appointment" &&
+                    calendarEvent.data.status === "completed"
+                  ) {
+                    return (
+                      <div className="bg-green-700 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                          <span
+                            className={`${isMobile ? "text-xs" : "text-sm"} text-white font-medium truncate w-full text-center`}
+                          >
+                            {calendarEvent.data?.customer
+                              ? `${calendarEvent.data.customer.firstName} ${calendarEvent.data.customer.lastName}`
+                              : "No Customer"}
+                          </span>
+                          <span
+                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                          >
+                            {calendarEvent.title}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  } else if (calendarEvent.type === "not_working") {
+                    return (
+                      <div className="bg-gray-500 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                          <span
+                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-white truncate w-full text-center`}
+                          >
+                            {calendarEvent.title}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  } else if (calendarEvent.type === "appointmentTimeOff") {
+                    return (
+                      <div className="bg-blue-400 h-full rounded border border-gray-100 cursor-default resize-none opacity-70">
+                        <div className="flex flex-col justify-center items-center p-1 gap-0.5">
+                          <span
+                            className={`${isMobile ? "text-[10px]" : "text-[14px]"} text-black font-medium truncate w-full text-center`}
+                          >
+                            {calendarEvent.title}
+                          </span>
+                          {(calendarEvent.data as any)?.reason && (
+                            <span
+                              className={`${isMobile ? "text-[8px]" : "text-[12px]"} text-black opacity-80 truncate w-full text-center`}
+                            >
+                              {(calendarEvent.data as any).reason}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                },
+                resourceHeader: (props: any) => {
+                  const index = resources.findIndex(
+                    (r) => r.resourceId === props.resource.resourceId
                   );
-                }
-              },
-              resourceHeader: (props: any) => {
-                const index = resources.findIndex(
-                  (r) => r.resourceId === props.resource.resourceId
-                );
-                return (
-                  <ResourceHeader resource={props.resource} index={index} />
-                );
-              },
-            }}
-          />
+                  return (
+                    <ResourceHeader resource={props.resource} index={index} />
+                  );
+                },
+              }}
+            />
+          </ClientSearchContext.Provider>
         </div>
       </DndProvider>
 
