@@ -154,7 +154,7 @@ const CustomerDetailsDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Customer Details</DialogTitle>
+          <DialogTitle className="text-primary">Customer Details</DialogTitle>
           <DialogDescription>
             View customer information below.
           </DialogDescription>
